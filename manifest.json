@@ -1,0 +1,9 @@
+{
+  "name": "Producción GT",
+  "short_name": "GT",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1e40af"
+}
