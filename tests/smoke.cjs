@@ -64,45 +64,53 @@ srv.listen(0, async () => {
     chk(db.length === 1 && db[0].opcion === "AREA" && db[0].rubro === "CORTE" && db[0].ts_inicio === null, "Empecé Corte: apertura con ts_inicio NULL");
     await pg.reload(); await pg.waitForSelector(".box[data-cod=CORTE].abierta");
     chk(true, "al recargar, Corte sigue abierta (sesión del día + historial del servidor)");
-    await pg.click(".box[data-cod=GRAMP]"); await pg.waitForSelector("#cantScreen:not(.hidden)");
-    chk((await pg.textContent("#cantSub")).includes("Grampeado") && (await pg.textContent("#cantLabel")).includes("unidades cortadas"),
-        "tocar otra área pide la cantidad de la abierta, con su unidad");
+    const termino = async (cod) => { await pg.click(".box[data-cod=" + cod + "]"); await pg.waitForSelector("#cantScreen:not(.hidden)"); };
+    await termino("GRAMP");
+    chk((await pg.textContent("#cantLabel")).includes("unidades cortadas") &&
+        (await pg.textContent("#sigueLabel")) === "¿Con qué código seguís en Grampeado?",
+        "tocar otra área: pide la cantidad de la abierta y, en la misma pantalla, el código para seguir en la nueva");
     await pg.fill("#cantInput", "abc"); await pg.click("#cantBtn");
     chk((await pg.textContent("#cantError")).length > 0 && db.length === 1, "cantidad no numérica no se registra");
-    await pg.fill("#cantInput", "120"); await pg.click("#cantBtn"); await alDia();
-    chk(db.length === 2 && db[1].rubro === "CORTE" && db[1].cantidad === 120 && db[1].ts_inicio === db[0].ts_cliente,
-        "Terminé Corte: cierre con cantidad 120 y ts_inicio = apertura");
-    await pg.waitForSelector("#codScreen:not(.hidden)");
-    chk((await pg.textContent("#codLabel")) === "¿Qué vas a grampear?", "Grampeado pregunta «¿Qué vas a grampear?»");
-    await pg.fill("#codInput", "999"); await pg.click("#codBtn");
-    chk((await pg.textContent("#codError")).includes("no está en la lista") && db.length === 2, "código fuera de la lista no se acepta");
-    await pg.fill("#codInput", "0505"); await pg.click("#codBtn"); await alDia();
-    chk(db.length === 3 && db[2].rubro === "GRAMP" && db[2].texto === "505" && db[2].ts_inicio === null, "empezó Grampeado: «0505» se guarda como 505 (sin importar los ceros)");
+    await pg.fill("#cantInput", "120"); await pg.fill("#sigueInput", "999"); await pg.click("#cantBtn");
+    chk((await pg.textContent("#sigueError")).includes("no está en la lista") && db.length === 1, "código siguiente fuera de la lista no se acepta (no graba nada)");
+    await pg.fill("#sigueInput", "0505"); await pg.click("#cantBtn"); await alDia();
+    chk(db.length === 3 && db[1].rubro === "CORTE" && db[1].cantidad === 120 && db[1].ts_inicio === db[0].ts_cliente &&
+        db[2].rubro === "GRAMP" && db[2].texto === "505" && db[2].ts_inicio === null,
+        "Terminé Corte 120 y empezó Grampeado 505 («0505») en el mismo paso");
     chk((await pg.textContent("#abiertaBox")).includes("505"), "el área abierta muestra el código");
-    await pg.click(".box[data-cod=GRAMP]"); await pg.waitForSelector("#cantScreen:not(.hidden)");
-    chk((await pg.textContent("#cantLabel")).includes("del 505"), "al terminar pregunta la cantidad del 505");
-    await pg.fill("#cantInput", "0"); await pg.click("#cantBtn"); await alDia();
-    chk(db.length === 4 && db[3].cantidad === 0 && db[3].texto === "505" && !(await pg.$(".box.abierta")), "Terminé Grampeado 505 con 0, sin área abierta");
+    await termino("GRAMP");
+    chk((await pg.textContent("#sigueLabel")).includes("en Grampeado") && (await pg.textContent("#cantLabel")).includes("del 505"),
+        "al terminar, por defecto propone seguir en la MISMA área");
+    await pg.fill("#cantInput", "0"); await pg.fill("#sigueInput", "505"); await pg.click("#cantBtn"); await alDia();
+    chk(db.length === 5 && db[3].cantidad === 0 && db[3].texto === "505" && db[4].rubro === "GRAMP" && !db[4].ts_inicio,
+        "Terminé Grampeado 505 y sigo en Grampeado con el código siguiente");
+    await termino("GRAMP"); await pg.fill("#cantInput", "4"); await pg.click("#cambioBtn"); await alDia();
+    chk(db.length === 6 && db[5].cantidad === 4 && !(await pg.$(".box.abierta")), "«Cambiar de área / no sigo» cierra sin abrir otra");
     await pg.click(".box[data-cod=DECO]"); await alDia();
-    chk(db.length === 5 && db[4].rubro === "DECO" && !(await pg.isVisible("#codScreen")), "un área sin código (Deco) empieza directo");
-    await pg.click(".box[data-cod=DECO]"); await pg.fill("#cantInput", "7"); await pg.click("#cantBtn"); await alDia();
+    chk(db.length === 7 && db[6].rubro === "DECO" && !(await pg.isVisible("#codScreen")), "un área sin código (Deco) empieza directo");
+    await termino("DECO");
+    chk(!(await pg.isVisible("#sigueInput")), "si el área no pide código, no muestra el campo de código siguiente");
+    await pg.fill("#cantInput", "7"); await pg.click("#cambioBtn"); await alDia();
     await pg.click(".box[data-cod=PED]"); await alDia();
-    await pg.click(".box[data-cod=PED]"); await alDia();
-    chk(db.length === 8 && db[7].rubro === "PED" && db[7].ts_inicio && db[7].cantidad == null && !(await pg.isVisible("#cantScreen")),
-        "Pedidos se termina sin preguntar cantidad");
+    await termino("PED");
+    chk(!(await pg.isVisible("#cantInput")), "Pedidos no pregunta cantidad al terminar");
+    await pg.click("#cambioBtn"); await alDia();
+    chk(db.length === 10 && db[9].rubro === "PED" && db[9].ts_inicio && db[9].cantidad == null, "Pedidos se termina sin cantidad");
     await pg.click(".box[data-cod=GUARD]"); await pg.waitForSelector("#codScreen:not(.hidden)");
     await pg.waitForSelector("#codPend button[data-cod='760']");
     chk((await pg.textContent("#codPend")).includes("12 cajas"), "Guardado muestra lo que salió de Contraído (760 · 12 cajas)");
     await pg.click("#codPend button[data-cod='760']"); await alDia();
-    chk(db.length === 9 && db[8].rubro === "GUARD" && db[8].texto === "760", "tocar el pendiente empieza Guardado con ese código");
-    await pg.click(".box[data-cod=GUARD]"); await pg.fill("#cantInput", "3"); await pg.click("#cantBtn"); await alDia();
+    chk(db.length === 11 && db[10].rubro === "GUARD" && db[10].texto === "760", "tocar el pendiente empieza Guardado con ese código");
+    await termino("GUARD"); await pg.waitForSelector("#siguePend button[data-cod='760']");
+    chk(true, "al terminar Guardado, los pendientes de Contraído aparecen también para seguir");
+    await pg.fill("#cantInput", "3"); await pg.click("#cambioBtn"); await alDia();
     await pg.evaluate(() => { const q = JSON.parse(localStorage.getItem("gt_queue_v3") || "[]");
       q.push({ client_id: "malo", empleado_id: 7, opcion: "AREA", rubro: "NOEXISTE", ts_cliente: new Date().toISOString() });
       localStorage.setItem("gt_queue_v3", JSON.stringify(q)); return window.__gt.flush(); });
     const q = await pg.evaluate(() => [JSON.parse(localStorage.getItem("gt_queue_v3")).length, JSON.parse(localStorage.getItem("gt_rechazados_v3")).length]);
     chk(q[0] === 0 && q[1] === 1, "fila rechazada sale de la cola y queda anotada (no traba)");
     await pg.click("#histBtn");
-    chk((await pg.$$("#hist tr")).length === 6, "resumen de hoy con 5 tramos");
+    const nh = (await pg.$$("#hist tr")).length; chk(nh === 7, "resumen de hoy con 6 tramos (" + (nh - 1) + ")");
     chk(db.every((r) => r.empleado_id === 7), "los registros llevan el empleado_id");
     const ad = await br.newPage({ viewport: { width: 1280, height: 720 } });
     await ad.goto(url + "admin.html");

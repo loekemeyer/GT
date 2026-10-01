@@ -53,6 +53,15 @@ de Virgilio.
 al terminar pregunta el siguiente código. Va en `gt.tareas` (por rubro); el registro ya tiene
 `rubro` y `cantidad`.
 
+### v9.0 — al terminar, «¿con qué seguís?» en la MISMA pantalla (Thomas, 01/10/2026)
+
+Thomas: *«una vez que terminan una tarea te tienen que preguntar con qué seguís, en el mismo momento…
+lo más probable es que continúen en el mismo sector: por defecto sugerir seguir ahí y preguntar con
+qué código»*. La pantalla de **Terminé** tiene dos partes: la cantidad (si el área la pide) y
+**«¿Con qué código seguís en <área>?»**, con la **misma área** propuesta (o la que tocó, si tocó
+otra). «Terminar y seguir» graba el cierre y la apertura siguiente juntos; «Cambiar de área / no
+sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pendientes de Contraído.
+
 ### Estado de los códigos al 01/10/2026 (cargados con el «sí» de Thomas, D13 + D10)
 
 | área | pide código | lista |
