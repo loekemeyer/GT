@@ -220,8 +220,8 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
   Faltan 56: 46 sin color cargado y 10 sin aro en Grampeado (03 Bco 10*25 del 115; 3P 3/4 30*40 y 60*80 del Porta
   Gigante 220/224; Mold 20mm; 03 Negro 15*21; 012 10*10).
 - **Blancos 3P 3/4 (D21, Thomas):** 790 a 793 y 310 llevan **Bco T**; 228 lleva **Bco P** (`gt.receta_aro`).
-- **«Bco T es cubi» (D16):** el corte «cubo / cubi» de Corte son las piezas **3P 3/4 Bco Total** (136 a 141, de 10 a
-  21 cm). Los aros Bco P chicos 066 / 067 / 068 se arman con esas piezas (`gt.receta_corte`).
+- **«Bco T es cubo» (D16, D24):** el Porta Cubo (814 a 816) lleva los aros **Bco T** chicos (063 a 065), igual que
+  790 a 792; en Corte salen de las piezas **3P 3/4 Bco Total** (136 a 141, de 10 a 21 cm).
 - `sql/gt_v126_color_marco.sql`, `sql/gt_v127_surtidos_paquete_corte.sql`, `sql/gt_v128_blancos_cubi.sql`.
 
 ### 1.25 — Pintado cuenta paquetes y el Porta Cubo (Thomas, 01/10/2026: D6, D7, D8)
@@ -230,9 +230,10 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
   paquete **depende de la moldura**: va en `gt.moldura_paquete` (moldura → metros por paquete; 03 = 200 m desde
   1.26, el resto se mide con el paquete terminado de Corte). Movimientos: Pintado + `moldura_pintada` (paquetes, con el color) y − `moldura_lijada`
   «sin anilina» en metros = paquetes × metros por paquete; sin el dato sale «sin receta» con la nota de lo que falta.
-- **D6:** el **Porta Mold 30mm Cubo** (814 / 815 / 816) arma con los aros **3P 3/4 Bco P chicos** (066 / 067 / 068),
-  cargado en `gt.receta_aro`. En Corte esas piezas **se cortan «cubo»**: son las **3P 3/4 Bco Total** 136 a 141
-  («Bco T es cubi», Thomas, D16), cargadas en `gt.receta_corte` desde `sql/gt_v128_blancos_cubi.sql`.
+- **D6 / D24:** el **Porta Mold 30mm Cubo** (814 / 815 / 816) arma con los aros **3P 3/4 Bco T chicos** (063 / 064 /
+  065): *«Bco T es cubo»* (Thomas). Se retira la lectura de 1.25 (Bco P 066 / 067 / 068). Corte los resuelve solo con
+  las piezas **3P 3/4 Bco Total** 136 a 141. Los Bco P chicos quedaron con esas mismas piezas en `gt.receta_corte`
+  (D6: «sí, se arman con Bco Total») y hoy ningún producto los usa. `sql/gt_v129_porta_cubo_bco_t.sql`.
 - **D7:** la anilina de Lijado se pregunta **al empezar** (como quedó en 1.24).
 - `sql/gt_v125_pintado_paquetes_cubo.sql`. La vista completa vigente: `sql/gt_movimientos_vivo.sql`.
 
