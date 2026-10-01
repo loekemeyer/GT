@@ -191,6 +191,30 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 **No se trabaja sábado** (D19). Javier Burgos: sólo el almuerzo es rotativo.
 **Empleados ordenados por legajo** (1.7) en la lista del celular, Producción y Asistencia (`gt.legajo_num`).
 
+### Pedidos y qué fabricar — la base, sin app todavía (Thomas, 01/10/2026: D13, D17, D18, D20)
+
+**Thomas:** *«góndola: tiene máximo y se debe llenar eso + los pedidos»* (D18) · *«máximo 14 días, OC de súper se
+turnan»* (D20) · *«sale parcial o se lo espera algunos días»* (D17) · armado pedido por pedido, después (D13). En GT
+el pedido es una **orden de fabricación**, no de despacho: no se arma y sale en 1-2 días como en Virgilio.
+
+| objeto | qué es |
+|---|---|
+| `gt.producto_max` | máximo de góndola por producto, en cajas (lo carga Thomas, D25). Vacía |
+| `gt.stock_inicial` | conteo inicial por depósito (en la unidad del depósito); los movimientos posteriores al conteo se suman encima. Vacía |
+| `gt.stock` | saldo por depósito y código = conteo + `gt.movimientos` posteriores; `con_conteo = false` cuando no hay conteo |
+| `gt.pedidos` + `gt.pedido_items` | la copia local de los pedidos (venga de donde venga): `pedido_ref` único por origen, `np`, `es_super`, `plazo_dias` (14), `estado` abierto → parcial → armado → cargado → entregado / cancelado; cajas y cajas armadas por renglón. Vacías hasta el sync con Tierra Nativa (D12) |
+| `gt.demanda_producto` | **objetivo = máximo + pedidos abiertos**; `a_fabricar` = objetivo − góndola; `a_empezar` descuenta además lo que ya está en proceso (encolado a contraído). Sin conteo la góndola vale 0 y lo dice la `nota` |
+| `gt.demanda_aros` · `gt.demanda_corte` | eso traducido a aros a grampear y piezas a cortar con las recetas de 1.23–1.26, menos lo que ya hay en stock |
+| `gt.pedidos_plazo` | cada pedido contra su plazo (días, vence, vencido), % armado y si **puede salir completo o parcial** con la góndola de hoy |
+
+- Probado en transacción abortada: 183 con máximo 100, 50 cajas contadas y 30 pedidas → fabricar 80 cajas = 1.280
+  aros 03 Negro 27,5*40 = 5.120 piezas de corte; el 690 (surtido) reparte 120 aros por color; un pedido de 20 días
+  sale `vencido` y `puede_salir_parcial`.
+- `puede_salir` mira la góndola contra ESE pedido solo: dos pedidos que compiten por las mismas cajas salen los dos como
+  cubribles. Es la primera versión; el orden de fabricación (D19) espera el archivo de Thomas.
+- Todo es `security_invoker` y revocado a `anon` / `authenticated`: lo lee el MCP o una RPC futura, no el celular.
+- `sql/gt_v131_pedidos_demanda.sql` (rollback en la cabecera).
+
 ### 1.26 — paquete terminado en Corte y surtidos repartidos (Thomas, 01/10/2026: D11, D15)
 
 - **D15:** las varillas miden **2 m en promedio** y cada moldura trae otra cantidad por paquete. **03 = 100 varillas
