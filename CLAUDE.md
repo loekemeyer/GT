@@ -40,8 +40,9 @@ de Virgilio.
 | Gancho | cajas puestas de gancho |
 | Emblistado | cajas emblistadas |
 | Contraído | cajas contraídas |
-| Pedidos | pedidos armados |
+| Pedidos | **no pregunta** (v5.0: armar uno puede llevar mucho; `pide_cantidad = false`) |
 | Deco | unidades fabricadas |
+| Guardado a góndola | cajas guardadas (v5.0) |
 
 - Tocar un área = **Empecé** (`opcion = 'AREA'`, `rubro`, `ts_inicio` NULL).
 - Tocar el área abierta = **Terminé**: pide la cantidad en la unidad del área (`ts_inicio` = hora de
@@ -51,6 +52,11 @@ de Virgilio.
 **Etapa 2 — a definir con Thomas:** dentro de cada área, qué **código** empezó y cuántas cajas hizo;
 al terminar pregunta el siguiente código. Va en `gt.tareas` (por rubro); el registro ya tiene
 `rubro` y `cantidad`.
+
+### v5.0 — Pedidos sin cantidad y Guardado a góndola (Thomas, 01/10/2026)
+
+`gt.rubros.pide_cantidad = false` cierra el área sin la pantalla de cantidad. La app lee las áreas
+de **`gt_botones()`** (no de `gt_botonera()`: cambió lo que devuelve y un `DROP` no pasa).
 
 ### v4.0 — clave del monitor y código en Grampeado (Thomas, 01/10/2026)
 

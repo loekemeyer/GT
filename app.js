@@ -8,6 +8,7 @@
  *    (ts_inicio = hora de la apertura, cantidad)
  *  · tocar OTRA área con una abierta     → en una sola pantalla cierra la anterior (con su
  *    cantidad) y empieza la nueva.
+ * v5.0: un área con pide_cantidad = false (hoy Pedidos) se cierra sin preguntar cantidad.
  * v4.0: un área con pide_codigo (hoy GRAMPEADO) pregunta al empezar «¿Qué vas a grampear?» y el
  * código viaja en `texto` de la apertura y del cierre. Si gt.codigos tiene filas, el código tiene
  * que estar ahí (del área o sin área); vacía, acepta cualquiera.
@@ -21,7 +22,7 @@
   const LS_SESION = "gt_sesion_v2";
   const LS_QUEUE = "gt_queue_v3";
   const LS_RECH = "gt_rechazados_v3";
-  const LS_AREAS = "gt_areas_v4";
+  const LS_AREAS = "gt_areas_v5";
   const LS_CODS = "gt_codigos_v4";
   const LS_DISP = "gt_dispositivo";
   const TIMEOUT_MS = 15000;
@@ -153,7 +154,15 @@
     const ab = abierta();
     if (!ab) { empezar(a); return; }
     // terminar la abierta (y, si tocó otra, empezar ésa)
-    st.pend = { ab, cierra: areaDe(ab.rubro) || { codigo: ab.rubro, nombre: ab.rubro, unidad: "cantidad" }, sigue: ab.rubro === cod ? null : a };
+    const cierra = areaDe(ab.rubro) || { codigo: ab.rubro, nombre: ab.rubro, unidad: "cantidad" };
+    const sigue = ab.rubro === cod ? null : a;
+    if (cierra.pide_cantidad === false) {               // v5.0: Pedidos cierra sin preguntar cantidad
+      registrar(cierra, { ts_inicio: ab.ts_cliente, texto: ab.texto || "" }); flush();
+      toast("✓ Terminaste " + cierra.nombre);
+      if (sigue) { empezar(sigue); return; }
+      renderBotonera(); return;
+    }
+    st.pend = { ab, cierra, sigue };
     $("cantTitulo").textContent = "Terminé " + st.pend.cierra.nombre;
     $("cantSub").textContent = st.pend.sigue ? "y empiezo " + st.pend.sigue.nombre : "desde " + hhmm(ab.ts_cliente);
     $("cantLabel").textContent = "¿Cuántas " + st.pend.cierra.unidad + (ab.texto ? " del " + ab.texto : "") + "?";
@@ -240,7 +249,7 @@
   }
 
   async function cargarAreas() {
-    try { st.areas = await rpc("gt_botonera", {}); lsSet(LS_AREAS, st.areas); }
+    try { st.areas = await rpc("gt_botones", {}); lsSet(LS_AREAS, st.areas); }
     catch { st.areas = lsGet(LS_AREAS, []); }
     try { st.codigos = await rpc("gt_codigos", {}); lsSet(LS_CODS, st.codigos); }
     catch { st.codigos = lsGet(LS_CODS, []); }
