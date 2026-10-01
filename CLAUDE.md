@@ -191,18 +191,38 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 **No se trabaja sábado** (D19). Javier Burgos: sólo el almuerzo es rotativo.
 **Empleados ordenados por legajo** (1.7) en la lista del celular, Producción y Asistencia (`gt.legajo_num`).
 
-### 1.22 — plantas: Pellegrini y Aula (Thomas, 01/10/2026)
+### 1.23 — movimientos de stock por etapa, sólo internos (Thomas, 01/10/2026)
+
+- *«Por ahora no hace stock, hace solamente movimientos… que internamente funcionen los movimientos, pero que no
+  se los muestren a los operarios.»* → **`gt.movimientos`** (vista): cada «Terminé» con cantidad suma en su etapa
+  y descuenta de la anterior. No hay saldo inicial: **no es stock** hasta que Thomas cargue el inicial.
+- La cadena: Corte → (Grampeado: −2 piezas de cada lado del aro, + aro) → Encolado (− lámina, + encolado) →
+  Montaje (− aro, − encolado, + montado) → Gancho → Emblistado → Contraído → Guardado a góndola. Unidades:
+  piezas, aros y, en las áreas de producto, cajas × UxB. **Sets x3 por medida**; emblistar un set descuenta
+  una de cada medida.
+- **Pedidos y Carga camión (D2): la lógica está y está APAGADA** (`gt.config` `stock_pedidos_activo` = '1' la
+  prende; sin fila = apagada). Pedidos todavía no registra código ni cajas, y el área Carga camión (`CARGA`) no existe.
+- Recetas: `gt.aro_piezas` (corte → aro, automática por perfil + largo; **17 de 123 aros sin resolver**:
+  3P 3/4 Bco P chicos, traveseros y medidas sueltas) y `gt.producto_aro` (producto → aro; **9 automáticos**, el
+  resto espera el color de la planilla D4). A mano mandan `gt.receta_corte` y `gt.receta_aro` (`aro = '-'` = no
+  lleva aro). Lo que falta sale con `receta = 'sin receta'` y en `nota` las opciones.
+- Es una **vista**, no una tabla: no se desincroniza, un cierre reemplazado (`AREAX`) deja de contar solo y al
+  cargar una receta se recalcula toda la historia. Deco y Esnaola no mueven stock.
+- `sql/gt_v123_movimientos.sql` (consultas útiles al final). Probado con una cadena de prueba en transacción
+  abortada.
+
+### 1.22 — plantas: Pellegrini y Esnaola (Thomas, 01/10/2026)
 
 - Después del código de la TV y el nombre, **quien trabaja en más de una planta** elige *«¿En qué planta trabajás
-  hoy?»*. Hoy son **Darío Méndez (6) y Luis Luna (5)**; el resto entra siempre en Pellegrini y no ve la pregunta.
+  hoy?»*. **Pellegrini: los 9 empleados. Esnaola: Darío Méndez (6) y Luis Luna (5)**; el resto entra siempre en
+  Pellegrini y no ve la pregunta. (Se cargó primero como «Aula», mal dictado: la fila `AULA` quedó inactiva.)
 - La botonera muestra sólo las áreas de esa planta: un área (`gt.rubros.planta`) **sin planta es de la principal**
-  (la de menor `orden` en `gt.plantas`). En **Aula** se moldura, se lija y se pinta (las molduras que después se
-  cortan en Pellegrini): áreas **Moldurado · Lijado · Pintado**, por ahora sólo tiempo (sin código ni cantidad).
+  (la de menor `orden` en `gt.plantas`). En **Esnaola** se moldura, se lija y se pinta (las molduras que después
+  se cortan en Pellegrini): áreas **Moldurado · Lijado · Pintado**, por ahora sólo tiempo (sin código ni cantidad).
 - La planta queda en la sesión del día y viaja en cada evento (`gt.registros.planta`). «🏭 Cambiar de planta» sólo
   con nada abierto.
 - Quién trabaja en qué planta = `gt.empleado_planta` (sin filas = sólo la principal). Agregar a alguien es un `insert`.
-- La app lee `gt_botones2()` (trae la planta); si falla, cae a `gt_botones()`. `sql/gt_v122_plantas.sql` (rollback
-  en la cabecera; datos cargados el 01/10: Pellegrini principal, Aula, Darío y Luis en las dos, las 3 áreas).
+- La app lee `gt_botones2()` (trae la planta); si falla, cae a `gt_botones()`. `sql/gt_v122_plantas.sql`.
 
 ### 1.18 — deco se agrupa por modelo (Thomas, 01/10/2026)
 

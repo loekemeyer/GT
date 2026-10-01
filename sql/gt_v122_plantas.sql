@@ -1,4 +1,6 @@
 -- GT v1.22 — PLANTAS: Pellegrini y Aula (Thomas, 01/10/2026).
+-- ⚠ CORREGIDO el mismo día (1.23): la planta es ESNAOLA, no «Aula» (se dictó mal). Quedó gt.plantas 'ESNA'
+--   «Esnaola» con las 3 áreas y Darío y Luis; la fila 'AULA' quedó inactiva (el conector no deja DELETE).
 -- «Cuando pongan el código, lo primero que les pregunte es en qué planta van a trabajar, Pellegrini o Aula.
 --  Solamente para Darío Méndez y Luis Luna. El resto siempre trabajan en Pellegrini.»
 -- En Aula: primero se moldura, después se lija y después se pinta (las molduras que después se cortan en Pellegrini).

@@ -9,7 +9,7 @@
  *  · tocar OTRA área con una abierta     → en una sola pantalla cierra la anterior (con su
  *    cantidad) y empieza la nueva.
  * 1.22: PLANTAS (Thomas). Quien trabaja en más de una planta (gt.empleado_planta: Darío Méndez y Luis Luna) elige
- *       al entrar «¿En qué planta trabajás hoy?» (Pellegrini o Aula). La botonera muestra sólo las áreas de esa planta
+ *       al entrar «¿En qué planta trabajás hoy?» (Pellegrini o Esnaola). La botonera muestra sólo las áreas de esa planta
  *       (un área sin planta es de la principal) y cada evento lleva la planta. El resto entra como siempre.
  * v1.3: 🍽️ Almuerzo (al volver propone el área anterior) y 🏁 Terminar día (evento FIN). Los avisos de
  *       almuerzo (13:10) y salida (17:45) los manda la base: gt.alerta_jornada.
