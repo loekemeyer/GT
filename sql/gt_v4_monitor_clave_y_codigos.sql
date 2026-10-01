@@ -36,10 +36,11 @@ returns jsonb language plpgsql stable security definer set search_path = '' as $
 declare v_hash text;
 begin
   select valor into v_hash from gt.config where clave = 'monitor_pass';
-  if v_hash is null or p_pass is null or extensions.crypt(p_pass, v_hash) <> v_hash then
+  -- sin clave configurada el monitor muestra el código (como la v3), para no dejar a nadie afuera
+  if v_hash is not null and (p_pass is null or extensions.crypt(p_pass, v_hash) <> v_hash) then
     return jsonb_build_object('ok', false);
   end if;
-  return jsonb_build_object('ok', true,
+  return jsonb_build_object('ok', true, 'sin_clave', v_hash is null,
     'clave', gt.clave_de(floor(extract(epoch from now()) / 60)::bigint),
     'cambia_en_s', 60 - (floor(extract(epoch from now()))::bigint % 60));
 end $$;

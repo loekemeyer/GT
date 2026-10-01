@@ -9,6 +9,7 @@ const AREAS = [
   { codigo: "GRAMP", nombre: "Grampeado", unidad: "unidades grampeadas", orden: 2, pide_codigo: true },
   { codigo: "DECO", nombre: "Deco", unidad: "unidades fabricadas", orden: 9 },
 ];
+let CLAVE_MON = null;
 const db = [];
 const CODIGOS = [{ codigo: "505", descripcion: "Pinza", rubro: "GRAMP" }, { codigo: "760", descripcion: "Otra", rubro: null }];
 const srv = http.createServer((req, res) => {
@@ -16,7 +17,7 @@ const srv = http.createServer((req, res) => {
     let body = ""; req.on("data", (c) => (body += c)); req.on("end", () => {
       const b = JSON.parse(body || "{}"), fn = req.url.split("/").pop();
       let out;
-      if (fn === "gt_monitor_clave") out = b.p_pass === "151515" ? { ok: true, clave: "1234", cambia_en_s: 42 } : { ok: false };
+      if (fn === "gt_monitor_clave") out = !CLAVE_MON ? { ok: true, sin_clave: true, clave: "1234", cambia_en_s: 42 } : b.p_pass === CLAVE_MON ? { ok: true, clave: "1234", cambia_en_s: 42 } : { ok: false };
       else if (fn === "gt_clave_validar") out = b.p_clave === "1234" ? { ok: true, empleados: [{ id: 7, nombre: "Prueba" }, { id: 8, nombre: "Otro" }] } : { ok: false };
       else if (fn === "gt_botonera") out = AREAS;
       else if (fn === "gt_codigos") out = CODIGOS;
@@ -91,6 +92,9 @@ srv.listen(0, async () => {
     chk(db.every((r) => r.empleado_id === 7), "los registros llevan el empleado_id");
     const ad = await br.newPage({ viewport: { width: 1280, height: 720 } });
     await ad.goto(url + "admin.html");
+    await ad.waitForFunction(() => document.getElementById("clave").textContent === "1234");
+    chk(true, "sin clave configurada en la base, el monitor muestra el código (como antes)");
+    CLAVE_MON = "151515"; await ad.reload();
     await ad.waitForSelector("#login:not(.hidden)");
     chk(!(await ad.isVisible("#monitor")), "monitor sin clave no muestra el código");
     await ad.fill("#passInput", "111111"); await ad.click("#passBtn");

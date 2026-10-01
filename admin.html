@@ -89,19 +89,20 @@
     }
 
     async function pedir(primera) {
-      if (!pass) { verLogin(); return; }
+      const p = pass || "";   // sin clave guardada se prueba vacía: si la base no tiene clave configurada, muestra igual
       clearTimeout(timer);
       try {
         const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 10000);
         const r = await fetch(CFG.SUPABASE_URL + "/rest/v1/rpc/gt_monitor_clave", {
           method: "POST", signal: ctl.signal,
           headers: { apikey: CFG.SUPABASE_KEY, Authorization: "Bearer " + CFG.SUPABASE_KEY, "Content-Type": "application/json" },
-          body: JSON.stringify({ p_pass: pass }) });
+          body: JSON.stringify({ p_pass: p }) });
         clearTimeout(t);
         if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
-        if (!d.ok) { pass = null; try { localStorage.removeItem(LS_PASS); } catch {} verLogin("Clave incorrecta"); return; }
-        if (primera) { try { localStorage.setItem(LS_PASS, pass); } catch {} }
+        if (!d.ok) { const msg = p ? "Clave incorrecta" : ""; pass = null; try { localStorage.removeItem(LS_PASS); } catch {} verLogin(msg); return; }
+        if (primera && p && !d.sin_clave) { try { localStorage.setItem(LS_PASS, p); } catch {} }
+        $("monitor").classList.remove("hidden"); $("login").classList.add("hidden");
         $("clave").textContent = d.clave;
         fin = Date.now() + d.cambia_en_s * 1000;
         ultimoOk = Date.now();
@@ -124,7 +125,7 @@
     $("passBtn").onclick = entrar;
     $("passInput").addEventListener("keydown", (e) => { if (e.key === "Enter") entrar(); });
     $("salirMon").onclick = (e) => { e.preventDefault(); pass = null; try { localStorage.removeItem(LS_PASS); } catch {} verLogin(); };
-    if (pass) { $("monitor").classList.remove("hidden"); pedir(); } else verLogin();
+    pedir(true);
   })();
   </script>
 </body>
