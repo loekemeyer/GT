@@ -61,7 +61,7 @@ al terminar pregunta el siguiente código. Va en `gt.tareas` (por rubro); el reg
 | Grampeado | sí | 123 propios |
 | Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos |
 | Guardado a góndola | sí | los mismos 323 productos («guardan todas las de Contraído») + pide cajas |
-| Deco | sí | 35 de operación — **falta** el costado derecho del tablero (661/662/663, 556, 557) |
+| Deco | sí | 71 de operación (tablero «08. Sector Deco» completo) |
 | Pedidos | no | — (y no pide cantidad) |
 
 Avisos de llegada: hoy van al grupo de Virgilio; el grupo propio de GT se configura con

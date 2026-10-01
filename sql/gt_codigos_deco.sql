@@ -1,6 +1,6 @@
 -- Códigos de operación del Sector Deco, transcriptos de la foto del tablero «08. Sector Deco» (Thomas, 01/10/2026).
--- El 3004 (Patas c/Trav) es el mismo para 540, 542 y 547. La parte derecha del tablero (661/662/663 Caja de Té,
--- 556 Cajón Porta Cubiertos, 557 Secaplatos) salió cortada en la foto: sus códigos NO están acá.
+-- El 3004 (Patas c/Trav) es el mismo para 540, 542 y 547. Más el costado derecho del tablero (segunda foto):
+-- 556, 557, Cajas de Té 661/662/663, Cajones 2 Tablas, Difusores y Carteles. Total 71.
 -- APLICADO el 01/10/2026 con el «sí» de Thomas (D13). Idempotente.
 insert into gt.codigos_rubro (rubro, codigo, descripcion, medida) values
   ('DECO', '3001', 'Armado Bastidor — 542 Bandeja Cama Chica 30x40', null),
@@ -37,7 +37,43 @@ insert into gt.codigos_rubro (rubro, codigo, descripcion, medida) values
   ('DECO', '3063', 'Bastidor + Patas c/Tornillo — 547 Bandeja Cama Chica 30x40', null),
   ('DECO', '3079', 'Armado Bandeja — 535 Bandeja 20x20', null),
   ('DECO', '3080', 'Armado Bandeja — 536 Bandeja 13x30', null),
-  ('DECO', '3081', 'Armado Bandeja — 538 Bandeja 30x30', null)
+  ('DECO', '3081', 'Armado Bandeja — 538 Bandeja 30x30', null),
+  ('DECO', '3044', 'Tridente — 556 Cajón Porta Cubiertos', null),
+  ('DECO', '3082', 'Bastidor + Tridente — 556 Cajón Porta Cubiertos', null),
+  ('DECO', '3048', 'Parrilla Platos — 557 Secaplatos', null),
+  ('DECO', '3049', 'Parrilla Vasos — 557 Secaplatos', null),
+  ('DECO', '3050', 'Unificación Parrillas — 557 Secaplatos', null),
+  ('DECO', '3084', 'Panal + Bastidor + Tapa c/Bisagras — 661 Caja de Té Chica', null),
+  ('DECO', '3086', 'Panal + Bastidor + Tapa c/Bisagras — 662 Caja de Té Mediana', null),
+  ('DECO', '3088', 'Panal + Bastidor + Tapa c/Bisagras — 663 Caja de Té Grande', null),
+  ('DECO', '3085', 'Colocado Divisores — 661 Caja de Té Chica', null),
+  ('DECO', '3087', 'Colocado Divisores — 662 Caja de Té Mediana', null),
+  ('DECO', '3089', 'Colocado Divisores — 663 Caja de Té Grande', null),
+  ('DECO', '3064', 'Armado Cajón 2 Tablas — 563 Cajón 2 Tablas Bco 15*21', null),
+  ('DECO', '3101', 'Armado Cajón 2 Tablas — 563J Cajón 2 Tablas Bco 15*21 Jumbo', null),
+  ('DECO', '3065', 'Armado Cajón 2 Tablas — 564 Cajón 2 Tablas Bco 20*30', null),
+  ('DECO', '3102', 'Armado Cajón 2 Tablas — 564J Cajón 2 Tablas Bco 20*30 Jumbo', null),
+  ('DECO', '3066', 'Armado Cajón 2 Tablas — 565 Cajón 2 Tablas Bco 25*35', null),
+  ('DECO', '3067', 'Armado Cajón 2 Tablas — 570 Cajón 2 Tablas Nat 15*21 Grabado 10cm', null),
+  ('DECO', '3068', 'Armado Cajón 2 Tablas — 581 Cajón 2 Tablas Nat 15*21 s/Grabado', null),
+  ('DECO', '3069', 'Armado Cajón 2 Tablas — 582 Cajón 2 Tablas Nat 20*30 s/Grabado', null),
+  ('DECO', '3070', 'Armado Cajón 2 Tablas — 583 Cajón 2 Tablas Nat 15*21 2 Grab', null),
+  ('DECO', '3071', 'Armado Cajón 2 Tablas — 584 Cajón 2 Tablas Nat 20*30 2 Grab', null),
+  ('DECO', '3072', 'Armado Cajón 2 Tablas — 585 Cajón 2 Tablas Nat 25*35 2 Grab', null),
+  ('DECO', '3073', 'Montaje — 589 Cajón 2 Tablas Bco 15*21 Kitchen', null),
+  ('DECO', '3074', 'Montaje — 590 Cajón 2 Tablas Bco 20*30 Kitchen', null),
+  ('DECO', '3075', 'Montaje — 591 Cajón 2 Tablas Bco 25*35 Kitchen', null),
+  ('DECO', '3076', 'Montaje — 592 Cajón 2 Tablas Bco 15*21 Bath', null),
+  ('DECO', '3077', 'Montaje — 593 Cajón 2 Tablas Bco 20*30 Bath', null),
+  ('DECO', '3078', 'Montaje — 594 Cajón 2 Tablas Bco 25*35 Bath', null),
+  ('DECO', '3057', 'Montaje — 895 Difusor Blanco', null),
+  ('DECO', '3058', 'Montaje — 896 Difusor Natural', null),
+  ('DECO', '3059', 'Montaje — 897 Difusor Negro', null),
+  ('DECO', '3090', 'Montaje — 302 Cartel 045', null),
+  ('DECO', '3091', 'Montaje — 303 Cartel 4 Tablas 70mm', null),
+  ('DECO', '3092', 'Montaje — 307 Árbol c/Soga', null),
+  ('DECO', '3093', 'Montaje — 314 Tabla 70x10', null),
+  ('DECO', '3083', 'Montaje — 615 Cajón Servilletero', null)
 on conflict (rubro, codigo) do update set descripcion = excluded.descripcion;
 
 update gt.rubros set pide_codigo = true where codigo = 'DECO';
