@@ -191,6 +191,12 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 **No se trabaja sábado** (D19). Javier Burgos: sólo el almuerzo es rotativo.
 **Empleados ordenados por legajo** (1.7) en la lista del celular, Producción y Asistencia (`gt.legajo_num`).
 
+### 1.18 — deco se agrupa por modelo (Thomas, 01/10/2026)
+
+Bandejas, cajones, percheros, cuelgas…: sólo van juntos si la descripción es la misma salvo el diseño
+(modelo antes de «Mold» + moldura + medida): 540 = 542, 563 = 583, 564 = 584, 565 = 585. Cuadros, porta,
+espejos, diplomas y múltiples siguen con moldura + medida. `sql/gt_v118_grupo_deco.sql`.
+
 ### 1.17 — sets de 3 (Thomas, 01/10/2026)
 
 - Un **set de 3** («Set x3» en la descripción) se compara **sólo con sets de 3** en todo el proceso: grupo
