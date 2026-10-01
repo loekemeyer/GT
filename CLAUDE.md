@@ -218,7 +218,7 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
   740 a 745). `sql/gt_v130_marrones_012.sql`. Sin cargar: los estampados (045) y los de deco que no se mandaron a ChatGPT.
 - `gt.producto_aro` usa el color (`gt.color_aro`: Bco/Bco P → Blanco, Bco T → Blanco total, Nat → Natural). Un
   artículo «c/Soga» sólo toma aros «p/soga». **De 241 piezas producto→aro, resueltas: 202** (12 al empezar el día).
-  Faltan 39: 25 sin color cargado (deco y 045) y 14 sin aro en Grampeado: 03 Bco 10*25 (115), 3P 3/4 30*40 y 60*80
+  Faltan 39: 25 sin color cargado (deco, 045 y el 817) y 14 sin aro en Grampeado: 03 Bco 10*25 (115), 3P 3/4 30*40 y 60*80
   (Porta Gigante 224 / 220), Mold 20mm (Porta Atril 640 a 645), 03 Negro 15*21 (Sets 408 / 409), 012 Nat 10*10 (281),
   012 Cedro 30*40 (Diploma 214), 012 Roble p/soga 10*15 (604) y 012 Nat 20*25 / 20*30 (713 / 714).
 - **Blancos 3P 3/4 (D21, Thomas):** 790 a 793 y 310 llevan **Bco T**; 228 lleva **Bco P** (`gt.receta_aro`).
