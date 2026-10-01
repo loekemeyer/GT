@@ -11,7 +11,7 @@
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=2.0" />
+  <link rel="stylesheet" href="styles.css?v=3.0" />
 </head>
 <body>
   <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
@@ -43,21 +43,18 @@
     <div id="hist" class="hidden"></div>
   </div>
 
-  <!-- 3) TEXTO (tarea que pide un dato) -->
-  <div id="textoScreen" class="hidden">
-    <div class="selected-container">
-      <span class="back-arrow" id="textoVolver">←</span>
-      <span class="selected-box" id="textoCodigo"></span>
-      <span class="selected-desc" id="textoDesc"></span>
-    </div>
-    <div class="label" id="textoLabel"></div>
-    <input id="textoInput" class="text-input" autocomplete="off" />
-    <div id="textoError" class="error"></div>
-    <button id="textoBtn" class="primary-btn">Enviar</button>
+  <!-- 3) CANTIDAD (al terminar un área) -->
+  <div id="cantScreen" class="hidden">
+    <div class="top-bar"><span class="back-top" id="cantVolver">←</span><span class="op-name" id="cantTitulo"></span></div>
+    <div class="cant-sub" id="cantSub"></div>
+    <div class="label" id="cantLabel"></div>
+    <input id="cantInput" class="text-input" inputmode="decimal" autocomplete="off" placeholder="0" />
+    <div id="cantError" class="error"></div>
+    <button id="cantBtn" class="primary-btn">Confirmar</button>
   </div>
 
   <div id="toast" class="toast hidden"></div>
-  <script src="config.js?v=2.0"></script>
-  <script src="app.js?v=2.0"></script>
+  <script src="config.js?v=3.0"></script>
+  <script src="app.js?v=3.0"></script>
 </body>
 </html>

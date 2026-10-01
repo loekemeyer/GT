@@ -40,3 +40,6 @@ button{width:100%;padding:16px;font-size:22px;margin-top:14px;border-radius:6px;
 .version a{color:#999;}
 .nombres{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px;}
 .nombres button{margin-top:0;font-size:20px;padding:18px 8px;background:#fff;border:2px solid #333;}
+.row-3{grid-template-columns:repeat(3,1fr);}
+.row-3 .box{min-height:84px;}
+.cant-sub{text-align:center;font-size:18px;color:#555;margin-top:6px;}

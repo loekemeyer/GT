@@ -4,10 +4,10 @@ const path = require("path");
 let pw; try { pw = require("playwright"); } catch { pw = require(require("child_process").execSync("npm root -g").toString().trim() + "/playwright"); }
 const http = require("http"), fs = require("fs");
 const ROOT = path.join(__dirname, "..");
-const TAREAS = [
-  { codigo: "EP", descripcion: "Empecé producción", tipo: "tarea", pide_texto: true, etiqueta_texto: "Orden", fila: 1, orden: 1 },
-  { codigo: "PB", descripcion: "Pare baño", tipo: "tarea", pide_texto: false, etiqueta_texto: null, fila: 2, orden: 1 },
-  { codigo: "FJ", descripcion: "Fin de jornada", tipo: "evento", pide_texto: false, etiqueta_texto: null, fila: 3, orden: 1 },
+const AREAS = [
+  { codigo: "CORTE", nombre: "Corte", unidad: "unidades cortadas", orden: 1 },
+  { codigo: "GRAMP", nombre: "Grampeado", unidad: "unidades grampeadas", orden: 2 },
+  { codigo: "DECO", nombre: "Deco", unidad: "unidades fabricadas", orden: 9 },
 ];
 const db = [];
 const srv = http.createServer((req, res) => {
@@ -17,11 +17,11 @@ const srv = http.createServer((req, res) => {
       let out;
       if (fn === "gt_clave_actual") out = { clave: "1234", cambia_en_s: 42 };
       else if (fn === "gt_clave_validar") out = b.p_clave === "1234" ? { ok: true, empleados: [{ id: 7, nombre: "Prueba" }, { id: 8, nombre: "Otro" }] } : { ok: false };
-      else if (fn === "gt_tareas") out = TAREAS;
+      else if (fn === "gt_areas") out = AREAS;
       else if (fn === "gt_registros_hoy") out = db.filter((r) => r.empleado_id === b.p_empleado);
       else if (fn === "gt_registrar") {
         const ok = [], rech = [];
-        b.p_filas.forEach((f) => { if (f.opcion === "ZZ") rech.push({ client_id: f.client_id, motivo: "tarea inexistente" });
+        b.p_filas.forEach((f) => { if (!AREAS.find((a) => a.codigo === f.rubro)) rech.push({ client_id: f.client_id, motivo: "área inexistente" });
           else { if (!db.find((x) => x.client_id === f.client_id)) db.push(f); ok.push(f.client_id); } });
         out = { ok, rechazados: rech };
       }
@@ -50,28 +50,32 @@ srv.listen(0, async () => {
     await pg.waitForSelector("#nombreLista button");
     chk((await pg.$$("#nombreLista button")).length === 2, "con el código bueno aparece la lista de nombres");
     await pg.click("#nombreLista button[data-id='7']");
-    await pg.waitForSelector(".box[data-cod=EP]");
+    await pg.waitForSelector(".box[data-cod=CORTE]");
     chk((await pg.textContent("#opName")) === "Prueba", "entra con el nombre elegido");
-    chk((await pg.$$(".box")).length === 3, "botonera armada desde gt_tareas (3 botones)");
-    await pg.click(".box[data-cod=EP]"); await pg.fill("#textoInput", "OT-15"); await pg.click("#textoBtn");
-    await pg.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
-    chk(db.length === 1 && db[0].texto === "OT-15" && db[0].ts_inicio === null, "apertura EP con dato, ts_inicio NULL");
-    chk(await pg.$eval(".box[data-cod=PB]", (e) => e.classList.contains("off")), "con EP abierta, otra tarea queda bloqueada");
-    await pg.reload(); await pg.waitForSelector(".box[data-cod=EP].abierta");
-    chk(true, "al recargar, EP sigue abierta (sesión del día + historial del servidor)");
-    await pg.click(".box[data-cod=EP]");
-    await pg.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
-    chk(db.length === 2 && db[1].opcion === "EP" && db[1].ts_inicio === db[0].ts_cliente && db[1].texto === "OT-15", "cierre EP con ts_inicio = apertura");
-    await pg.click(".box[data-cod=FJ]");
-    await pg.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
-    chk(db.length === 3 && db[2].opcion === "FJ", "evento FJ de un toque");
-    await pg.evaluate(() => { const q = JSON.parse(localStorage.getItem("gt_queue_v2") || "[]");
-      q.push({ client_id: "malo", empleado_id: 7, opcion: "ZZ", ts_cliente: new Date().toISOString() });
-      localStorage.setItem("gt_queue_v2", JSON.stringify(q)); return window.__gt.flush(); });
-    const q = await pg.evaluate(() => [JSON.parse(localStorage.getItem("gt_queue_v2")).length, JSON.parse(localStorage.getItem("gt_rechazados_v2")).length]);
+    chk((await pg.$$(".box")).length === 3, "botonera = las áreas de gt_areas (3)");
+    const alDia = () => pg.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
+    await pg.click(".box[data-cod=CORTE]"); await alDia();
+    chk(db.length === 1 && db[0].opcion === "AREA" && db[0].rubro === "CORTE" && db[0].ts_inicio === null, "Empecé Corte: apertura con ts_inicio NULL");
+    await pg.reload(); await pg.waitForSelector(".box[data-cod=CORTE].abierta");
+    chk(true, "al recargar, Corte sigue abierta (sesión del día + historial del servidor)");
+    await pg.click(".box[data-cod=GRAMP]"); await pg.waitForSelector("#cantScreen:not(.hidden)");
+    chk((await pg.textContent("#cantSub")).includes("Grampeado") && (await pg.textContent("#cantLabel")).includes("unidades cortadas"),
+        "tocar otra área pide la cantidad de la abierta, con su unidad");
+    await pg.fill("#cantInput", "abc"); await pg.click("#cantBtn");
+    chk((await pg.textContent("#cantError")).length > 0 && db.length === 1, "cantidad no numérica no se registra");
+    await pg.fill("#cantInput", "120"); await pg.click("#cantBtn"); await alDia();
+    chk(db.length === 3 && db[1].rubro === "CORTE" && db[1].cantidad === 120 && db[1].ts_inicio === db[0].ts_cliente,
+        "Terminé Corte: cierre con cantidad 120 y ts_inicio = apertura");
+    chk(db[2].rubro === "GRAMP" && db[2].ts_inicio === null, "y empezó Grampeado en el mismo paso");
+    await pg.click(".box[data-cod=GRAMP]"); await pg.fill("#cantInput", "0"); await pg.click("#cantBtn"); await alDia();
+    chk(db.length === 4 && db[3].cantidad === 0 && !(await pg.$(".box.abierta")), "Terminé Grampeado con 0, sin área abierta");
+    await pg.evaluate(() => { const q = JSON.parse(localStorage.getItem("gt_queue_v3") || "[]");
+      q.push({ client_id: "malo", empleado_id: 7, opcion: "AREA", rubro: "NOEXISTE", ts_cliente: new Date().toISOString() });
+      localStorage.setItem("gt_queue_v3", JSON.stringify(q)); return window.__gt.flush(); });
+    const q = await pg.evaluate(() => [JSON.parse(localStorage.getItem("gt_queue_v3")).length, JSON.parse(localStorage.getItem("gt_rechazados_v3")).length]);
     chk(q[0] === 0 && q[1] === 1, "fila rechazada sale de la cola y queda anotada (no traba)");
     await pg.click("#histBtn");
-    chk((await pg.$$("#hist tr")).length === 4, "resumen de hoy con 3 registros");
+    chk((await pg.$$("#hist tr")).length === 3, "resumen de hoy con 2 tramos");
     chk(db.every((r) => r.empleado_id === 7), "los registros llevan el empleado_id");
     const ad = await br.newPage({ viewport: { width: 1280, height: 720 } });
     await ad.goto(url + "admin.html");

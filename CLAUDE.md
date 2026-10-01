@@ -12,7 +12,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | módulo admin (monitor) | `admin.html` |
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
-| estructura de la base | `sql/gt_schema_v2.sql` (con rollback en la cabecera) |
+| estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
 | prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
@@ -27,32 +27,57 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 estando en la planta. La semilla es propia (`:gt-clave:`): el código de GT nunca coincide con el
 de Virgilio.
 
+### Qué registra el operario (Thomas, 01/10/2026)
+
+**Etapa 1 — sólo el ÁREA.** La botonera son las 9 áreas de `gt.rubros`:
+
+| área | al terminar cuenta |
+|---|---|
+| Corte | unidades cortadas |
+| Grampeado | unidades grampeadas |
+| Encolado | cajas encoladas |
+| Montaje | cajas montadas ⚠ dictado «cajas encoladas», a confirmar |
+| Gancho | cajas puestas de gancho |
+| Emblistado | cajas emblistadas |
+| Contraído | cajas contraídas |
+| Pedidos | pedidos armados |
+| Deco | unidades fabricadas |
+
+- Tocar un área = **Empecé** (`opcion = 'AREA'`, `rubro`, `ts_inicio` NULL).
+- Tocar el área abierta = **Terminé**: pide la cantidad en la unidad del área (`ts_inicio` = hora de
+  apertura, `cantidad`). Tocar **otra** área con una abierta cierra la anterior (con su cantidad) y
+  empieza la nueva en el mismo paso.
+
+**Etapa 2 — a definir con Thomas:** dentro de cada área, qué **código** empezó y cuántas cajas hizo;
+al terminar pregunta el siguiente código. Va en `gt.tareas` (por rubro); el registro ya tiene
+`rubro` y `cantidad`.
+
 ### Base: schema `gt`
 
 | tabla | qué es |
 |---|---|
 | `gt.empleados` | id, **nombre** (único), legajo (opcional), activo |
-| `gt.rubros` | rubros habilitados: código, nombre, orden, activo |
-| `gt.tareas` | la botonera: código, descripción, `tipo` (`tarea` abre/cierra · `evento` un toque), `rubro`, `pide_texto` + `etiqueta_texto`, `fila`/`orden` |
-| `gt.empleado_rubro` | qué rubros tiene cada empleado. **Sin filas, ve todas las tareas**; con filas, las de sus rubros + las sin rubro |
-| `gt.registros` | el log de eventos, mismo formato que `Registros_Produccion_Virgilio`: apertura con `ts_inicio` NULL, cierre con `ts_inicio` = hora de la apertura. `client_id` único = sin duplicados |
+| `gt.rubros` | las **áreas**: código, nombre, **unidad** (lo que se cuenta al terminar), orden, activo |
+| `gt.tareas` | (etapa 2) los códigos de cada área: código, descripción, `tipo`, `rubro`, `pide_texto` + `etiqueta_texto`, `fila`/`orden` |
+| `gt.empleado_rubro` | (etapa 2) qué áreas tiene cada empleado. **Sin filas, ve todo** |
+| `gt.registros` | el log de eventos, mismo formato que `Registros_Produccion_Virgilio`: apertura con `ts_inicio` NULL, cierre con `ts_inicio` = hora de la apertura, más `rubro` y `cantidad`. `client_id` único = sin duplicados |
 
 - **El celular NO lee el schema `gt`**: RLS prendida y todo revocado para `anon`/`authenticated`.
-  Entra sólo por RPC SECURITY DEFINER: `gt_clave_actual`, `gt_clave_validar`, `gt_tareas(empleado)`,
+  Entra sólo por RPC SECURITY DEFINER: `gt_clave_actual`, `gt_clave_validar`, `gt_areas`, `gt_tareas(empleado)`,
   `gt_registrar` (lote, contesta fila por fila `ok` / `rechazados`) y `gt_registros_hoy(empleado)`.
   Por eso **no hace falta exponer el schema en la API**.
 - **La botonera NO está en el código**: agregar o sacar una tarea, un rubro o un empleado es un
   `insert`/`update` en el schema, no un deploy.
 - **Una sola tarea abierta por operario.** La tarea abierta no se guarda: se deduce de los eventos
   del día (servidor + cola local), así sobrevive a una recarga.
-- **Cola offline** en `localStorage` (`gt_queue_v2`), reintento cada 30 s y al volver la red. Una fila
-  rechazada sale de la cola y queda en `gt_rechazados_v2` (no traba al resto — lección v25.20 de Virgilio).
+- **Cola offline** en `localStorage` (`gt_queue_v3`), reintento cada 30 s y al volver la red. Una fila
+  rechazada sale de la cola y queda en `gt_rechazados_v3` (no traba al resto — lección v25.20 de Virgilio).
 
 ### Cargar datos (con el «sí» del dueño, regla BD)
 
 ```sql
 insert into gt.empleados (nombre) values ('<Nombre Apellido>') on conflict (nombre) do nothing;
-insert into gt.rubros (codigo, nombre, orden) values ('<COD>', '<Rubro>', 1) on conflict do nothing;
+insert into gt.rubros (codigo, nombre, unidad, orden) values ('<COD>', '<Área>', '<cajas …>', 10) on conflict do nothing;
 insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_texto, fila, orden)
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```

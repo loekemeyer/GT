@@ -1,11 +1,16 @@
 /* Producción GT — app de operario.
- * Mismo molde que la de Virgilio / Cervantes: código del monitor + nombre → botonera → cada toque es un evento.
+ * Mismo molde que la de Virgilio: código del monitor + nombre → botonera → cada toque es un evento.
  * El código (4 dígitos) cambia cada minuto y sólo se pide al entrar; la sesión dura el día.
- *  · tarea  (abre y cierra): 1er toque = apertura (ts_inicio NULL); 2do toque = cierre
- *    (ts_inicio = hora de la apertura). Sólo UNA tarea abierta por operario a la vez.
- *  · evento (un toque): una sola fila.
- * La botonera NO está escrita acá: sale de gt.tareas (RPC gt_tareas). Agregar una tarea es
- * un insert en la base, no un deploy.
+ *
+ * ETAPA 1 (Thomas, 01/10/2026): la botonera son las ÁREAS (gt.rubros).
+ *  · tocar un área sin nada abierto      → «Empecé» (opcion AREA, ts_inicio NULL)
+ *  · tocar el área abierta               → «Terminé»: pide la cantidad en la unidad del área
+ *    (ts_inicio = hora de la apertura, cantidad)
+ *  · tocar OTRA área con una abierta     → en una sola pantalla cierra la anterior (con su
+ *    cantidad) y empieza la nueva.
+ * ETAPA 2 (a definir): dentro del área, qué código empezó y cuántas cajas; el registro ya
+ * guarda rubro + cantidad para eso.
+ *
  * Los eventos van a una cola en localStorage y se mandan en lote; la base contesta fila por
  * fila qué entró y qué rechazó, así una fila mala no traba al resto.
  */
@@ -13,14 +18,14 @@
   "use strict";
   const CFG = window.GT_CFG;
   const LS_SESION = "gt_sesion_v2";
-  const LS_QUEUE = "gt_queue_v2";
-  const LS_RECH = "gt_rechazados_v2";
-  const LS_TAREAS = "gt_tareas_v2";
+  const LS_QUEUE = "gt_queue_v3";
+  const LS_RECH = "gt_rechazados_v3";
+  const LS_AREAS = "gt_areas_v3";
   const LS_DISP = "gt_dispositivo";
   const TIMEOUT_MS = 15000;
 
   const $ = (id) => document.getElementById(id);
-  const st = { emp: null, nombre: null, tareas: [], server: [], pendTexto: null };
+  const st = { emp: null, nombre: null, areas: [], server: [], pend: null };
 
   /* ---------- utilidades ---------- */
   function lsGet(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } }
@@ -36,9 +41,10 @@
     return new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/Buenos_Aires" });
   }
   function dur(ms) { const m = Math.max(0, Math.round(ms / 60000)); return Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0"); }
+  function num(n) { return Number(n).toLocaleString("es-AR"); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
   function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.remove("hidden"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add("hidden"), 2500); }
-  function show(id) { ["claveScreen", "nombreScreen", "optionsScreen", "textoScreen"].forEach((s) => $(s).classList.toggle("hidden", s !== id)); }
+  function show(id) { ["claveScreen", "nombreScreen", "optionsScreen", "cantScreen"].forEach((s) => $(s).classList.toggle("hidden", s !== id)); }
 
   async function rpc(name, body) {
     const ctl = new AbortController();
@@ -79,9 +85,7 @@
         lsSet(LS_RECH, viejos.slice(-200));
         toast("⚠ " + rech.length + " registro(s) rechazado(s): " + rech[0].motivo);
       }
-      // lo que entró pasa al historial del servidor; lo que se agregó mientras tanto queda
-      const enviados = q.filter((x) => ok.has(x.client_id));
-      st.server = st.server.concat(enviados.filter((x) => x.empleado_id === st.emp));
+      st.server = st.server.concat(q.filter((x) => ok.has(x.client_id) && x.empleado_id === st.emp));
       lsSet(LS_QUEUE, cola().filter((x) => !ok.has(x.client_id) && !rechIds.has(x.client_id)));
     } catch (e) {
       // sin red o base caída: queda en la cola y se reintenta
@@ -97,113 +101,94 @@
     });
     return out.sort((a, b) => a.ts_cliente.localeCompare(b.ts_cliente));
   }
-  function tareaDe(cod) { return st.tareas.find((t) => t.codigo === cod) || null; }
-  // la tarea abierta se DEDUCE de los eventos (servidor + cola), no se guarda aparte
+  function areaDe(cod) { return st.areas.find((a) => a.codigo === cod) || null; }
+  // el área abierta se DEDUCE de los eventos (servidor + cola), no se guarda aparte
   function abierta() {
     let ab = null;
     eventosHoy().forEach((r) => {
-      const t = tareaDe(r.opcion);
-      if (!t || t.tipo !== "tarea") return;
+      if (r.opcion !== "AREA") return;
       if (!r.ts_inicio) ab = r;
-      else if (ab && ab.opcion === r.opcion) ab = null;
+      else if (ab && ab.rubro === r.rubro) ab = null;
     });
     return ab;
   }
 
-  function registrar(t, texto, tsInicio) {
-    const fila = {
-      client_id: uuid(), empleado_id: st.emp, opcion: t.codigo, descripcion: t.descripcion,
-      texto: texto || "", ts_cliente: new Date().toISOString(), ts_inicio: tsInicio || null,
+  function registrar(area, extra, offsetMs) {
+    const fila = Object.assign({
+      client_id: uuid(), empleado_id: st.emp, opcion: "AREA", rubro: area.codigo,
+      descripcion: area.nombre, texto: "", cantidad: null,
+      ts_cliente: new Date(Date.now() + (offsetMs || 0)).toISOString(), ts_inicio: null,
       dispositivo: dispositivo(),
-    };
+    }, extra || {});
     const q = cola(); q.push(fila); lsSet(LS_QUEUE, q);
-    syncBadge();
-    flush();
     return fila;
   }
 
-  /* ---------- pantallas ---------- */
+  /* ---------- botonera de áreas ---------- */
   function renderBotonera() {
     const ab = abierta();
     $("abiertaBox").classList.toggle("hidden", !ab);
     if (ab) {
-      const t = tareaDe(ab.opcion);
-      $("abiertaBox").innerHTML = "En curso: <b>" + esc(ab.opcion) + "</b> " + esc(t ? t.descripcion : "") +
-        (ab.texto ? " · " + esc(ab.texto) : "") + " · desde " + hhmm(ab.ts_cliente) + "<br><small>Tocala de nuevo para terminarla</small>";
+      const a = areaDe(ab.rubro);
+      $("abiertaBox").innerHTML = "Estás en <b>" + esc(a ? a.nombre : ab.rubro) + "</b> desde " + hhmm(ab.ts_cliente) +
+        "<br><small>Tocala para terminar · tocá otra área para pasarte</small>";
     }
-    const filas = {};
-    st.tareas.forEach((t) => { (filas[t.fila] = filas[t.fila] || []).push(t); });
-    const html = Object.keys(filas).sort((a, b) => a - b).map((f) => {
-      const ts = filas[f];
-      const cols = Math.min(ts.length, 4);
-      return '<div class="row" style="grid-template-columns:repeat(' + cols + ',1fr)">' + ts.map((t) => {
-        const esAb = ab && ab.opcion === t.codigo;
-        const off = ab && !esAb && t.tipo === "tarea";
-        return '<div class="box' + (esAb ? " abierta" : "") + (off ? " off" : "") + '" data-cod="' + esc(t.codigo) + '">' +
-          '<div class="box-title">' + esc(t.codigo) + '</div><div class="box-desc">' +
-          esc(esAb ? "Terminar · " + t.descripcion : t.descripcion) + "</div></div>";
-      }).join("") + "</div>";
-    }).join("");
-    $("botonera").innerHTML = st.tareas.length ? html :
-      '<div class="error">No hay tareas cargadas para GT. Hay que darlas de alta en gt.tareas.</div>';
+    $("botonera").innerHTML = st.areas.length ?
+      '<div class="row row-3">' + st.areas.map((a) => {
+        const esAb = ab && ab.rubro === a.codigo;
+        return '<div class="box' + (esAb ? " abierta" : "") + '" data-cod="' + esc(a.codigo) + '">' +
+          '<div class="box-title">' + esc(a.nombre) + '</div><div class="box-desc">' +
+          (esAb ? "Terminé" : "Empecé") + "</div></div>";
+      }).join("") + "</div>" :
+      '<div class="error">No hay áreas cargadas para GT (gt.rubros).</div>';
+    syncBadge();
     if (!$("hist").classList.contains("hidden")) renderHist();
   }
 
   function tocar(cod) {
-    const t = tareaDe(cod); if (!t) return;
+    const a = areaDe(cod); if (!a) return;
     const ab = abierta();
-    if (t.tipo === "tarea" && ab && ab.opcion === cod) {   // cerrar
-      registrar(t, ab.texto, ab.ts_cliente);
-      toast("✓ " + cod + " terminada · " + dur(Date.now() - new Date(ab.ts_cliente).getTime()));
-      renderBotonera(); return;
+    if (!ab) {                                         // empezar
+      registrar(a); flush();
+      toast("✓ Empezaste " + a.nombre); renderBotonera(); return;
     }
-    if (t.tipo === "tarea" && ab) { toast("Primero terminá " + ab.opcion); return; }
-    if (t.pide_texto) { abrirTexto(t); return; }
-    registrar(t, "", null);
-    toast("✓ " + cod + (t.tipo === "tarea" ? " empezada" : " registrado"));
-    renderBotonera();
+    // terminar la abierta (y, si tocó otra, empezar ésa)
+    st.pend = { ab, cierra: areaDe(ab.rubro) || { codigo: ab.rubro, nombre: ab.rubro, unidad: "cantidad" }, sigue: ab.rubro === cod ? null : a };
+    $("cantTitulo").textContent = "Terminé " + st.pend.cierra.nombre;
+    $("cantSub").textContent = st.pend.sigue ? "y empiezo " + st.pend.sigue.nombre : "desde " + hhmm(ab.ts_cliente);
+    $("cantLabel").textContent = "¿Cuántas " + st.pend.cierra.unidad + "?";
+    $("cantInput").value = ""; $("cantError").textContent = "";
+    show("cantScreen"); $("cantInput").focus();
   }
 
-  function abrirTexto(t) {
-    st.pendTexto = t;
-    $("textoCodigo").textContent = t.codigo;
-    $("textoDesc").textContent = t.descripcion;
-    $("textoLabel").textContent = t.etiqueta_texto || "Ingresar dato";
-    $("textoInput").value = ""; $("textoError").textContent = "";
-    show("textoScreen"); $("textoInput").focus();
-  }
-  function enviarTexto() {
-    const t = st.pendTexto, v = $("textoInput").value.trim();
-    if (!v) { $("textoError").textContent = "Falta el dato"; return; }
-    registrar(t, v, null);
-    toast("✓ " + t.codigo + (t.tipo === "tarea" ? " empezada" : " registrado"));
-    st.pendTexto = null; show("optionsScreen"); renderBotonera();
+  function confirmarCant() {
+    const p = st.pend; if (!p) return;
+    const v = $("cantInput").value.trim().replace(",", ".");
+    if (!/^\d+(\.\d+)?$/.test(v)) { $("cantError").textContent = "Poné un número (0 si no hiciste ninguna)"; return; }
+    registrar(p.cierra, { ts_inicio: p.ab.ts_cliente, cantidad: Number(v) });
+    if (p.sigue) registrar(p.sigue, null, 1);         // 1 ms después: el orden del día queda claro
+    flush();
+    toast("✓ Terminaste " + p.cierra.nombre + " · " + num(v) + " " + p.cierra.unidad + (p.sigue ? " · empezaste " + p.sigue.nombre : ""));
+    st.pend = null; show("optionsScreen"); renderBotonera();
   }
 
   function renderHist() {
-    const evs = eventosHoy();
+    const evs = eventosHoy().filter((r) => r.opcion === "AREA");
     if (!evs.length) { $("hist").innerHTML = '<p style="text-align:center">Sin registros hoy.</p>'; return; }
     const pend = new Set(cola().map((x) => x.client_id));
-    $("hist").innerHTML = "<table><tr><th>Hora</th><th>Tarea</th><th>Dato</th><th>Dur.</th></tr>" +
-      evs.slice().reverse().map((r) => {
-        const t = tareaDe(r.opcion);
-        const d = r.ts_inicio ? dur(new Date(r.ts_cliente) - new Date(r.ts_inicio)) :
-          (t && t.tipo === "tarea" ? "inicio" : "—");
-        return "<tr><td>" + hhmm(r.ts_cliente) + (pend.has(r.client_id) ? " ⏳" : "") + "</td><td>" + esc(r.opcion) +
-          "</td><td>" + esc(r.texto || "—") + "</td><td>" + d + "</td></tr>";
+    // un renglón por tramo: el cierre trae la duración y la cantidad; una apertura sin cierre es «en curso»
+    const cerradas = new Set(evs.filter((r) => r.ts_inicio).map((r) => r.rubro + "|" + r.ts_inicio));
+    const filas = evs.filter((r) => r.ts_inicio || !cerradas.has(r.rubro + "|" + r.ts_cliente));
+    $("hist").innerHTML = "<table><tr><th>Área</th><th>Desde</th><th>Hasta</th><th>Dur.</th><th>Cant.</th></tr>" +
+      filas.slice().reverse().map((r) => {
+        const a = areaDe(r.rubro), nom = esc(a ? a.nombre : r.rubro), p = pend.has(r.client_id) ? " ⏳" : "";
+        if (!r.ts_inicio) return "<tr><td>" + nom + "</td><td>" + hhmm(r.ts_cliente) + p + "</td><td colspan=3>en curso</td></tr>";
+        return "<tr><td>" + nom + "</td><td>" + hhmm(r.ts_inicio) + "</td><td>" + hhmm(r.ts_cliente) + p + "</td><td>" +
+          dur(new Date(r.ts_cliente) - new Date(r.ts_inicio)) + "</td><td>" + (r.cantidad == null ? "—" : num(r.cantidad)) + "</td></tr>";
       }).join("") + "</table>";
   }
 
-  /* ---------- carga ---------- */
-  async function cargarTareas() {
-    try { st.tareas = await rpc("gt_tareas", { p_empleado: st.emp }); lsSet(LS_TAREAS, st.tareas); }
-    catch { st.tareas = lsGet(LS_TAREAS, []); }
-  }
-  async function cargarHoy() {
-    try { st.server = (await rpc("gt_registros_hoy", { p_empleado: st.emp })).map((r) => Object.assign({ empleado_id: st.emp }, r)); }
-    catch { /* sin red: se arma con la cola */ }
-  }
-
+  /* ---------- ingreso ---------- */
   // 1) código del monitor → lista de nombres
   async function validarClave() {
     const v = $("claveInput").value.replace(/\D/g, "");
@@ -220,18 +205,27 @@
     show("nombreScreen");
   }
 
+  async function cargarAreas() {
+    try { st.areas = await rpc("gt_areas", {}); lsSet(LS_AREAS, st.areas); }
+    catch { st.areas = lsGet(LS_AREAS, []); }
+  }
+  async function cargarHoy() {
+    try { st.server = (await rpc("gt_registros_hoy", { p_empleado: st.emp })).map((r) => Object.assign({ empleado_id: st.emp }, r)); }
+    catch { /* sin red: se arma con la cola */ }
+  }
+
   // 2) entra con el empleado elegido (o con la sesión del día, sin pedir código)
   async function entrar(id, nombre) {
     st.emp = Number(id); st.nombre = nombre;
     lsSet(LS_SESION, { id: st.emp, nombre, dia: hoyAR() });
     $("opName").textContent = nombre;
     show("optionsScreen");
-    await Promise.all([cargarTareas(), cargarHoy()]);
-    renderBotonera(); syncBadge(); flush();
+    await Promise.all([cargarAreas(), cargarHoy()]);
+    renderBotonera(); flush();
   }
 
   function salir() {
-    if (abierta() && !confirm("Tenés una tarea abierta. ¿Cambiar de operario igual? (queda abierta)")) return;
+    if (abierta() && !confirm("Tenés un área sin terminar. ¿Cambiar de operario igual? (queda abierta)")) return;
     try { localStorage.removeItem(LS_SESION); } catch { /* nada */ }
     st.emp = null; st.server = []; $("claveInput").value = ""; $("hist").classList.add("hidden");
     show("claveScreen");
@@ -245,9 +239,9 @@
   $("nombreVolver").onclick = () => show("claveScreen");
   $("botonera").addEventListener("click", (e) => { const b = e.target.closest(".box"); if (b) tocar(b.dataset.cod); });
   $("salirBtn").onclick = salir;
-  $("textoBtn").onclick = enviarTexto;
-  $("textoInput").addEventListener("keydown", (e) => { if (e.key === "Enter") enviarTexto(); });
-  $("textoVolver").onclick = () => { st.pendTexto = null; show("optionsScreen"); };
+  $("cantBtn").onclick = confirmarCant;
+  $("cantInput").addEventListener("keydown", (e) => { if (e.key === "Enter") confirmarCant(); });
+  $("cantVolver").onclick = () => { st.pend = null; show("optionsScreen"); };
   $("histBtn").onclick = () => { const h = $("hist"); h.classList.toggle("hidden"); if (!h.classList.contains("hidden")) renderHist(); };
   window.addEventListener("online", flush);
   setInterval(flush, 30000);

@@ -1,6 +1,9 @@
--- GT v2.0 — reemplaza a gt_schema_v1.sql (tablas vacías al aplicarlo, 01/10/2026).
--- Cambios: el operario entra con el CÓDIGO del monitor (cambia cada minuto) + elige su NOMBRE.
---          Empleados por nombre (legajo opcional), rubros habilitados y tareas por rubro.
+-- GT v3.0 — reemplaza a la v1 (tablas vacías al aplicarlo, 01/10/2026).
+-- El operario entra con el CÓDIGO del monitor (cambia cada minuto) + elige su NOMBRE.
+-- Etapa 1 (Thomas, 01/10): sólo registra en qué ÁREA empieza y termina, y al terminar cuántas
+--   unidades/cajas hizo (gt.rubros.unidad). Eventos: opcion = 'AREA', rubro = el área,
+--   apertura ts_inicio NULL, cierre ts_inicio = hora de apertura + cantidad.
+-- Etapa 2 (a definir): dentro del área, qué CÓDIGO empezó y cuántas cajas → gt.tareas por rubro.
 -- Rollback: drop schema gt cascade; y los drop function de abajo.
 
 drop function if exists public.gt_login(text);
@@ -23,6 +26,7 @@ create table gt.empleados (
 create table gt.rubros (
   codigo  text primary key,
   nombre  text not null,
+  unidad  text not null,             -- lo que se cuenta al terminar: 'unidades cortadas', 'cajas encoladas'…
   orden   int not null default 0,
   activo  boolean not null default true
 );
@@ -52,7 +56,9 @@ create table gt.registros (
   id           uuid primary key default gen_random_uuid(),
   client_id    text not null unique,
   empleado_id  bigint not null references gt.empleados(id),
-  opcion       text not null,
+  opcion       text not null,          -- 'AREA' en la etapa 1
+  rubro        text references gt.rubros(codigo),
+  cantidad     numeric check (cantidad is null or cantidad >= 0),
   descripcion  text,
   texto        text,
   ts_cliente   timestamptz,
@@ -101,6 +107,12 @@ begin
 end $$;
 
 -- ---------- botonera, registro e historial ----------
+create or replace function public.gt_areas()
+returns table (codigo text, nombre text, unidad text, orden int)
+language sql stable security definer set search_path = '' as $$
+  select r.codigo, r.nombre, r.unidad, r.orden from gt.rubros r where r.activo order by r.orden, r.codigo;
+$$;
+
 create or replace function public.gt_tareas(p_empleado bigint)
 returns table (codigo text, descripcion text, tipo text, rubro text, pide_texto boolean,
                etiqueta_texto text, fila int, orden int)
@@ -128,11 +140,15 @@ begin
       rech := rech || jsonb_build_object('client_id', null, 'motivo', 'sin client_id');
     elsif v_emp is null or not exists (select 1 from gt.empleados e where e.activo and e.id = v_emp) then
       rech := rech || jsonb_build_object('client_id', v_cid, 'motivo', 'empleado inexistente o inactivo');
-    elsif not exists (select 1 from gt.tareas t where t.codigo = f->>'opcion') then
+    elsif f->>'opcion' = 'AREA' and not exists (select 1 from gt.rubros r where r.codigo = f->>'rubro') then
+      rech := rech || jsonb_build_object('client_id', v_cid, 'motivo', 'área inexistente');
+    elsif f->>'opcion' <> 'AREA' and not exists (select 1 from gt.tareas t where t.codigo = f->>'opcion') then
       rech := rech || jsonb_build_object('client_id', v_cid, 'motivo', 'tarea inexistente');
+    elsif (f->>'cantidad') is not null and (f->>'cantidad') !~ '^\d+(\.\d+)?$' then
+      rech := rech || jsonb_build_object('client_id', v_cid, 'motivo', 'cantidad inválida');
     else
-      insert into gt.registros (client_id, empleado_id, opcion, descripcion, texto, ts_cliente, ts_inicio, dispositivo)
-      values (v_cid, v_emp, f->>'opcion', f->>'descripcion', nullif(f->>'texto',''),
+      insert into gt.registros (client_id, empleado_id, opcion, rubro, cantidad, descripcion, texto, ts_cliente, ts_inicio, dispositivo)
+      values (v_cid, v_emp, f->>'opcion', nullif(f->>'rubro',''), (f->>'cantidad')::numeric, f->>'descripcion', nullif(f->>'texto',''),
               (f->>'ts_cliente')::timestamptz, nullif(f->>'ts_inicio','')::timestamptz, f->>'dispositivo')
       on conflict (client_id) do nothing;
       ok := ok || to_jsonb(v_cid);
@@ -142,10 +158,10 @@ begin
 end $$;
 
 create or replace function public.gt_registros_hoy(p_empleado bigint)
-returns table (client_id text, opcion text, descripcion text, texto text,
+returns table (client_id text, opcion text, rubro text, cantidad numeric, descripcion text, texto text,
                ts_cliente timestamptz, ts_inicio timestamptz)
 language sql stable security definer set search_path = '' as $$
-  select r.client_id, r.opcion, r.descripcion, r.texto, r.ts_cliente, r.ts_inicio
+  select r.client_id, r.opcion, r.rubro, r.cantidad, r.descripcion, r.texto, r.ts_cliente, r.ts_inicio
     from gt.registros r
    where r.empleado_id = p_empleado
      and r.ts_cliente >= (date_trunc('day', now() at time zone 'America/Argentina/Buenos_Aires')
@@ -153,7 +169,25 @@ language sql stable security definer set search_path = '' as $$
    order by r.ts_cliente;
 $$;
 
-revoke all on function public.gt_clave_actual(), public.gt_clave_validar(text), public.gt_tareas(bigint),
+revoke all on function public.gt_clave_actual(), public.gt_clave_validar(text), public.gt_areas(), public.gt_tareas(bigint),
                        public.gt_registrar(jsonb), public.gt_registros_hoy(bigint) from public;
-grant execute on function public.gt_clave_actual(), public.gt_clave_validar(text), public.gt_tareas(bigint),
+grant execute on function public.gt_clave_actual(), public.gt_clave_validar(text), public.gt_areas(), public.gt_tareas(bigint),
                           public.gt_registrar(jsonb), public.gt_registros_hoy(bigint) to anon, authenticated;
+
+-- ---------- DATOS INICIALES (con el «sí» del dueño) ----------
+insert into gt.rubros (codigo, nombre, unidad, orden) values
+  ('CORTE',  'Corte',      'unidades cortadas',          1),
+  ('GRAMP',  'Grampeado',  'unidades grampeadas',        2),
+  ('ENCOL',  'Encolado',   'cajas encoladas',            3),
+  ('MONT',   'Montaje',    'cajas montadas',             4),
+  ('GANCHO', 'Gancho',     'cajas puestas de gancho',    5),
+  ('EMBL',   'Emblistado', 'cajas emblistadas',          6),
+  ('CONTR',  'Contraído',  'cajas contraídas',           7),
+  ('PED',    'Pedidos',    'pedidos armados',            8),
+  ('DECO',   'Deco',       'unidades fabricadas',        9)
+on conflict (codigo) do nothing;
+
+insert into gt.empleados (nombre) values
+  ('Javier Burgos'),('Lautaro Durante'),('Federico Realini'),('Juan Gimenez'),('Luis Luna'),
+  ('Dario Mendez'),('Ximena Ortiz'),('Walter Saucedo'),('David Galarza')
+on conflict (nombre) do nothing;
