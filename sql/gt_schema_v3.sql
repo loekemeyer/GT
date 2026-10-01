@@ -179,7 +179,7 @@ insert into gt.rubros (codigo, nombre, unidad, orden) values
   ('CORTE',  'Corte',      'unidades cortadas',          1),
   ('GRAMP',  'Grampeado',  'unidades grampeadas',        2),
   ('ENCOL',  'Encolado',   'cajas encoladas',            3),
-  ('MONT',   'Montaje',    'cajas montadas',             4),
+  ('MONT',   'Montaje',    'cajas fabricadas',           4),
   ('GANCHO', 'Gancho',     'cajas puestas de gancho',    5),
   ('EMBL',   'Emblistado', 'cajas emblistadas',          6),
   ('CONTR',  'Contraído',  'cajas contraídas',           7),

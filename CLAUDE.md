@@ -36,7 +36,7 @@ de Virgilio.
 | Corte | unidades cortadas |
 | Grampeado | unidades grampeadas |
 | Encolado | cajas encoladas |
-| Montaje | cajas montadas ⚠ dictado «cajas encoladas», a confirmar |
+| Montaje | cajas fabricadas |
 | Gancho | cajas puestas de gancho |
 | Emblistado | cajas emblistadas |
 | Contraído | cajas contraídas |
