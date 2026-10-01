@@ -195,7 +195,8 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 
 Bandejas, cajones, percheros, cuelgas…: sólo van juntos si la descripción es la misma salvo el diseño
 (modelo antes de «Mold» + moldura + medida): 540 = 542, 563 = 583, 564 = 584, 565 = 585. Cuadros, porta,
-espejos, diplomas y múltiples siguen con moldura + medida. `sql/gt_v118_grupo_deco.sql`.
+espejos, diplomas y múltiples siguen con moldura + medida. Excepciones (1.19, en `gt.codigo_grupo`): 818 con
+456/536 (Mold 12 = 012), 547 con 540/542, 541 solo. `sql/gt_v118_grupo_deco.sql`.
 
 ### 1.17 — sets de 3 (Thomas, 01/10/2026)
 

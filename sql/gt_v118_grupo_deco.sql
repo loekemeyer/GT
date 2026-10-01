@@ -16,3 +16,11 @@ as $$
       then gt.moldura_de(p_desc) || ' · ' || btrim(p_medida)
     else btrim(regexp_replace(p_desc, '\s*\mMold\M.*$', '', 'i')) || ' · ' || gt.moldura_de(p_desc) || ' · ' || btrim(p_medida) end
 $$;
+
+-- GT v1.19 — APLICADO el 2026-10-01 (Thomas, D41 / D42 / D43): excepciones a mano en gt.codigo_grupo.
+insert into gt.codigo_grupo (codigo, grupo, nota) values
+ ('818', 'Bandeja manija/mad · Mold 012 · 13*30', 'D42 Thomas 01/10: Mold 12 = Mold 012'),
+ ('547', 'Bandeja de Cama · Mold 012 · 30*40', 'D41 Thomas 01/10: tarda igual que 540'),
+ ('541', 'Bandeja Asas de Cuero · Mold 045 · 25*35', 'D43 Thomas 01/10: va solo')
+on conflict (codigo) do update set grupo = excluded.grupo, nota = excluded.nota;
+-- verificado: 818 con 456/536; 547 con 540/542; 541 solo (537/548 siguen juntos).
