@@ -209,7 +209,7 @@ el pedido es una **orden de fabricación**, no de despacho: no se arma y sale en
 | `gt.stock_inicial` | conteo inicial por depósito (en la unidad del depósito); los movimientos posteriores al conteo se suman encima. Vacía |
 | `gt.stock` | saldo por depósito y código = conteo + `gt.movimientos` posteriores; `con_conteo = false` cuando no hay conteo |
 | `gt.pedidos` + `gt.pedido_items` | la copia local de los pedidos (venga de donde venga): `pedido_ref` único por origen, `np`, `es_super`, `plazo_dias` (14), `estado` abierto → parcial → armado → cargado → entregado / cancelado; cajas y cajas armadas por renglón. Las llena `gt.sync_pedidos_tn()` desde la página de TN (D12, cada 10 min) |
-| `gt.demanda_producto` | **objetivo = máximo que rige + pedidos abiertos** (rige el de consumo si está cargado, si no el de góndola: `maximo_rige`, `supera_gondola_cajas`); `a_fabricar` = objetivo − góndola; `a_empezar` descuenta además lo que ya está en proceso (encolado a contraído). Sin conteo la góndola vale 0 y lo dice la `nota` |
+| `gt.demanda_producto` | **objetivo = máximo que rige + pedidos abiertos** (rige el consumo —calculado desde TN, o cargado a mano— y si no el de góndola: `maximo_rige`, `supera_gondola_cajas`, `consumo_cajas_mes`); `a_fabricar` = objetivo − góndola; `a_empezar` descuenta además lo que ya está en proceso (encolado a contraído). Sin conteo la góndola vale 0 y lo dice la `nota` |
 | `gt.demanda_aros` · `gt.demanda_corte` | eso traducido a aros a grampear y piezas a cortar con las recetas de 1.23–1.26, menos lo que ya hay en stock |
 | `gt.pedidos_plazo` | cada pedido contra su plazo (días, vence, vencido), % armado y si **puede salir completo o parcial** con la góndola de hoy |
 
@@ -247,6 +247,36 @@ el pedido es una **orden de fabricación**, no de despacho: no se arma y sale en
 - Resultado: **273 de 301 pares producto→aro resueltos** (antes 264 de 305). Los 28 sin resolver: 6 de los
   discontinuos y **22 sin color cargado** (deco, 045 y el 817).
 - `sql/gt_v132_d22_d25_discontinuos_aros_consumo.sql` (rollback en la cabecera). Probado en transacción abortada.
+
+### El CONSUMO (la Est. Madre de GT) vive en el Supabase de TIERRA NATIVA (Thomas, 01/10/2026)
+
+**Thomas:** *«La lógica del consumo tiene que estar en Supa de Tierra Nativa»*. La proyección de venta de cada
+producto se calcula **en el proyecto de TN**, sobre SUS ventas (`sales_lines`: 40.369 líneas, 10/2020 → 13/08/2026),
+y Gestión sólo la lee. Es la misma regla que la Est. Madre de LK (`fn_proyeccion_oc_virgilio`), sin la parte de
+empresas: **ventana de 6 meses cerrados, proyección = el mayor entre la media y el 4.º mejor mes; si en 6 no vendió,
+12; reincorporados con 2+ meses cerrados → promedio desde que volvieron si da más; los de 5 dígitos no se proyectan;
+excluidos y remaps de la propia página** (hoy 0 y 0). Parámetros en `app_settings` de TN (`gt_proy_meses_ventana` 6,
+`gt_proy_piso_mejor_mes` 4, `gt_proy_meses_fallback` 12).
+
+| paso | quién | qué |
+|---|---|---|
+| 1 | Thomas, SQL Editor de TN | `sql/gt_tn_consumo_1_lado_tierra_nativa.sql`: `gt_proy_cfg`, `gt_proy_window`, vista **`gt_proyeccion`** (cod · cajas/mes · uxb · fuente), con SELECT para `gt_reader` |
+| 2 | Claude, Gestión (✅ aplicado, `gt_v138_consumo_tn`) | **`gt.consumo_tn`** (copia local, una fila por código), **`gt.sync_consumo_tn()`**, y `gt.demanda_producto` lee el consumo |
+| 3 | Claude, Gestión (cuando 1 esté) | `sql/gt_tn_consumo_3_lado_gestion_despues.sql`: import de `gt_proyeccion` a `gt_tn`, primera corrida, cron **`gt-sync-consumo-tn`** diario 06:35 ART |
+
+- **Máximo por consumo = proyección mensual × `gt.config.consumo_meses_cobertura`** (1,5 por defecto, el índice de las
+  OCs de Virgilio; D19 fija el real). Un `maximo_consumo_cajas` a mano en `gt.producto_max` gana (`maximo_rige =
+  'consumo manual'`). **Un producto con consumo entra a la demanda aunque no tenga pedidos ni máximo de góndola**: se
+  fabrica para reponer. Columnas nuevas al final de `gt.demanda_producto`: `consumo_cajas_mes`, `consumo_fuente`.
+- **Validado el 01/10 con una copia de las tablas de TN** (schema temporal, transacción abortada; por el FDW directo
+  se cortaba a los 60 s): **314 códigos con proyección, 12.551 cajas/mes; 206 son productos de GT**. Fuentes: 167
+  ventana 6, 66 ventana 12, 81 reincorporados. Los 108 que no son de GT son Loeke/otros que TN también vende (582E,
+  583E, 590E…) y la demanda los ignora. Cálculo: 677 ms sobre 40 mil líneas. Probado el máximo: 134 vende 55,83
+  cajas/mes → máximo 84.
+- ⚠ **La última venta cargada en TN es del 13/08/2026**: la Est. Madre vale lo que valga la carga de ventas de TN.
+  Si nadie sube las ventas, la proyección envejece sin avisar (mismo pozo que `watchdog_frescura_datos` en Virgilio).
+- ⚠ `fetch_size` del servidor `tn_db` subido a **10.000** (default 100): con el default, 40 mil filas eran 400 viajes
+  y una sola lectura entera pasaba los 60 s del conector.
 
 ### Pedidos de Tierra Nativa — acceso de sólo lectura, UNA sola vez (D12) · ✅ CONECTADO el 01/10/2026
 
