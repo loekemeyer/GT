@@ -174,12 +174,25 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.4 — horario por día de la semana (Thomas, 01/10/2026)
+
+`gt.horario_dia` (empleado, día 1–7): manda sobre `gt.horario_empleado` y `gt.config`. `sin_almuerzo` = de corrido.
+
+| empleado | días | entrada | almuerzo | salida |
+|---|---|---|---|---|
+| Lautaro Durante | lun, mié, jue, vie | 08:00 | 12:40–13:00 | 17:30 |
+| Lautaro Durante | martes | 08:00 | de corrido | 13:30 |
+| Javier Burgos | todos | 08:00 | **flexible** | 17:30 |
+| el resto | todos | 08:00 | 12:00–13:00 | 17:30 |
+
+Los avisos miden a cada uno contra **su** horario del día y lo muestran entre paréntesis.
+
 ### 1.3 — unidades por caja y jornada completa (Thomas, 01/10/2026)
 
 - **Unidades por caja** en `gt.codigos.uxb` (los 323 productos). Las áreas 3 a 7 se analizan en unidades:
   `select * from gt.produccion` da cada tramo con `cantidad` (cajas) y `unidades` (cajas × UxB).
 - **Jornada**: todos entran a las **08:00**, almuerzan de **12:00 a 13:00** y se van a las **17:30**
-  (`gt.config`). **Lautaro Durante y Javier Burgos** tienen almuerzo flexible (`gt.horario_empleado`).
+  (`gt.config`). **Javier Burgos** tiene almuerzo flexible (`gt.horario_empleado`); **Lautaro** tiene horario fijo por día (1.4).
 - En la app: **🍽️ Almuerzo** (cierra el área con su cantidad; al volver propone el área anterior) y
   **🏁 Terminar día** (evento `FIN`). Si no lo tocan, el día **no** figura terminado.
 - **Avisos a GT Avisos**: 08:05 y 10:30 (entrada), **13:10 almuerzo** (no ficharon / salieron antes /
