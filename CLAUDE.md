@@ -216,10 +216,13 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 - **No se cargaron los marrones de las molduras 012 y 05** (Cedro / Marrón / Roble) fuera de 690–694: las dos fuentes
   no coinciden (D10). Tampoco los estampados (045).
 - `gt.producto_aro` usa el color (`gt.color_aro`: Bco/Bco P → Blanco, Bco T → Blanco total, Nat → Natural). Un
-  artículo «c/Soga» sólo toma aros «p/soga». **De 241 piezas producto→aro, resueltas: 179** (12 al empezar el día).
-  Faltan 62: 46 sin color cargado, 12 sin aro en Grampeado (03 Bco 10*25 del 115; 3P 3/4 30*40 y 60*80 del Porta
-  Gigante 220/224; Mold 20mm; 03 Negro 15*21; 012 10*10) y 6 blancos 3P 3/4 (Bco P o Bco T).
-- `sql/gt_v126_color_marco.sql`, `sql/gt_v127_surtidos_paquete_corte.sql`.
+  artículo «c/Soga» sólo toma aros «p/soga». **De 241 piezas producto→aro, resueltas: 185** (12 al empezar el día).
+  Faltan 56: 46 sin color cargado y 10 sin aro en Grampeado (03 Bco 10*25 del 115; 3P 3/4 30*40 y 60*80 del Porta
+  Gigante 220/224; Mold 20mm; 03 Negro 15*21; 012 10*10).
+- **Blancos 3P 3/4 (D21, Thomas):** 790 a 793 y 310 llevan **Bco T**; 228 lleva **Bco P** (`gt.receta_aro`).
+- **«Bco T es cubi» (D16):** el corte «cubo / cubi» de Corte son las piezas **3P 3/4 Bco Total** (136 a 141, de 10 a
+  21 cm). Los aros Bco P chicos 066 / 067 / 068 se arman con esas piezas (`gt.receta_corte`).
+- `sql/gt_v126_color_marco.sql`, `sql/gt_v127_surtidos_paquete_corte.sql`, `sql/gt_v128_blancos_cubi.sql`.
 
 ### 1.25 — Pintado cuenta paquetes y el Porta Cubo (Thomas, 01/10/2026: D6, D7, D8)
 
@@ -228,8 +231,8 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
   1.26, el resto se mide con el paquete terminado de Corte). Movimientos: Pintado + `moldura_pintada` (paquetes, con el color) y − `moldura_lijada`
   «sin anilina» en metros = paquetes × metros por paquete; sin el dato sale «sin receta» con la nota de lo que falta.
 - **D6:** el **Porta Mold 30mm Cubo** (814 / 815 / 816) arma con los aros **3P 3/4 Bco P chicos** (066 / 067 / 068),
-  cargado en `gt.receta_aro`. En Corte esas piezas **se cortan «cubo»** y no están en el tablero (1–156): hasta tener
-  sus códigos, los aros 066/067/068 siguen «sin receta» de corte.
+  cargado en `gt.receta_aro`. En Corte esas piezas **se cortan «cubo»**: son las **3P 3/4 Bco Total** 136 a 141
+  («Bco T es cubi», Thomas, D16), cargadas en `gt.receta_corte` desde `sql/gt_v128_blancos_cubi.sql`.
 - **D7:** la anilina de Lijado se pregunta **al empezar** (como quedó en 1.24).
 - `sql/gt_v125_pintado_paquetes_cubo.sql`. La vista completa vigente: `sql/gt_movimientos_vivo.sql`.
 
