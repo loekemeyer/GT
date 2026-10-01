@@ -76,7 +76,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 
 | área | pide código | lista |
 |---|---|---|
-| Corte | sí | 158 propios (Corte 45°; 157 y 158 entraron con D22) |
+| Corte | sí | 168 propios (Corte 45°; 157 y 158 entraron con D22, 159 a 168 con D27) |
 | Grampeado | sí | 130 propios (234 a 240 entraron con D22 y D26) |
 | Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos (6 discontinuos desde D22: no se listan) |
 | Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`). Acepta **cualquier** producto, pero si no salió de Contraído **avisa y pide confirmar** (v11.0, D17) |
@@ -99,7 +99,7 @@ El mismo número es otra cosa según el área (**080** = «Cuadro Ciudades MDF»
 | fuente | clave | para |
 |---|---|---|
 | `gt.codigos` + `gt.codigo_area` | código del producto, habilitado por área | áreas 3 a 7 (productos de Tierra Nativa) |
-| `gt.codigos_rubro` | **(área, código)** con su propia descripción | Corte 45° (1–158) y Grampeado (003–240) |
+| `gt.codigos_rubro` | **(área, código)** con su propia descripción | Corte 45° (1–168) y Grampeado (003–240) |
 
 El código se compara **sin ceros adelante** («21» = «021») y se guarda como figura en la lista.
 Cargas: `sql/gt_codigos_tierra_nativa.sql` y `sql/gt_codigos_corte_grampeado.sql` (transcripto de las
@@ -313,6 +313,13 @@ pasa por el chat ni por el repo**: el paso 2 la lee de `vault.decrypted_secrets`
   143 = 27,5 cm) y los de 30 y 40 de la lista «3P 3/4 Bco» (114, 116). En Corte la 3P 3/4 blanca sólo existe como
   «Bco Total» por debajo de 30 cm: el «parcial» se define después, no al cortar. `gt.receta_corte`,
   `sql/gt_v134_d23_bco_p_lados_cortos_bco_total.sql`.
+- **D27 (Thomas, 01/10: «creemoslos»):** las piezas de Corte que les faltaban a los 10 aros sin receta. Nuevas **159 a
+  168** (Trav 20mm Celeste 62 · 03 Bco 27, 62, 29 y 67,5 · 03 Negro 30 · 03 Natural 23 · 3P 3/4 Negro 27,5 · 3P 1/2 Bco 120 ·
+  3P 3/4 Bco Total 29, ésta para el 116 por la regla D23). Los **Trav 20mm** ya estaban en Corte (151, 153, 154, 155,
+  156) **sin medida** —no se leía en la foto— y se les puso la que piden sus aros, con el código más bajo como lado
+  más corto: **[Adivinando]** cuál etiqueta del tablero es cuál. Hoy ninguno de esos 10 aros lo usa un producto,
+  salvo el 148 (lo usa el 146). Resultado: **todos los aros tienen con qué cortarse** (`select * from gt.aro_piezas
+  where pieza is null` vacía). `sql/gt_v135_d27_piezas_corte_faltantes.sql`.
 - **D7:** la anilina de Lijado se pregunta **al empezar** (como quedó en 1.24).
 - `sql/gt_v125_pintado_paquetes_cubo.sql`. La vista completa vigente: `sql/gt_movimientos_vivo.sql`.
 
@@ -347,8 +354,8 @@ pasa por el chat ni por el repo**: el paso 2 la lee de `vault.decrypted_secrets`
   una de cada medida.
 - **Pedidos y Carga camión (D2): la lógica está y está APAGADA** (`gt.config` `stock_pedidos_activo` = '1' la
   prende; sin fila = apagada). Pedidos todavía no registra código ni cajas, y el área Carga camión (`CARGA`) no existe.
-- Recetas: `gt.aro_piezas` (corte → aro, automática por perfil + largo; **17 de 123 aros sin resolver**:
-  3P 3/4 Bco P chicos, traveseros y medidas sueltas) y `gt.producto_aro` (producto → aro; **9 automáticos**, el
+- Recetas: `gt.aro_piezas` (corte → aro, automática por perfil + largo; al 01/10 a la noche **ningún aro sin
+  resolver**: D6, D23 y D27 cerraron los 17 que faltaban) y `gt.producto_aro` (producto → aro; **9 automáticos**, el
   resto espera el color de la planilla D4). A mano mandan `gt.receta_corte` y `gt.receta_aro` (`aro = '-'` = no
   lleva aro). Lo que falta sale con `receta = 'sin receta'` y en `nota` las opciones.
 - Es una **vista**, no una tabla: no se desincroniza, un cierre reemplazado (`AREAX`) deja de contar solo y al
