@@ -27,9 +27,12 @@ const srv = http.createServer((req, res) => {
       else if (fn === "gt_clave_validar") out = b.p_clave === "1234" ? { ok: true, empleados: [{ id: 7, nombre: "Prueba" }, { id: 8, nombre: "Otro" }] } : { ok: false };
       else if (fn === "gt_botones") out = AREAS;
       else if (fn === "gt_codigos_area") out = CODIGOS;
-      else if (fn === "gt_admin_produccion") out = b.p_pass === CLAVE_MON ? [
+      else if (fn === "gt_admin_produccion2") out = b.p_pass === CLAVE_MON ? [
         { empleado: "Prueba", area: "Encolado", rubro: "ENCOL", codigo: "080", descripcion: "Cuadro Ciudades MDF", desde: "2026-10-01T11:00:00Z", hasta: "2026-10-01T12:00:00Z", cantidad: 10, unidad: "cajas encoladas", uxb: 24, unidades: 240 },
-        { empleado: "Prueba", area: "Corte", rubro: "CORTE", codigo: "1", descripcion: "03 Bco", desde: "2026-10-01T12:00:00Z", hasta: null, cantidad: null, unidad: "unidades cortadas", uxb: null, unidades: null }] : [];
+        { empleado: "Prueba", area: "Corte", rubro: "CORTE", codigo: "1", descripcion: "03 Bco", desde: "2026-10-01T12:00:00Z", hasta: null, cantidad: null, unidad: "unidades cortadas", uxb: null, unidades: null },
+        { empleado: "Otro", area: "Gancho", rubro: "GANCHO", codigo: "080", descripcion: null, desde: "2026-10-01T15:00:00Z", hasta: "2026-10-01T20:30:00Z", cantidad: null, unidad: "cajas", uxb: 24, unidades: null, auto: true }] : [];
+      else if (fn === "gt_admin_ritmo") out = b.p_pass === CLAVE_MON ? [
+        { empleado: "Prueba", legajo: "t1", area: "Encolado", rubro: "ENCOL", unidad: "unidades", hecho: 240, horas: 1, por_hora: 240, prom_area: 400, tramos: 1 }] : [];
       else if (fn === "gt_admin_asistencia") out = b.p_pass === CLAVE_MON ? [
         { empleado: "Prueba", legajo: "t1", entrada: "2026-10-01T08:12:00", entrada_prevista: "2026-10-01T08:00:00", almuerzo_sale: null, almuerzo_vuelve: null,
           almuerzo_desde: "2026-10-01T12:00:00", almuerzo_hasta: "2026-10-01T13:00:00", flexible: false, fin: null, salida_prevista: "2026-10-01T17:30:00",
@@ -201,6 +204,9 @@ srv.listen(0, async () => {
     await ad.click(".tab[data-tab=prod]"); await ad.waitForSelector("#prodArea table");
     chk((await ad.textContent("#prodArea")).includes("240") && (await ad.textContent("#prodOp")).includes("en curso"),
         "Producción: por área con unidades (10 cajas × 24 = 240) y lo en curso");
+    chk((await ad.textContent("#prodOp")).includes("cerrado solo"), "el tramo que cerró el sistema se marca «🔒 cerrado solo» (D34)");
+    await ad.waitForFunction(() => document.getElementById("prodRitmo").textContent.includes("-40 %"));
+    chk(true, "Ritmo: 240 u/h contra 400 de promedio del área = -40 % (D35)");
     await ad.click(".tab[data-tab=asis]"); await ad.fill("#asisDia", "2026-09-30"); await ad.dispatchEvent("#asisDia", "change");
     await ad.waitForFunction(() => document.getElementById("asisTabla").textContent.includes("No terminó"));
     const asis = await ad.textContent("#asisTabla");

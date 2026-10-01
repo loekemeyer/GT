@@ -58,6 +58,8 @@
     td.num{font-weight:700;}
     .sep td{border-top:2px solid var(--borde);}
     tr.curso td{background:var(--warn-bg);}
+    tr.auto td{background:var(--acc-bg, #eaf1ff);}
+    td.malo{color:var(--err, #dc2626);font-weight:700;} td.bueno{color:var(--ok, #16a34a);font-weight:700;}
     .chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;margin:1px 2px;}
     .c-ok{background:var(--ok-bg);color:var(--ok);} .c-warn{background:var(--warn-bg);color:var(--warn);} .c-err{background:var(--err-bg);color:var(--err);}
     .t-err{color:var(--err);font-weight:700;} .t-warn{color:var(--warn);font-weight:700;}
@@ -101,6 +103,7 @@
   <section id="prod" class="vista panel hidden">
     <div class="barra"><input type="date" id="prodDia" /><button id="prodRef">↻ Actualizar</button><span class="info" id="prodInfo"></span></div>
     <div class="bloque"><h2>Por área</h2><div id="prodArea"></div></div>
+    <div class="bloque"><h2>Ritmo por operario</h2><div id="prodRitmo"></div></div>
     <div class="bloque"><h2>Por operario</h2><div id="prodOp"></div></div>
   </section>
 
@@ -109,7 +112,7 @@
     <div class="bloque"><div id="asisTabla"></div></div>
   </section>
 
-  <script src="config.js?v=1.13"></script>
+  <script src="config.js?v=1.14"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -220,7 +223,7 @@
       const dia = $("prodDia").value || hoyAR();
       $("prodInfo").textContent = "Cargando…";
       let rows;
-      try { rows = await rpc("gt_admin_produccion", { p_pass: pass || "", p_dia: dia }); }
+      try { rows = await rpc("gt_admin_produccion2", { p_pass: pass || "", p_dia: dia }); }   // 1.14: + «auto»
       catch (e) { $("prodInfo").textContent = "⚠ No pude leer la producción (" + e.message + ")"; return; }
       if (!rows.length && !(await claveOk())) return;
       $("prodInfo").textContent = rows.length + " tramos · actualizado " + new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
@@ -242,13 +245,32 @@
       $("prodOp").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Área</th><th>Código</th><th>Desde</th><th>Hasta</th><th>Dur.</th><th>Cant.</th><th>Unid.</th></tr>" +
         rows.map((r) => {
           const nuevo = r.empleado !== prev; prev = r.empleado;
-          const cls = ((r.hasta ? "" : "curso") + (nuevo ? " sep" : "")).trim();
+          const cls = ((r.hasta ? (r.auto ? "auto" : "") : "curso") + (nuevo ? " sep" : "")).trim();
           return '<tr class="' + cls + '"><td class=izq>' + (nuevo ? "<b>" + esc(r.empleado) + "</b>" : "") + "</td><td>" + esc(r.area) +
             "</td><td class=izq>" + esc(r.codigo || "—") + (r.descripcion ? ' <span class="desc">' + esc(r.descripcion) + "</span>" : "") +
-            "</td><td>" + hhmmTz(r.desde) + "</td><td>" + (r.hasta ? hhmmTz(r.hasta) : "en curso") + "</td><td>" +
+            "</td><td>" + hhmmTz(r.desde) + "</td><td>" + (r.hasta ? hhmmTz(r.hasta) + (r.auto ? '<br><span class="desc">🔒 cerrado solo</span>' : "") : "en curso") + "</td><td>" +
             hm(durMin(r.desde, r.hasta || new Date())) + "</td><td class=num>" +
             (r.cantidad == null ? "—" : num(r.cantidad)) + "</td><td class=num>" + (r.unidades == null ? "—" : num(r.unidades)) + "</td></tr>";
         }).join("") + "</table>" : '<div class="vacio">—</div>';
+      cargarRitmo(dia);
+    }
+    // 1.14 (D35): lo hecho por hora, por operario y área, contra el promedio del área en las 4 semanas anteriores.
+    // Sólo tramos de 2 min o más con cantidad; menos de 15 min en el día no se informa (un toque no es un ritmo).
+    async function cargarRitmo(dia) {
+      let rows;
+      try { rows = await rpc("gt_admin_ritmo", { p_pass: pass || "", p_dia: dia }); }
+      catch (e) { $("prodRitmo").innerHTML = '<div class="vacio">⚠ No pude leer el ritmo (' + esc(e.message) + ")</div>"; return; }
+      let prev = null;
+      $("prodRitmo").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Área</th><th>Hecho</th><th>Horas</th><th>Por<br>hora</th><th>Prom.<br>área 4 sem</th><th>vs<br>prom.</th></tr>" +
+        rows.map((r) => {
+          const nuevo = r.empleado !== prev; prev = r.empleado;
+          const pct = r.por_hora != null && r.prom_area ? Math.round((r.por_hora / r.prom_area - 1) * 100) : null;
+          const cpct = pct == null ? "" : pct <= -20 ? "malo" : pct >= 20 ? "bueno" : "";
+          return '<tr' + (nuevo ? ' class="sep"' : "") + '><td class=izq>' + (nuevo ? "<b>" + esc(r.empleado) + "</b>" : "") + "</td><td>" + esc(r.area) +
+            '</td><td class=num>' + num(r.hecho) + ' <span class="desc">' + esc(r.unidad) + "</span></td><td>" + hm(Math.round(r.horas * 60)) +
+            "</td><td class=num>" + (r.por_hora == null ? "—" : num(r.por_hora)) + "</td><td class=num>" + (r.prom_area == null ? "—" : num(r.prom_area)) +
+            '</td><td class="num ' + cpct + '">' + (pct == null ? "—" : (pct > 0 ? "+" : "") + pct + " %") + "</td></tr>";
+        }).join("") + "</table>" : '<div class="vacio">Sin tramos con cantidad ese día.</div>';
     }
 
     /* ---------- ASISTENCIA ---------- */

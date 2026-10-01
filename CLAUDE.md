@@ -191,6 +191,20 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 **No se trabaja sábado** (D19). Javier Burgos: sólo el almuerzo es rotativo.
 **Empleados ordenados por legajo** (1.7) en la lista del celular, Producción y Asistencia (`gt.legajo_num`).
 
+### 1.14 — celular nuevo / compartido, cierre automático y ritmo (Thomas, 01/10/2026: D33, D34, D35)
+
+- **D33 (trigger `gt_alerta_dispositivo` sobre `gt.registros`):** cada evento trae el id del celular. Avisa a
+  «GT Avisos» si un operario con días anteriores entra desde un celular que **nunca usó**, y si un mismo
+  celular lo usan **2+ operarios el mismo día**. Un aviso por caso. El primer celular de cada uno no avisa.
+- **D34 (cron `gt-cierre-automatico`, lun-vie 18:30 AR):** lo que quedó abierto se cierra a la hora de salida
+  de ese operario, **sin cantidad**, con `dispositivo = 'sistema:cierre'`, y avisa la lista. Si después llega
+  el cierre real del celular (cola offline), el del sistema pasa a `opcion = 'AREAX'` y deja de contar
+  (trigger `gt_cierre_real_reemplaza`). En el admin se ve «🔒 cerrado solo» (`gt_admin_produccion2`).
+- **D35 (`gt_admin_ritmo`):** en Producción, por operario y área: lo hecho (en unidades si hay UxB), horas,
+  por hora y el promedio del área en las 4 semanas anteriores (rojo ≤ −20 %, verde ≥ +20 %). Cuentan sólo
+  tramos de 2 min o más con cantidad; con menos de 15 min en el día no se informa el ritmo.
+- `sql/gt_v114_dispositivo_cierre_ritmo.sql`. Probado en transacción abortada (avisos, cierre, reemplazo).
+
 ### 1.11 — salidas desde «Terminé», Recibir sin «¿con qué seguís?» y control del monitor (Thomas, 01/10/2026)
 
 - **D31:** con un sector abierto tampoco están Almuerzo ni Terminar día en la botonera: la pantalla de
