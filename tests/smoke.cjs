@@ -23,6 +23,7 @@ const srv = http.createServer((req, res) => {
       else if (fn === "gt_clave_validar") out = b.p_clave === "1234" ? { ok: true, empleados: [{ id: 7, nombre: "Prueba" }, { id: 8, nombre: "Otro" }] } : { ok: false };
       else if (fn === "gt_botones") out = AREAS;
       else if (fn === "gt_codigos_area") out = CODIGOS;
+      else if (fn === "gt_contraido_pendiente") out = [{ codigo: "760", descripcion: "Otra", cajas: 12 }];
       else if (fn === "gt_registros_hoy") out = db.filter((r) => r.empleado_id === b.p_empleado);
       else if (fn === "gt_registrar") {
         const ok = [], rech = [];
@@ -90,8 +91,10 @@ srv.listen(0, async () => {
     chk(db.length === 8 && db[7].rubro === "PED" && db[7].ts_inicio && db[7].cantidad == null && !(await pg.isVisible("#cantScreen")),
         "Pedidos se termina sin preguntar cantidad");
     await pg.click(".box[data-cod=GUARD]"); await pg.waitForSelector("#codScreen:not(.hidden)");
-    await pg.fill("#codInput", "lo-que-sea"); await pg.click("#codBtn"); await alDia();
-    chk(db.length === 9 && db[8].rubro === "GUARD" && db[8].texto === "LO-QUE-SEA", "un área SIN códigos asignados acepta cualquier código");
+    await pg.waitForSelector("#codPend button[data-cod='760']");
+    chk((await pg.textContent("#codPend")).includes("12 cajas"), "Guardado muestra lo que salió de Contraído (760 · 12 cajas)");
+    await pg.click("#codPend button[data-cod='760']"); await alDia();
+    chk(db.length === 9 && db[8].rubro === "GUARD" && db[8].texto === "760", "tocar el pendiente empieza Guardado con ese código");
     await pg.click(".box[data-cod=GUARD]"); await pg.fill("#cantInput", "3"); await pg.click("#cantBtn"); await alDia();
     await pg.evaluate(() => { const q = JSON.parse(localStorage.getItem("gt_queue_v3") || "[]");
       q.push({ client_id: "malo", empleado_id: 7, opcion: "AREA", rubro: "NOEXISTE", ts_cliente: new Date().toISOString() });

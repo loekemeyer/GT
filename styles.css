@@ -43,3 +43,7 @@ button{width:100%;padding:16px;font-size:22px;margin-top:14px;border-radius:6px;
 .row-3{grid-template-columns:repeat(3,1fr);}
 .row-3 .box{min-height:84px;}
 .cant-sub{text-align:center;font-size:18px;color:#555;margin-top:6px;}
+.cod-pend{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px;}
+.cod-pend button{margin-top:0;font-size:17px;padding:10px 6px;background:#fff3cd;border:2px solid #c46b00;}
+.cod-pend small{display:block;font-size:12px;color:#555;}
+.cod-pend-t{grid-column:1/-1;text-align:center;font-size:15px;color:#555;}

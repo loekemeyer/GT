@@ -8,6 +8,8 @@
  *    (ts_inicio = hora de la apertura, cantidad)
  *  · tocar OTRA área con una abierta     → en una sola pantalla cierra la anterior (con su
  *    cantidad) y empieza la nueva.
+ * v8.0: Guardado a góndola «se nutre de lo que salió de Contraído»: al empezar muestra como botones
+ *       los códigos con cajas contraídas y todavía sin guardar (public.gt_contraido_pendiente).
  * v7.0: el código se compara sin ceros adelante («21» = «021») y se guarda como figura en la lista.
  * v6.0: los códigos son POR ÁREA (gt.codigo_area). Un área con códigos asignados sólo acepta esos;
  *       un área sin códigos asignados acepta cualquiera (hoy Grampeado).
@@ -199,9 +201,22 @@
     $("codTitulo").textContent = "Empecé " + a.nombre;
     $("codLabel").textContent = verbo(a);
     $("codInput").value = ""; $("codError").textContent = "";
+    $("codPend").classList.add("hidden"); $("codPend").innerHTML = "";
+    if (a.codigo === "GUARD") pendientesContraido();
     $("codLista").innerHTML = codigosDe(a).map((c) => '<option value="' + esc(c.codigo) + '">' +
       esc([c.descripcion, c.medida].filter(Boolean).join(" · ")) + "</option>").join("");
     show("codScreen"); $("codInput").focus();
+  }
+  async function pendientesContraido() {
+    let p = [];
+    try { p = await rpc("gt_contraido_pendiente", {}); } catch { return; }   // sin red: se tipea el código
+    if (!st.codPara || st.codPara.codigo !== "GUARD") return;
+    $("codPend").innerHTML = p.length
+      ? '<div class="cod-pend-t">Salió de Contraído y falta guardar:</div>' + p.map((x) =>
+          '<button data-cod="' + esc(x.codigo) + '">' + esc(x.codigo) + " · " + num(x.cajas) + " cajas<small>" +
+          esc(x.descripcion || "") + "</small></button>").join("")
+      : '<div class="cod-pend-t">No hay nada de Contraído pendiente de guardar.</div>';
+    $("codPend").classList.remove("hidden");
   }
   function codigosDe(a) { return st.codigos.filter((c) => c.rubro === a.codigo); }
   function confirmarCod() {
@@ -297,6 +312,7 @@
   $("codBtn").onclick = confirmarCod;
   $("codInput").addEventListener("keydown", (e) => { if (e.key === "Enter") confirmarCod(); });
   $("codVolver").onclick = cancelarCod;
+  $("codPend").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("codInput").value = b.dataset.cod; confirmarCod(); } });
   $("histBtn").onclick = () => { const h = $("hist"); h.classList.toggle("hidden"); if (!h.classList.contains("hidden")) renderHist(); };
   window.addEventListener("online", flush);
   setInterval(flush, 30000);

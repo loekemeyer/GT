@@ -60,7 +60,7 @@ al terminar pregunta el siguiente código. Va en `gt.tareas` (por rubro); el reg
 | Corte | sí | 156 propios (Corte 45°) |
 | Grampeado | sí | 123 propios |
 | Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos |
-| Guardado a góndola | sí | los mismos 323 productos («guardan todas las de Contraído») + pide cajas |
+| Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`) |
 | Deco | sí | 71 de operación (tablero «08. Sector Deco» completo) |
 | Pedidos | no | — (y no pide cantidad) |
 
