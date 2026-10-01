@@ -65,7 +65,7 @@
   function num(n) { return Number(n).toLocaleString("es-AR"); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
   function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.remove("hidden"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add("hidden"), 2500); }
-  function show(id) { ["claveScreen", "nombreScreen", "optionsScreen", "cantScreen", "codScreen"].forEach((s) => $(s).classList.toggle("hidden", s !== id)); }
+  function show(id) { ["claveScreen", "nombreScreen", "optionsScreen", "cantScreen", "codScreen", "medScreen"].forEach((s) => $(s).classList.toggle("hidden", s !== id)); }
 
   async function rpc(name, body) {
     const ctl = new AbortController();
@@ -164,7 +164,7 @@
     if (ab) {
       const a = areaDe(ab.rubro);
       $("abiertaBox").innerHTML = '<span class="ab-punto"></span><div class="ab-txt"><div class="ab-area">' +
-        (ICONO[ab.rubro] || "🏷️") + " " + esc(a ? a.nombre : ab.rubro) + (ab.texto ? " · " + esc(ab.texto) : "") +
+        (ICONO[ab.rubro] || "🏷️") + " " + esc(a ? a.nombre : ab.rubro) + (ab.texto ? " · " + esc(ab.texto) : "") + (ab.medida ? " (" + esc(ab.medida) + ")" : "") +
         '</div><div class="ab-det">Desde las ' + hhmm(ab.ts_cliente) + (ab.rubro === "ALMU" ? " · tocá «Volví de almorzar»" : "") + "</div></div>" +
         '<div class="ab-tiempo" data-desde="' + esc(ab.ts_cliente) + '">' + transcurrido(ab.ts_cliente) + "</div>";
     }
@@ -232,7 +232,7 @@
     const almorzar = sigue && sigue.codigo === "ALMU";
     // v1.11 (D29): Recibir mercadería pregunta qué se recibe al EMPEZAR, pero al terminar no pregunta con qué sigue
     const conSigue = modo !== "fin" && sigue && !almorzar && !(sigue.codigo === "RECIB" && cierra.codigo === "RECIB");
-    $("cantTitulo").textContent = (cierra.codigo === "ALMU" ? "Volví de almorzar" : "Terminé " + cierra.nombre) + (ab.texto ? " · " + ab.texto : "");
+    $("cantTitulo").textContent = (cierra.codigo === "ALMU" ? "Volví de almorzar" : "Terminé " + cierra.nombre) + (ab.texto ? " · " + ab.texto : "") + (ab.medida ? " (" + ab.medida + ")" : "");
     $("cantSub").textContent = "desde " + hhmm(ab.ts_cliente);
     $("cantBox").classList.toggle("hidden", !pideCant);
     $("cantLabel").textContent = "¿Cuántas " + cierra.unidad + (ab.texto ? " del " + ab.texto : "") + "?";
@@ -277,7 +277,12 @@
       const avisoS = nuevo.nuevo ? null : fueraDeContraido(sigue, nuevo.guardo);
       if ((nuevo.nuevo || avisoS) && !confirmoNuevo(nuevo.guardo, "sigueError", "cantBtn", avisoS)) return;
     }
-    registrar(p.cierra, { ts_inicio: p.ab.ts_cliente, cantidad: cant, texto: p.ab.texto || "" });
+    registrar(p.cierra, { ts_inicio: p.ab.ts_cliente, cantidad: cant, texto: p.ab.texto || "", medida: p.ab.medida || "" });
+    // 1.17: si sigue con un set de 3 en Montaje / Gancho, primero cierra y después pregunta la medida
+    if (sigue && nuevo && piezasSet(sigue, nuevo.cod)) {
+      flush(); const s2 = sigue, n2 = nuevo; st.pend = null; restaurarBtn("cantBtn");
+      pedirMedida(s2, n2.guardo, piezasSet(s2, n2.cod)); return;
+    }
     if (sigue) registrar(sigue, nuevo ? { texto: nuevo.guardo } : null, 1);
     if (p.modo === "fin") registrarFin();
     flush();
@@ -383,10 +388,33 @@
     const avisoC = r.nuevo ? null : fueraDeContraido(a, r.guardo);
     if ((r.nuevo || avisoC) && !confirmoNuevo(r.guardo, "codError", "codBtn", avisoC)) return;
     restaurarBtn("codBtn");
+    const piezas = piezasSet(a, r.cod);
+    if (piezas) { st.codPara = null; pedirMedida(a, r.guardo, piezas); return; }
     registrar(a, { texto: r.guardo }, 1); flush();
     const c = r.cod;
     toast("✓ Empezaste " + a.nombre + " · " + r.guardo + (c && c.descripcion ? " " + c.descripcion + (c.medida ? " " + c.medida : "") : ""));
     st.codPara = null; show("optionsScreen"); renderBotonera();
+  }
+  // 1.17 (Thomas): un SET DE 3 en Montaje o Gancho se trabaja por medida: se pregunta cuál va a hacer.
+  const AREAS_POR_MEDIDA = ["MONT", "GANCHO"];
+  function piezasSet(a, cod) {
+    if (!a || !cod || AREAS_POR_MEDIDA.indexOf(a.codigo) < 0) return null;
+    if (!/\bset\s*x\s*3\b/i.test(cod.descripcion || "") || !cod.medida) return null;
+    const p = String(cod.medida).split("+").map((x) => x.trim()).filter(Boolean);
+    return p.length === 3 ? p : null;
+  }
+  function pedirMedida(a, codigo, piezas) {
+    st.medPara = { a, codigo };
+    $("medTitulo").textContent = "Empecé " + a.nombre + " · " + codigo;
+    $("medLabel").textContent = a.codigo === "GANCHO" ? "¿A qué medida le vas a poner gancho?" : "¿Qué medida vas a montar?";
+    $("medOpts").innerHTML = piezas.map((m) => '<button data-med="' + esc(m) + '">' + esc(m) + "</button>").join("");
+    show("medScreen");
+  }
+  function elegirMedida(m) {
+    const p = st.medPara; if (!p) return;
+    registrar(p.a, { texto: p.codigo, medida: m }, 1); flush();
+    toast("✓ Empezaste " + p.a.nombre + " · " + p.codigo + " (" + m + ")");
+    st.medPara = null; show("optionsScreen"); renderBotonera();
   }
   function cancelarCod() { st.codPara = null; show("optionsScreen"); renderBotonera(); }
 
@@ -401,7 +429,7 @@
       if (r.opcion === "FIN") return '<div class="hist-row fin"><div class="hist-main"><div class="hist-area">🏁 Terminó el día</div></div>' +
         '<div class="hist-cant">' + hhmm(r.ts_cliente) + "</div></div>";
       const a = areaDe(r.rubro), p = pend.has(r.client_id) ? " ⏳" : "";
-      const nom = (ICONO[r.rubro] || "🏷️") + " " + esc(a ? a.nombre : r.rubro) + (r.texto ? " · " + esc(r.texto) : "");
+      const nom = (ICONO[r.rubro] || "🏷️") + " " + esc(a ? a.nombre : r.rubro) + (r.texto ? " · " + esc(r.texto) : "") + (r.medida ? " (" + esc(r.medida) + ")" : "");
       if (!r.ts_inicio) return '<div class="hist-row curso"><div class="hist-main"><div class="hist-area">' + nom +
         '</div><div class="hist-det">Desde ' + hhmm(r.ts_cliente) + p + '</div></div><div class="hist-cant">en curso</div></div>';
       return '<div class="hist-row"><div class="hist-main"><div class="hist-area">' + nom + '</div><div class="hist-det">' +
@@ -435,7 +463,7 @@
     catch { st.codigos = lsGet(LS_CODS, []); }
   }
   async function cargarHoy() {
-    try { st.server = (await rpc("gt_registros_hoy", { p_empleado: st.emp })).map((r) => Object.assign({ empleado_id: st.emp }, r)); }
+    try { st.server = (await rpc("gt_registros_hoy2", { p_empleado: st.emp })).map((r) => Object.assign({ empleado_id: st.emp }, r)); }
     catch { /* sin red: se arma con la cola */ }
   }
 
@@ -478,6 +506,8 @@
   $("siguePend").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("sigueInput").value = b.dataset.cod; confirmarCant(true); } });
   $("cantVolver").onclick = () => { st.pend = null; show("optionsScreen"); };
   $("codBtn").onclick = confirmarCod;
+  $("medOpts").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) elegirMedida(b.dataset.med); });
+  $("medVolver").onclick = () => { st.medPara = null; show("optionsScreen"); renderBotonera(); };
   $("codInput").addEventListener("keydown", (e) => { if (e.key === "Enter") confirmarCod(); });
   $("codVolver").onclick = cancelarCod;
   $("codOpts").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("codInput").value = b.dataset.cod; confirmarCod(); } });

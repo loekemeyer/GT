@@ -191,6 +191,15 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 **No se trabaja sábado** (D19). Javier Burgos: sólo el almuerzo es rotativo.
 **Empleados ordenados por legajo** (1.7) en la lista del celular, Producción y Asistencia (`gt.legajo_num`).
 
+### 1.17 — sets de 3 (Thomas, 01/10/2026)
+
+- Un **set de 3** («Set x3» en la descripción) se compara **sólo con sets de 3** en todo el proceso: grupo
+  «Set x3 · Mold 03 · 15*21 + 20*30 + 30*40» (medidas ordenadas). Hoy: 7 + 4 cuadros, 2 bandejas, 900, 902.
+- En **Montaje y Gancho**, con un set de 3 la app pregunta **qué medida** va a montar / ponerle gancho
+  (3 botones). Va en `gt.registros.medida` (apertura y cierre) y ese tramo se compara con **moldura + esa
+  medida** (los cuadros sueltos de esa medida). Al seguir con el mismo set, la vuelve a preguntar.
+- La app lee lo de hoy con `gt_registros_hoy2` (trae la medida). `sql/gt_v117_sets_medida.sql`.
+
 ### 1.15 — grupo de fabricación (Thomas, 01/10/2026)
 
 Misma **moldura (o MDF) + misma medida** = misma demora en cualquier proceso (1.16, Thomas: el tipo NO

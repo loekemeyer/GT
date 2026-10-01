@@ -7,6 +7,7 @@ const ROOT = path.join(__dirname, "..");
 const AREAS = [
   { codigo: "CORTE", nombre: "Corte", unidad: "unidades cortadas", orden: 1 },
   { codigo: "GRAMP", nombre: "Grampeado", unidad: "unidades grampeadas", orden: 2, pide_codigo: true },
+  { codigo: "MONT", nombre: "Montaje", unidad: "cajas fabricadas", orden: 4, pide_codigo: true },
   { codigo: "PED", nombre: "Pedidos", unidad: "pedidos armados", orden: 8, pide_cantidad: false },
   { codigo: "DECO", nombre: "Deco", unidad: "unidades fabricadas", orden: 9 },
   { codigo: "GUARD", nombre: "Guardado a góndola", unidad: "cajas guardadas", orden: 10, pide_codigo: true },
@@ -16,6 +17,7 @@ const AREAS = [
 let CLAVE_MON = null; const LOGINS = [];
 const db = [];
 const CODIGOS = [{ codigo: "505", descripcion: "Pinza", medida: "10*15", rubro: "GRAMP" }, { codigo: "760", descripcion: "Otra", medida: null, rubro: "DECO" },
+  { codigo: "136", descripcion: "Cuadros Mold 03 Set x3 Botanica", medida: "30*40 + 20*30 + 15*21", rubro: "MONT" },
   { codigo: "INSUMO", descripcion: "Insumo", medida: null, rubro: "RECIB" }, { codigo: "MOLDURA", descripcion: "Moldura", medida: null, rubro: "RECIB" }];
 const srv = http.createServer((req, res) => {
   if (req.url.startsWith("/rest/v1/rpc/")) {
@@ -41,7 +43,7 @@ const srv = http.createServer((req, res) => {
           almuerzo_desde: "2026-10-01T12:00:00", almuerzo_hasta: "2026-10-01T13:00:00", flexible: false, fin: null, salida_prevista: "2026-10-01T17:30:00",
           area_abierta: false, termino: false, tolerancia_min: 5 }] : [];
       else if (fn === "gt_contraido_pendiente") out = [{ codigo: "760", descripcion: "Otra", cajas: 12 }];
-      else if (fn === "gt_registros_hoy") out = db.filter((r) => r.empleado_id === b.p_empleado);
+      else if (fn === "gt_registros_hoy2") out = db.filter((r) => r.empleado_id === b.p_empleado);
       else if (fn === "gt_registrar") {
         const ok = [], rech = [];
         b.p_filas.forEach((f) => { if (f.opcion !== "FIN" && !AREAS.find((a) => a.codigo === f.rubro)) rech.push({ client_id: f.client_id, motivo: "área inexistente" });
@@ -75,7 +77,7 @@ srv.listen(0, async () => {
     await pg.click("#nombreLista button[data-id='7']");
     await pg.waitForSelector(".box[data-cod=CORTE]");
     chk((await pg.textContent("#opName")) === "Prueba", "entra con el nombre elegido");
-    chk((await pg.$$(".box")).length === 6, "botonera = las áreas de gt_botones (6)");
+    chk((await pg.$$(".box")).length === 7, "botonera = las áreas de gt_botones (7)");
     const alDia = () => pg.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
     await pg.click(".box[data-cod=CORTE]"); await alDia();
     chk(db.length === 1 && db[0].opcion === "AREA" && db[0].rubro === "CORTE" && db[0].ts_inicio === null, "Empecé Corte: apertura con ts_inicio NULL");
@@ -89,7 +91,7 @@ srv.listen(0, async () => {
     await pg.fill("#cantInput", "abc"); await pg.click("#cambioBtn");
     chk((await pg.textContent("#cantError")).length > 0 && db.length === 1, "cantidad no numérica no se registra");
     await pg.fill("#cantInput", "120"); await pg.click("#cambioBtn"); await alDia();
-    chk((await pg.$$("#botonera .box")).length === 6, "cerrado el sector, vuelven todas las áreas");
+    chk((await pg.$$("#botonera .box")).length === 7, "cerrado el sector, vuelven todas las áreas");
     await pg.click(".box[data-cod=GRAMP]"); await pg.waitForSelector("#codScreen:not(.hidden)");
     await pg.fill("#codInput", "999"); await pg.click("#codBtn");
     chk((await pg.textContent("#codError")).includes("¿Lo registro igual?") && db.length === 2, "código que no está en la lista: pregunta antes de grabar");
@@ -176,6 +178,19 @@ srv.listen(0, async () => {
     chk(db.every((r) => r.empleado_id === 7), "los registros llevan el empleado_id");
     chk(await pg.evaluate(() => window.__gt.verNum("1.10") > window.__gt.verNum("1.9") && window.__gt.verNum("2.0") > window.__gt.verNum("1.99")),
         "versiones: 1.10 es más nueva que 1.9, y 2.0 que 1.99");
+    // 1.17: set de 3 en Montaje → pregunta la medida; al seguir con el mismo set, la vuelve a preguntar
+    await pg.click(".box[data-cod=MONT]"); await pg.waitForSelector("#codScreen:not(.hidden)");
+    await pg.fill("#codInput", "136"); await pg.click("#codBtn"); await pg.waitForSelector("#medScreen:not(.hidden)");
+    chk((await pg.textContent("#medLabel")) === "¿Qué medida vas a montar?" && (await pg.$$("#medOpts button")).length === 3,
+        "set de 3 en Montaje: pregunta qué medida va a montar (3 botones)");
+    await pg.click("#medOpts button[data-med='30*40']"); await alDia();
+    let nM = db.length;
+    chk(db[nM - 1].rubro === "MONT" && db[nM - 1].texto === "136" && db[nM - 1].medida === "30*40", "empezó Montaje 136 en la medida 30*40");
+    await termino("MONT"); await pg.fill("#cantInput", "5"); await pg.fill("#sigueInput", "136"); await pg.click("#cantBtn");
+    await pg.waitForSelector("#medScreen:not(.hidden)"); await pg.click("#medOpts button[data-med='20*30']"); await alDia();
+    chk(db[nM].cantidad === 5 && db[nM].medida === "30*40" && db[nM + 1].medida === "20*30" && !db[nM + 1].ts_inicio,
+        "cerró 30*40 con 5 y siguió con el mismo set en 20*30");
+    await termino("MONT"); await pg.fill("#cantInput", "2"); await pg.click("#cambioBtn"); await alDia();
     const ad = await br.newPage({ viewport: { width: 1280, height: 720 } });
     await ad.goto(url + "admin.html");
     await ad.waitForFunction(() => document.getElementById("clave").textContent === "1234");
