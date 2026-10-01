@@ -162,6 +162,12 @@ pasan. Por eso las tablas de la v1 se **renombraron** (`gt.operarios_v1`, `gt.ta
 `gt.registros_v1`, vacías) en vez de borrarse. Un cambio que necesite borrar algo se escribe sin
 `DROP` (renombrar, revocar) o lo corre el dueño en el SQL Editor de Supabase.
 
+⚠ **Y también frena un `UPDATE` / `INSERT` cuyo texto lleva un `;` adentro de las comillas**
+(medido el 01/10/2026 sobre `planify.tasks`: 4 de 4 con `;` en el literal se cortaron a los 60 s, 3 de 3 sin
+`;` pasaron). El conector parte el pedido por `;` y lo que queda después no es una sentencia. En una nota o
+descripción larga: sin `;` (va `.` o `·`), y si hay que buscar un texto que ya tiene `;`, se escribe con
+`regexp_replace` y un `.` en su lugar.
+
 **Datos al 01/10/2026:** 9 áreas en `gt.rubros` y 9 empleados en `gt.empleados`, sin legajo
 (Thomas los pasa después).
 
