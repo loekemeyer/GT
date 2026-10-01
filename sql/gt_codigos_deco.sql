@@ -1,7 +1,7 @@
 -- Códigos de operación del Sector Deco, transcriptos de la foto del tablero «08. Sector Deco» (Thomas, 01/10/2026).
 -- El 3004 (Patas c/Trav) es el mismo para 540, 542 y 547. La parte derecha del tablero (661/662/663 Caja de Té,
 -- 556 Cajón Porta Cubiertos, 557 Secaplatos) salió cortada en la foto: sus códigos NO están acá.
--- Con el «sí» del dueño. Idempotente.
+-- APLICADO el 01/10/2026 con el «sí» de Thomas (D13). Idempotente.
 insert into gt.codigos_rubro (rubro, codigo, descripcion, medida) values
   ('DECO', '3001', 'Armado Bastidor — 542 Bandeja Cama Chica 30x40', null),
   ('DECO', '3002', 'Armado Bastidor — 540 Bandeja Cama Chica 30x40', null),

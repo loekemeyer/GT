@@ -53,6 +53,21 @@ de Virgilio.
 al terminar pregunta el siguiente código. Va en `gt.tareas` (por rubro); el registro ya tiene
 `rubro` y `cantidad`.
 
+### Estado de los códigos al 01/10/2026 (cargados con el «sí» de Thomas, D13 + D10)
+
+| área | pide código | lista |
+|---|---|---|
+| Corte | sí | 156 propios (Corte 45°) |
+| Grampeado | sí | 123 propios |
+| Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos |
+| Guardado a góndola | sí | los mismos 323 productos («guardan todas las de Contraído») + pide cajas |
+| Deco | sí | 35 de operación — **falta** el costado derecho del tablero (661/662/663, 556, 557) |
+| Pedidos | no | — (y no pide cantidad) |
+
+Avisos de llegada: hoy van al grupo de Virgilio; el grupo propio de GT se configura con
+`insert into gt.config values ('telegram_chat', '<id>') on conflict (clave) do update set valor = excluded.valor;`
+(el bot es `@Faltantes_Virgilio_bot`, el mismo que vacía `public.telegram_outbox`).
+
 ### v7.0 — códigos propios de Corte 45° y Grampeado (Thomas, 01/10/2026)
 
 El mismo número es otra cosa según el área (**080** = «Cuadro Ciudades MDF» como producto, pero
