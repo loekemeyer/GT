@@ -8,6 +8,7 @@
  *    (ts_inicio = hora de la apertura, cantidad)
  *  · tocar OTRA área con una abierta     → en una sola pantalla cierra la anterior (con su
  *    cantidad) y empieza la nueva.
+ * 1.25: Pintado cuenta PAQUETES al terminar (Thomas, D8): «¿Cuántos paquetes de moldura 03?».
  * 1.24: PREGUNTAS POR ÁREA (Thomas, Esnaola). Moldurado: «¿Qué moldura?» al empezar y metros al terminar. Lijado: moldura,
  *       «¿Le ponés anilina?» y, si es Sí, el color; metros al terminar. Pintado: color y moldura. Las preguntas salen de
  *       gt.rubro_pasos (gt_pasos): botones, condición (si_campo = si_valor) y momento (empezar / terminar). La moldura
@@ -467,7 +468,7 @@
   /* ---------- 1.24: preguntas del área (gt.rubro_pasos) ---------- */
   function pasosDe(a, momento) { return a ? st.pasos.filter((p) => p.rubro === a.codigo && (p.momento || "empezar") === momento) : []; }
   function esMoldura(a) { return st.pasos.some((p) => p.rubro === a.codigo && p.campo === "texto" && p.fuente === "molduras"); }
-  function cuantas(unidad) { return /^(metros?|kilos?|kg|litros?|pedidos?)\b/i.test(unidad || "") ? "¿Cuántos " : "¿Cuántas "; }
+  function cuantas(unidad) { return /^(metros?|kilos?|kg|litros?|pedidos?|paquetes?|aros?|rollos?)\b/i.test(unidad || "") ? "¿Cuántos " : "¿Cuántas "; }
   // las respuestas: `texto` va en texto (la moldura); el resto, en detalle
   function extraDe(resp) {
     const d = {}; let texto = "";

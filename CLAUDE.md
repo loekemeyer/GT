@@ -191,13 +191,25 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 **No se trabaja sábado** (D19). Javier Burgos: sólo el almuerzo es rotativo.
 **Empleados ordenados por legajo** (1.7) en la lista del celular, Producción y Asistencia (`gt.legajo_num`).
 
+### 1.25 — Pintado cuenta paquetes y el Porta Cubo (Thomas, 01/10/2026: D6, D7, D8)
+
+- **D8:** Pintado, al terminar, pide **paquetes** («¿Cuántos paquetes de moldura 03?»). Cuántos metros trae un
+  paquete **depende de la moldura**: va en `gt.moldura_paquete` (moldura → metros por paquete), **vacía hasta que
+  Thomas pase los números**. Movimientos: Pintado + `moldura_pintada` (paquetes, con el color) y − `moldura_lijada`
+  «sin anilina» en metros = paquetes × metros por paquete; sin el dato sale «sin receta» con la nota de lo que falta.
+- **D6:** el **Porta Mold 30mm Cubo** (814 / 815 / 816) arma con los aros **3P 3/4 Bco P chicos** (066 / 067 / 068),
+  cargado en `gt.receta_aro`. En Corte esas piezas **se cortan «cubo»** y no están en el tablero (1–156): hasta tener
+  sus códigos, los aros 066/067/068 siguen «sin receta» de corte.
+- **D7:** la anilina de Lijado se pregunta **al empezar** (como quedó en 1.24).
+- `sql/gt_v125_pintado_paquetes_cubo.sql`. La vista completa vigente: `sql/gt_movimientos_vivo.sql`.
+
 ### 1.24 — Esnaola: moldura, anilina, color y metros (Thomas, 01/10/2026)
 
 | área | al empezar | al terminar |
 |---|---|---|
 | Moldurado | ¿Qué moldura? | metros |
 | Lijado | ¿Qué moldura? · ¿Le ponés anilina? · si Sí, color (Marrón, Cedro, Roble, Verde) | metros |
-| Pintado | color (Blanco parcial, Blanco total, Negro, Verde, Celeste, Rosa, Beige) · ¿Qué moldura? | nada |
+| Pintado | color (Blanco parcial, Blanco total, Negro, Verde, Celeste, Rosa, Beige) · ¿Qué moldura? | paquetes (1.25) |
 
 - **Las preguntas viven en `gt.rubro_pasos`**, no en el código: orden, botones, condición (`si_campo` =
   `si_valor`) y `momento` (`empezar` / `terminar`). Cambiar una pregunta o pasarla al final es un `update`.
@@ -207,7 +219,7 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 - La moldura va en `gt.registros.texto`; anilina y color en **`gt.registros.detalle`** (jsonb). El cierre lleva
   el detalle de la apertura más lo que se pregunte al terminar. Lo de hoy se lee con `gt_registros_hoy3`.
 - Movimientos internos: Moldurado **+ moldura** (metros); Lijado **− moldura, + moldura_lijada** (con
-  «anilina Cedro» / «sin anilina» en la columna medida). Pintado no mueve (no pide metros).
+  «anilina Cedro» / «sin anilina» en la columna medida). Pintado: ver 1.25.
 - El admin muestra la anilina / el color en la descripción del tramo; el 012 de Moldurado no se cruza con el
   producto 012. `sql/gt_v124_esnaola_pasos.sql`.
 

@@ -18,7 +18,7 @@ const AREAS = [
 const AREAS2 = AREAS.concat([
   { codigo: "MOLDU", nombre: "Moldurado", unidad: "metros", orden: 21, pide_codigo: false, pide_cantidad: true, planta: "ESNA" },
   { codigo: "LIJA", nombre: "Lijado", unidad: "metros", orden: 22, pide_codigo: false, pide_cantidad: true, planta: "ESNA" },
-  { codigo: "PINT", nombre: "Pintado", unidad: "—", orden: 23, pide_codigo: false, pide_cantidad: false, planta: "ESNA" }]);
+  { codigo: "PINT", nombre: "Pintado", unidad: "paquetes", orden: 23, pide_codigo: false, pide_cantidad: true, planta: "ESNA" }]);
 // 1.24: las preguntas de Esnaola (gt_pasos). El paso de PINT al TERMINAR es sólo del mock: prueba el momento 'terminar'.
 const MOLD = ["03", "05", "012"];
 const PASOS = [
@@ -284,10 +284,10 @@ srv.listen(0, async () => {
     chk(db[n2].rubro === "PINT" && db[n2].texto === "03" && db[n2].detalle && db[n2].detalle.color === "Negro", "Empecé Pintado: color Negro y moldura 03");
     await p2.click(".termine-btn[data-cod=PINT]"); await p2.waitForFunction(() => document.getElementById("pasoLabel").textContent === "¿Cuántas manos?");
     await paso("2"); await p2.waitForSelector("#cantScreen:not(.hidden)");
-    chk(!(await p2.isVisible("#cantInput")), "Pintado no pide cantidad");
-    await p2.click("#cambioBtn"); await sync2();
-    chk(db[n2 + 1].ts_inicio && db[n2 + 1].detalle && db[n2 + 1].detalle.color === "Negro" && db[n2 + 1].detalle.manos === "2",
-        "una pregunta del momento «terminar» se suma al detalle del cierre");
+    chk((await p2.textContent("#cantLabel")) === "¿Cuántos paquetes de moldura 03?", "Terminé Pintado: pide los PAQUETES de la moldura (D8)");
+    await p2.fill("#cantInput", "4"); await p2.click("#cambioBtn"); await sync2();
+    chk(db[n2 + 1].ts_inicio && db[n2 + 1].cantidad === 4 && db[n2 + 1].detalle && db[n2 + 1].detalle.color === "Negro" && db[n2 + 1].detalle.manos === "2",
+        "cierre de Pintado con 4 paquetes; la pregunta del momento «terminar» se suma al detalle");
     await p2.click("#histBtn");
     chk((await p2.textContent("#hist")).includes("Lijado · 012 · anilina Cedro"), "el resumen del día muestra moldura y anilina");
     await p2.click("#histCerrar"); await p2.waitForSelector("#plantaBtn:not(.hidden)");
