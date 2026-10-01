@@ -250,7 +250,7 @@ Los avisos miden a cada uno contra **su** horario del día y lo muestran entre p
 - **Campos de 16 px o más** de letra: menos que eso y el iPhone hace zoom al tocarlos.
 - Áreas en **tarjetas con ícono** (`ICONO` en `app.js`; un área nueva sin ícono usa 🏷️), 2 columnas en el
   celular y 3 si entra. El área abierta va arriba con el **tiempo que lleva** (se actualiza cada 30 s).
-- Resumen del día en tarjetas, horas en 24 h, **modo oscuro** si el celular lo tiene.
+- Resumen del día en tarjetas **dentro de un pop-up** (1.10, `#histPop`; ✕, tocar afuera o Esc cierran), horas en 24 h, **modo oscuro** si el celular lo tiene.
 - Colores en variables de `:root` (`styles.css`); el modo oscuro las redefine.
 
 ### Versión (Thomas, 01/10/2026)

@@ -12,7 +12,7 @@
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=1.9" />
+  <link rel="stylesheet" href="styles.css?v=1.10" />
 </head>
 <body>
   <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
@@ -54,7 +54,6 @@
       <button id="finBtn" class="fin-btn">🏁 Terminar día</button>
     </div>
     <button id="histBtn" class="sec-btn">📋 Resumen de hoy</button>
-    <div id="hist" class="hidden"></div>
   </div>
 
   <!-- 3) TERMINÉ: cantidad + «¿con qué seguís?» en la misma pantalla -->
@@ -97,7 +96,14 @@
   </div>
 
   <div id="toast" class="toast hidden"></div>
-  <script src="config.js?v=1.9"></script>
-  <script src="app.js?v=1.9"></script>
+  <!-- v1.10: «Resumen de hoy» es un pop-up, no se despliega abajo de la botonera -->
+  <div id="histPop" class="pop hidden" role="dialog" aria-modal="true" aria-labelledby="histTit">
+    <div class="pop-caja">
+      <div class="pop-cab"><h2 id="histTit">📋 Resumen de hoy</h2><button id="histCerrar" class="pop-x" aria-label="Cerrar">✕</button></div>
+      <div id="hist" class="pop-cuerpo"></div>
+    </div>
+  </div>
+  <script src="config.js?v=1.10"></script>
+  <script src="app.js?v=1.10"></script>
 </body>
 </html>

@@ -168,6 +168,9 @@ srv.listen(0, async () => {
     chk(q[0] === 0 && q[1] === 1, "fila rechazada sale de la cola y queda anotada (no traba)");
     await pg.click("#histBtn");
     const nh = (await pg.$$("#hist .hist-row")).length; chk(nh === 11, "resumen de hoy con 10 tramos + fin del día (" + nh + ")");
+    chk(await pg.isVisible("#histPop") && await pg.evaluate(() => getComputedStyle(document.getElementById("histPop")).position === "fixed"),
+        "el Resumen de hoy se abre como pop-up (no se despliega abajo)");
+    await pg.click("#histCerrar"); chk(!(await pg.isVisible("#histPop")), "el ✕ cierra el pop-up");
     chk(db.every((r) => r.empleado_id === 7), "los registros llevan el empleado_id");
     chk(await pg.evaluate(() => window.__gt.verNum("1.10") > window.__gt.verNum("1.9") && window.__gt.verNum("2.0") > window.__gt.verNum("1.99")),
         "versiones: 1.10 es más nueva que 1.9, y 2.0 que 1.99");

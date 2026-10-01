@@ -185,7 +185,7 @@
     $("almuBtn").textContent = ab && ab.rubro === "ALMU" ? "🍽️ Volví de almorzar" : "🍽️ Almuerzo";
     $("almuBtn").classList.toggle("activo", !!(ab && ab.rubro === "ALMU"));
     syncBadge();
-    if (!$("hist").classList.contains("hidden")) renderHist();
+    if (!$("histPop").classList.contains("hidden")) renderHist();
   }
   setInterval(() => { const t = document.querySelector(".ab-tiempo"); if (t) t.textContent = transcurrido(t.dataset.desde); }, 30000);
 
@@ -444,7 +444,7 @@
   function salir() {
     if (abierta() && !confirm("Tenés un área sin terminar. ¿Cambiar de operario igual? (queda abierta)")) return;
     try { localStorage.removeItem(LS_SESION); } catch { /* nada */ }
-    st.emp = null; st.server = []; $("claveInput").value = ""; $("hist").classList.add("hidden");
+    st.emp = null; st.server = []; $("claveInput").value = ""; $("histPop").classList.add("hidden");
     show("claveScreen");
   }
 
@@ -477,7 +477,11 @@
     restaurarBtn(id === "codInput" ? "codBtn" : "cantBtn");
   }));
   $("codPend").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("codInput").value = b.dataset.cod; confirmarCod(); } });
-  $("histBtn").onclick = () => { const h = $("hist"); h.classList.toggle("hidden"); if (!h.classList.contains("hidden")) renderHist(); };
+  $("histBtn").onclick = () => { renderHist(); $("histPop").classList.remove("hidden"); document.body.classList.add("sin-scroll"); };
+  const cerrarHist = () => { $("histPop").classList.add("hidden"); document.body.classList.remove("sin-scroll"); };
+  $("histCerrar").onclick = cerrarHist;
+  $("histPop").addEventListener("click", (e) => { if (e.target === $("histPop")) cerrarHist(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarHist(); });
   window.addEventListener("online", flush);
   setInterval(flush, 30000);
 
