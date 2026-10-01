@@ -191,6 +191,21 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 **No se trabaja sábado** (D19). Javier Burgos: sólo el almuerzo es rotativo.
 **Empleados ordenados por legajo** (1.7) en la lista del celular, Producción y Asistencia (`gt.legajo_num`).
 
+### Colores de marco por artículo (base, 01/10/2026 — sin cambio de app)
+
+- `gt.codigo_color` (artículo, color, proporción, fuente): una fila por color; un **surtido** tiene varias filas
+  (la proporción está vacía hasta D11). Origen: las fotos del catálogo de Tierra Nativa, clasificadas por **ChatGPT**
+  (lo pasó Thomas) y por **Claude**, a ciegas. Se cargó sólo donde **coinciden** (179 artículos, 210 filas); el cruce
+  completo, con lo que dijo cada uno, está en `docs/colores_marco_cruce.csv`.
+- **No se cargaron los marrones de las molduras 012 y 05** (Cedro / Marrón / Roble): las dos fuentes no coinciden.
+  Tampoco los decapados (Elegance 020–022), los estampados (045) ni los Lino (275, 276, sin foto).
+- `gt.producto_aro` usa el color: si el artículo tiene UN color, sólo quedan los aros de ese color (`gt.color_aro`:
+  Bco/Bco P → Blanco, Bco T → Blanco total, Nat → Natural). Un artículo «c/Soga» sólo toma aros «p/soga». Lo resuelto
+  así sale con `receta = 'color'`. **De 241 piezas producto→aro, resueltas: 146 (antes 12).** Faltan 95: 31 surtidos
+  (proporción), 51 sin color, 6 blancos 3P 3/4 (Bco P o Bco T) y 7 sin aro en Grampeado (Mold 20mm, 03 Negro 15*21,
+  012 10*10).
+- `sql/gt_v126_color_marco.sql`.
+
 ### 1.25 — Pintado cuenta paquetes y el Porta Cubo (Thomas, 01/10/2026: D6, D7, D8)
 
 - **D8:** Pintado, al terminar, pide **paquetes** («¿Cuántos paquetes de moldura 03?»). Cuántos metros trae un
