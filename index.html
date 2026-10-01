@@ -11,7 +11,7 @@
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=11.0" />
+  <link rel="stylesheet" href="styles.css?v=12.0" />
 </head>
 <body>
   <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
@@ -54,6 +54,7 @@
     </div>
     <div class="sigue">
       <div class="label" id="sigueLabel"></div>
+      <div id="sigueOpts" class="cod-opts hidden"></div>
       <div id="siguePend" class="cod-pend hidden"></div>
       <input id="sigueInput" class="text-input" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="characters" placeholder="Código" />
       <div id="sigueHint" class="cod-hint"></div>
@@ -67,6 +68,7 @@
   <div id="codScreen" class="hidden">
     <div class="top-bar"><span class="back-top" id="codVolver">←</span><span class="op-name" id="codTitulo"></span></div>
     <div class="label" id="codLabel"></div>
+    <div id="codOpts" class="cod-opts hidden"></div>
     <div id="codPend" class="cod-pend hidden"></div>
     <input id="codInput" class="text-input" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="characters" placeholder="Código" />
     <div id="codHint" class="cod-hint"></div>
@@ -75,7 +77,7 @@
   </div>
 
   <div id="toast" class="toast hidden"></div>
-  <script src="config.js?v=11.0"></script>
-  <script src="app.js?v=11.0"></script>
+  <script src="config.js?v=12.0"></script>
+  <script src="app.js?v=12.0"></script>
 </body>
 </html>

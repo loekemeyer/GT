@@ -82,6 +82,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 | Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`). Acepta **cualquier** producto, pero si no salió de Contraído **avisa y pide confirmar** (v11.0, D17) |
 | Deco | sí | 71 de operación (tablero «08. Sector Deco» completo) |
 | Pedidos | no | — (y no pide cantidad) |
+| Recibir mercadería | sí | **Insumo / Moldura** como botones (v12.0); al terminar, «unidades recibidas» |
 
 Avisos de llegada: van al grupo de Telegram **«GT Avisos»** (`gt.config.telegram_chat = -5397417174`,
 configurado y probado el 01/10/2026). El bot es `@Faltantes_Virgilio_bot`, el mismo que vacía

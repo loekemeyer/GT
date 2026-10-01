@@ -8,6 +8,8 @@
  *    (ts_inicio = hora de la apertura, cantidad)
  *  · tocar OTRA área con una abierta     → en una sola pantalla cierra la anterior (con su
  *    cantidad) y empieza la nueva.
+ * v12.0: un área con 6 opciones o menos (Recibir mercadería: Insumo / Moldura) las muestra como botones
+ *        grandes en vez del campo de código; la opción elegida se graba como el código.
  * v11.0: Guardado a góndola acepta cualquier producto, pero si el código no salió de Contraído (o ya no le
  *        quedan cajas pendientes) avisa y pide confirmar con un segundo toque.
  * v10.0: sin lista desplegable (en el iPhone tapaba el campo): abajo del campo se muestra qué es el código
@@ -175,9 +177,11 @@
     $("cantBox").classList.toggle("hidden", !pideCant);
     $("cantLabel").textContent = "¿Cuántas " + cierra.unidad + (ab.texto ? " del " + ab.texto : "") + "?";
     $("cantInput").value = ""; $("cantError").textContent = "";
-    $("sigueLabel").textContent = sigue.pide_codigo ? "¿Con qué código seguís en " + sigue.nombre + "?" : "¿Seguís en " + sigue.nombre + "?";
-    $("sigueInput").classList.toggle("hidden", !sigue.pide_codigo);
+    $("sigueLabel").textContent = !sigue.pide_codigo ? "¿Seguís en " + sigue.nombre + "?" :
+      esOpciones(sigue) ? "¿Seguís en " + sigue.nombre + "? ¿" + codigosDe(sigue).map((c) => c.descripcion || c.codigo).join(" o ") + "?" :
+      "¿Con qué código seguís en " + sigue.nombre + "?";
     prepararInput("sigueInput", "sigueHint", sigue); $("sigueError").textContent = "";
+    if (!sigue.pide_codigo) { $("sigueInput").classList.add("hidden"); $("sigueOpts").classList.add("hidden"); }
     $("siguePend").classList.add("hidden"); $("siguePend").innerHTML = "";
     if (sigue.codigo === "GUARD" && sigue.pide_codigo) pendientesContraido("siguePend", () => st.pend && st.pend.sigue.codigo === "GUARD");
     restaurarBtn("cantBtn"); $("cantBtn").textContent = "Terminar y seguir en " + sigue.nombre;
@@ -216,9 +220,17 @@
     return /ado$/.test(n) ? "¿Qué vas a " + n.replace(/ado$/, "ar") + "?" : "¿Qué código vas a hacer en " + a.nombre + "?";
   }
   // input de código: teclado numérico si todos los códigos del área son números; abajo, qué es lo tipeado
+  const OPCIONES_MAX = 6;
+  // opciones = pocas y con nombre (INSUMO, MOLDURA); una lista de números siempre se tipea
+  function esOpciones(a) { const l = codigosDe(a); return l.length > 0 && l.length <= OPCIONES_MAX && l.every((c) => /^[A-ZÁÉÍÓÚÑ ]+$/i.test(c.codigo)); }
   function prepararInput(inputId, hintId, a) {
     const lista = codigosDe(a);
     const el = $(inputId);
+    const opts = $(inputId === "codInput" ? "codOpts" : "sigueOpts");
+    const conOpc = esOpciones(a);
+    el.classList.toggle("hidden", conOpc);
+    opts.classList.toggle("hidden", !conOpc);
+    opts.innerHTML = conOpc ? lista.map((c) => '<button data-cod="' + esc(c.codigo) + '">' + esc(c.descripcion || c.codigo) + "</button>").join("") : "";
     el.value = ""; el.dataset.area = a.codigo; el.dataset.hint = hintId;
     el.setAttribute("inputmode", lista.length && lista.every((c) => /^\d+$/.test(c.codigo)) ? "numeric" : "text");
     $(hintId).textContent = ""; $(hintId).classList.remove("nuevo");
@@ -259,7 +271,7 @@
     }
     st.codPara = a;
     $("codTitulo").textContent = "Empecé " + a.nombre;
-    $("codLabel").textContent = verbo(a);
+    $("codLabel").textContent = esOpciones(a) ? "¿" + codigosDe(a).map((c) => c.descripcion || c.codigo).join(" o ") + "?" : verbo(a);
     prepararInput("codInput", "codHint", a); $("codError").textContent = ""; restaurarBtn("codBtn");
     $("codPend").classList.add("hidden"); $("codPend").innerHTML = "";
     if (a.codigo === "GUARD") pendientesContraido("codPend", () => st.codPara && st.codPara.codigo === "GUARD");
@@ -386,6 +398,8 @@
   $("codBtn").onclick = confirmarCod;
   $("codInput").addEventListener("keydown", (e) => { if (e.key === "Enter") confirmarCod(); });
   $("codVolver").onclick = cancelarCod;
+  $("codOpts").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("codInput").value = b.dataset.cod; confirmarCod(); } });
+  $("sigueOpts").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("sigueInput").value = b.dataset.cod; confirmarCant(true); } });
   ["codInput", "sigueInput"].forEach((id) => $(id).addEventListener("input", (e) => {
     mostrarHint(e.target); $(id === "codInput" ? "codError" : "sigueError").textContent = "";
     restaurarBtn(id === "codInput" ? "codBtn" : "cantBtn");

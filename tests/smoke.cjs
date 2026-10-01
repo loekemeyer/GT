@@ -10,10 +10,12 @@ const AREAS = [
   { codigo: "PED", nombre: "Pedidos", unidad: "pedidos armados", orden: 8, pide_cantidad: false },
   { codigo: "DECO", nombre: "Deco", unidad: "unidades fabricadas", orden: 9 },
   { codigo: "GUARD", nombre: "Guardado a góndola", unidad: "cajas guardadas", orden: 10, pide_codigo: true },
+  { codigo: "RECIB", nombre: "Recibir mercadería", unidad: "unidades recibidas", orden: 11, pide_codigo: true },
 ];
 let CLAVE_MON = null;
 const db = [];
-const CODIGOS = [{ codigo: "505", descripcion: "Pinza", medida: "10*15", rubro: "GRAMP" }, { codigo: "760", descripcion: "Otra", medida: null, rubro: "DECO" }];
+const CODIGOS = [{ codigo: "505", descripcion: "Pinza", medida: "10*15", rubro: "GRAMP" }, { codigo: "760", descripcion: "Otra", medida: null, rubro: "DECO" },
+  { codigo: "INSUMO", descripcion: "Insumo", medida: null, rubro: "RECIB" }, { codigo: "MOLDURA", descripcion: "Moldura", medida: null, rubro: "RECIB" }];
 const srv = http.createServer((req, res) => {
   if (req.url.startsWith("/rest/v1/rpc/")) {
     let body = ""; req.on("data", (c) => (body += c)); req.on("end", () => {
@@ -58,7 +60,7 @@ srv.listen(0, async () => {
     await pg.click("#nombreLista button[data-id='7']");
     await pg.waitForSelector(".box[data-cod=CORTE]");
     chk((await pg.textContent("#opName")) === "Prueba", "entra con el nombre elegido");
-    chk((await pg.$$(".box")).length === 5, "botonera = las áreas de gt_botones (5)");
+    chk((await pg.$$(".box")).length === 6, "botonera = las áreas de gt_botones (6)");
     const alDia = () => pg.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
     await pg.click(".box[data-cod=CORTE]"); await alDia();
     chk(db.length === 1 && db[0].opcion === "AREA" && db[0].rubro === "CORTE" && db[0].ts_inicio === null, "Empecé Corte: apertura con ts_inicio NULL");
@@ -115,13 +117,23 @@ srv.listen(0, async () => {
     await termino("GUARD"); await pg.waitForSelector("#siguePend button[data-cod='760']");
     chk(true, "al terminar Guardado, los pendientes de Contraído aparecen también para seguir");
     await pg.fill("#cantInput", "3"); await pg.click("#cambioBtn"); await alDia();
+    await pg.click(".box[data-cod=RECIB]"); await pg.waitForSelector("#codOpts button[data-cod='MOLDURA']");
+    chk((await pg.textContent("#codLabel")) === "¿Insumo o Moldura?" && !(await pg.isVisible("#codInput")),
+        "Recibir mercadería pregunta «¿Insumo o Moldura?» con botones, sin teclado");
+    await pg.click("#codOpts button[data-cod='MOLDURA']"); await alDia();
+    const nR = db.length;
+    chk(db[nR - 1].rubro === "RECIB" && db[nR - 1].texto === "MOLDURA", "elegir Moldura empieza Recibir con MOLDURA");
+    await termino("RECIB");
+    chk(await pg.isVisible("#sigueOpts button[data-cod='INSUMO']") && !(await pg.isVisible("#sigueInput")), "al terminar, para seguir también ofrece Insumo / Moldura");
+    await pg.fill("#cantInput", "40"); await pg.click("#cambioBtn"); await alDia();
+    chk(db.length === nR + 1 && db[nR].cantidad === 40 && db[nR].texto === "MOLDURA", "Terminé Recibir moldura con 40");
     await pg.evaluate(() => { const q = JSON.parse(localStorage.getItem("gt_queue_v3") || "[]");
       q.push({ client_id: "malo", empleado_id: 7, opcion: "AREA", rubro: "NOEXISTE", ts_cliente: new Date().toISOString() });
       localStorage.setItem("gt_queue_v3", JSON.stringify(q)); return window.__gt.flush(); });
     const q = await pg.evaluate(() => [JSON.parse(localStorage.getItem("gt_queue_v3")).length, JSON.parse(localStorage.getItem("gt_rechazados_v3")).length]);
     chk(q[0] === 0 && q[1] === 1, "fila rechazada sale de la cola y queda anotada (no traba)");
     await pg.click("#histBtn");
-    const nh = (await pg.$$("#hist tr")).length; chk(nh === 7, "resumen de hoy con 6 tramos (" + (nh - 1) + ")");
+    const nh = (await pg.$$("#hist tr")).length; chk(nh === 8, "resumen de hoy con 7 tramos (" + (nh - 1) + ")");
     chk(db.every((r) => r.empleado_id === 7), "los registros llevan el empleado_id");
     const ad = await br.newPage({ viewport: { width: 1280, height: 720 } });
     await ad.goto(url + "admin.html");

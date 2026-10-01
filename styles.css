@@ -50,3 +50,5 @@ button{width:100%;padding:16px;font-size:22px;margin-top:14px;border-radius:6px;
 .sigue{margin-top:14px;padding-top:6px;border-top:2px dashed #ccc;}
 .cod-hint{text-align:center;font-size:18px;color:#1e6bd6;min-height:1.3em;margin-top:6px;}
 .cod-hint.nuevo{color:#c46b00;}
+.cod-opts{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px;}
+.cod-opts button{margin-top:0;font-size:24px;padding:22px 8px;background:#fff;border:2px solid #333;}
