@@ -27,6 +27,8 @@ begin
   end loop;
 end $$;
 
--- 3) comprobación: lee = true, escribe = false
-select has_table_privilege('gt_reader', 'public.orders', 'SELECT') as lee,
-       has_table_privilege('gt_reader', 'public.orders', 'INSERT') as escribe;
+-- 3) comprobación (no depende de cómo se llamen las tablas): tablas_que_lee > 0 y escribe = 0
+select count(*) filter (where privilege_type = 'SELECT')  as tablas_que_lee,
+       count(*) filter (where privilege_type <> 'SELECT') as escribe
+  from information_schema.role_table_grants
+ where grantee = 'gt_reader' and table_schema = 'public';
