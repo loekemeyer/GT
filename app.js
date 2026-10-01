@@ -8,6 +8,8 @@
  *    (ts_inicio = hora de la apertura, cantidad)
  *  · tocar OTRA área con una abierta     → en una sola pantalla cierra la anterior (con su
  *    cantidad) y empieza la nueva.
+ * v1.1 (numeración nueva): rediseño para celular — tarjetas con ícono, área en curso con el tiempo que lleva,
+ *        resumen del día en tarjetas, acciones fijas abajo.
  * v12.0: un área con 6 opciones o menos (Recibir mercadería: Insumo / Moldura) las muestra como botones
  *        grandes en vez del campo de código; la opción elegida se graba como el código.
  * v11.0: Guardado a góndola acepta cualquier producto, pero si el código no salió de Contraído (o ya no le
@@ -54,7 +56,7 @@
   function hoyAR() { return new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10); }
   function diaAR(iso) { return new Date(new Date(iso).getTime() - 3 * 3600e3).toISOString().slice(0, 10); }
   function hhmm(iso) {
-    return new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/Buenos_Aires" });
+    return new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" });
   }
   function dur(ms) { const m = Math.max(0, Math.round(ms / 60000)); return Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0"); }
   function num(n) { return Number(n).toLocaleString("es-AR"); }
@@ -141,26 +143,35 @@
   }
 
   /* ---------- botonera de áreas ---------- */
+  // v1.1: ícono por área (se ve en la tarjeta); un área nueva sin ícono usa 🏷️
+  const ICONO = { CORTE: "✂️", GRAMP: "📌", ENCOL: "🧴", MONT: "🛠️", GANCHO: "🪝", EMBL: "📦", CONTR: "🎞️",
+                  PED: "🧾", DECO: "🎨", GUARD: "🗄️", RECIB: "🚚" };
+  function transcurrido(iso) {
+    const m = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+    return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + String(m % 60).padStart(2, "0");
+  }
   function renderBotonera() {
     const ab = abierta();
     $("abiertaBox").classList.toggle("hidden", !ab);
     if (ab) {
       const a = areaDe(ab.rubro);
-      $("abiertaBox").innerHTML = "Estás en <b>" + esc(a ? a.nombre : ab.rubro) + "</b>" + (ab.texto ? " · código <b>" + esc(ab.texto) + "</b>" : "") +
-        " desde " + hhmm(ab.ts_cliente) +
-        "<br><small>Tocala para terminar · tocá otra área para pasarte</small>";
+      $("abiertaBox").innerHTML = '<span class="ab-punto"></span><div class="ab-txt"><div class="ab-area">' +
+        (ICONO[ab.rubro] || "🏷️") + " " + esc(a ? a.nombre : ab.rubro) + (ab.texto ? " · " + esc(ab.texto) : "") +
+        '</div><div class="ab-det">Desde las ' + hhmm(ab.ts_cliente) + " · tocala para terminar</div></div>" +
+        '<div class="ab-tiempo" data-desde="' + esc(ab.ts_cliente) + '">' + transcurrido(ab.ts_cliente) + "</div>";
     }
     $("botonera").innerHTML = st.areas.length ?
-      '<div class="row row-3">' + st.areas.map((a) => {
+      '<div class="row">' + st.areas.map((a) => {
         const esAb = ab && ab.rubro === a.codigo;
-        return '<div class="box' + (esAb ? " abierta" : "") + '" data-cod="' + esc(a.codigo) + '">' +
-          '<div class="box-title">' + esc(a.nombre) + '</div><div class="box-desc">' +
-          (esAb ? "Terminé" : "Empecé") + "</div></div>";
+        return '<div class="box' + (esAb ? " abierta" : "") + '" data-cod="' + esc(a.codigo) + '" role="button">' +
+          '<div class="box-ico">' + (ICONO[a.codigo] || "🏷️") + '</div><div><div class="box-title">' + esc(a.nombre) +
+          '</div><div class="box-desc">' + (esAb ? "● Terminar" : "Empezar") + "</div></div></div>";
       }).join("") + "</div>" :
       '<div class="error">No hay áreas cargadas para GT (gt.rubros).</div>';
     syncBadge();
     if (!$("hist").classList.contains("hidden")) renderHist();
   }
+  setInterval(() => { const t = document.querySelector(".ab-tiempo"); if (t) t.textContent = transcurrido(t.dataset.desde); }, 30000);
 
   function tocar(cod) {
     const a = areaDe(cod); if (!a) return;
@@ -318,19 +329,20 @@
 
   function renderHist() {
     const evs = eventosHoy().filter((r) => r.opcion === "AREA");
-    if (!evs.length) { $("hist").innerHTML = '<p style="text-align:center">Sin registros hoy.</p>'; return; }
+    if (!evs.length) { $("hist").innerHTML = '<div class="hist-vacio">Sin registros hoy.</div>'; return; }
     const pend = new Set(cola().map((x) => x.client_id));
     // un renglón por tramo: el cierre trae la duración y la cantidad; una apertura sin cierre es «en curso»
     const cerradas = new Set(evs.filter((r) => r.ts_inicio).map((r) => r.rubro + "|" + r.ts_inicio));
     const filas = evs.filter((r) => r.ts_inicio || !cerradas.has(r.rubro + "|" + r.ts_cliente));
-    $("hist").innerHTML = "<table><tr><th>Área</th><th>Desde</th><th>Hasta</th><th>Dur.</th><th>Cant.</th></tr>" +
-      filas.slice().reverse().map((r) => {
-        const a = areaDe(r.rubro), p = pend.has(r.client_id) ? " ⏳" : "";
-        const nom = esc(a ? a.nombre : r.rubro) + (r.texto ? " · " + esc(r.texto) : "");
-        if (!r.ts_inicio) return "<tr><td>" + nom + "</td><td>" + hhmm(r.ts_cliente) + p + "</td><td colspan=3>en curso</td></tr>";
-        return "<tr><td>" + nom + "</td><td>" + hhmm(r.ts_inicio) + "</td><td>" + hhmm(r.ts_cliente) + p + "</td><td>" +
-          dur(new Date(r.ts_cliente) - new Date(r.ts_inicio)) + "</td><td>" + (r.cantidad == null ? "—" : num(r.cantidad)) + "</td></tr>";
-      }).join("") + "</table>";
+    $("hist").innerHTML = filas.slice().reverse().map((r) => {
+      const a = areaDe(r.rubro), p = pend.has(r.client_id) ? " ⏳" : "";
+      const nom = (ICONO[r.rubro] || "🏷️") + " " + esc(a ? a.nombre : r.rubro) + (r.texto ? " · " + esc(r.texto) : "");
+      if (!r.ts_inicio) return '<div class="hist-row curso"><div class="hist-main"><div class="hist-area">' + nom +
+        '</div><div class="hist-det">Desde ' + hhmm(r.ts_cliente) + p + '</div></div><div class="hist-cant">en curso</div></div>';
+      return '<div class="hist-row"><div class="hist-main"><div class="hist-area">' + nom + '</div><div class="hist-det">' +
+        hhmm(r.ts_inicio) + " – " + hhmm(r.ts_cliente) + p + " · " + dur(new Date(r.ts_cliente) - new Date(r.ts_inicio)) +
+        '</div></div><div class="hist-cant">' + (r.cantidad == null ? "—" : num(r.cantidad)) + "</div></div>";
+    }).join("");
   }
 
   /* ---------- ingreso ---------- */
@@ -345,7 +357,8 @@
     if (!r.ok) { $("claveError").textContent = "Código incorrecto o vencido: mirá el monitor"; return; }
     const emps = r.empleados || [];
     $("nombreLista").innerHTML = emps.length ? emps.map((e) =>
-      '<button data-id="' + e.id + '" data-nombre="' + esc(e.nombre) + '">' + esc(e.nombre) + "</button>").join("") :
+      '<button data-id="' + e.id + '" data-nombre="' + esc(e.nombre) + '" data-ini="' +
+        esc(e.nombre.split(/\s+/).map((x) => x[0] || "").join("").slice(0, 2).toUpperCase()) + '">' + esc(e.nombre) + "</button>").join("") :
       '<div class="error">No hay empleados cargados en GT.</div>';
     show("nombreScreen");
   }

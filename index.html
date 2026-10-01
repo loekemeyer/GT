@@ -2,82 +2,98 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Producción GT" />
-  <meta name="theme-color" content="#1e40af" />
+  <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)" />
   <meta name="robots" content="noindex,nofollow" />
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=1.0" />
+  <link rel="stylesheet" href="styles.css?v=1.1" />
 </head>
 <body>
   <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
-  <div id="claveScreen">
-    <h1>Producción GT</h1>
-    <div class="label">🔑 Código de ingreso (en el monitor)</div>
-    <input id="claveInput" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000" />
-    <div id="claveError" class="error"></div>
-    <button id="claveBtn" class="primary-btn">Siguiente</button>
-    <div class="version"><span id="verBadge"></span> · <a href="admin.html">⚙ Admin</a></div>
+  <div id="claveScreen" class="pantalla">
+    <div class="marca">
+      <div class="marca-logo">GT</div>
+      <h1>Producción GT</h1>
+      <p class="mut">Tierra Nativa</p>
+    </div>
+    <div class="tarjeta">
+      <label class="label" for="claveInput">🔑 Código de ingreso</label>
+      <p class="mut chico">Está en el monitor y cambia cada minuto</p>
+      <input id="claveInput" class="input-clave" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="····" />
+      <div id="claveError" class="error"></div>
+    </div>
+    <div class="acciones">
+      <button id="claveBtn" class="primary-btn">Siguiente</button>
+      <div class="version"><span id="verBadge"></span> · <a href="admin.html">Admin</a></div>
+    </div>
   </div>
 
   <!-- 1b) ¿QUIÉN SOS? -->
-  <div id="nombreScreen" class="hidden">
-    <div class="top-bar"><span class="back-top" id="nombreVolver">←</span><span class="op-name">¿Quién sos?</span></div>
+  <div id="nombreScreen" class="pantalla hidden">
+    <header class="top-bar"><button class="back-top" id="nombreVolver" aria-label="Volver">‹</button><span class="op-name">¿Quién sos?</span><span class="top-esp"></span></header>
     <div id="nombreLista" class="nombres"></div>
   </div>
 
   <!-- 2) BOTONERA -->
-  <div id="optionsScreen" class="hidden">
-    <div class="top-bar">
-      <span class="back-top" id="salirBtn" title="Cambiar operario">←</span>
+  <div id="optionsScreen" class="pantalla hidden">
+    <header class="top-bar">
+      <button class="back-top" id="salirBtn" aria-label="Cambiar operario">‹</button>
       <span class="op-name" id="opName"></span>
       <span class="sync" id="syncBadge"></span>
-    </div>
+    </header>
     <div id="abiertaBox" class="abierta hidden"></div>
     <div id="botonera"></div>
     <button id="histBtn" class="sec-btn">📋 Resumen de hoy</button>
     <div id="hist" class="hidden"></div>
   </div>
 
-  <!-- 3) TERMINÉ: cantidad + «¿con qué seguís?» en la misma pantalla (v9.0) -->
-  <div id="cantScreen" class="hidden">
-    <div class="top-bar"><span class="back-top" id="cantVolver">←</span><span class="op-name" id="cantTitulo"></span></div>
-    <div class="cant-sub" id="cantSub"></div>
-    <div id="cantBox">
-      <div class="label" id="cantLabel"></div>
+  <!-- 3) TERMINÉ: cantidad + «¿con qué seguís?» en la misma pantalla -->
+  <div id="cantScreen" class="pantalla hidden">
+    <header class="top-bar"><button class="back-top" id="cantVolver" aria-label="Volver">‹</button><span class="op-name" id="cantTitulo"></span><span class="top-esp"></span></header>
+    <div class="cant-sub mut" id="cantSub"></div>
+    <div id="cantBox" class="tarjeta">
+      <label class="label" id="cantLabel" for="cantInput"></label>
       <input id="cantInput" class="text-input" inputmode="decimal" autocomplete="off" placeholder="0" />
       <div id="cantError" class="error"></div>
     </div>
-    <div class="sigue">
-      <div class="label" id="sigueLabel"></div>
+    <div class="tarjeta sigue">
+      <label class="label" id="sigueLabel" for="sigueInput"></label>
       <div id="sigueOpts" class="cod-opts hidden"></div>
       <div id="siguePend" class="cod-pend hidden"></div>
       <input id="sigueInput" class="text-input" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="characters" placeholder="Código" />
       <div id="sigueHint" class="cod-hint"></div>
       <div id="sigueError" class="error"></div>
     </div>
-    <button id="cantBtn" class="primary-btn">Terminar y seguir</button>
-    <button id="cambioBtn" class="sec-btn">Cambiar de área / no sigo</button>
+    <div class="acciones">
+      <button id="cantBtn" class="primary-btn">Terminar y seguir</button>
+      <button id="cambioBtn" class="sec-btn">Cambiar de área / no sigo</button>
+    </div>
   </div>
 
-  <!-- 4) CÓDIGO (al empezar un área que lo pide, hoy Grampeado) -->
-  <div id="codScreen" class="hidden">
-    <div class="top-bar"><span class="back-top" id="codVolver">←</span><span class="op-name" id="codTitulo"></span></div>
-    <div class="label" id="codLabel"></div>
-    <div id="codOpts" class="cod-opts hidden"></div>
-    <div id="codPend" class="cod-pend hidden"></div>
-    <input id="codInput" class="text-input" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="characters" placeholder="Código" />
-    <div id="codHint" class="cod-hint"></div>
-    <div id="codError" class="error"></div>
-    <button id="codBtn" class="primary-btn">Empezar</button>
+  <!-- 4) CÓDIGO (al empezar un área que lo pide) -->
+  <div id="codScreen" class="pantalla hidden">
+    <header class="top-bar"><button class="back-top" id="codVolver" aria-label="Volver">‹</button><span class="op-name" id="codTitulo"></span><span class="top-esp"></span></header>
+    <div class="tarjeta">
+      <label class="label" id="codLabel" for="codInput"></label>
+      <div id="codOpts" class="cod-opts hidden"></div>
+      <div id="codPend" class="cod-pend hidden"></div>
+      <input id="codInput" class="text-input" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="characters" placeholder="Código" />
+      <div id="codHint" class="cod-hint"></div>
+      <div id="codError" class="error"></div>
+    </div>
+    <div class="acciones">
+      <button id="codBtn" class="primary-btn">Empezar</button>
+    </div>
   </div>
 
   <div id="toast" class="toast hidden"></div>
-  <script src="config.js?v=1.0"></script>
-  <script src="app.js?v=1.0"></script>
+  <script src="config.js?v=1.1"></script>
+  <script src="app.js?v=1.1"></script>
 </body>
 </html>

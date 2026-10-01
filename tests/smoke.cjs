@@ -133,7 +133,7 @@ srv.listen(0, async () => {
     const q = await pg.evaluate(() => [JSON.parse(localStorage.getItem("gt_queue_v3")).length, JSON.parse(localStorage.getItem("gt_rechazados_v3")).length]);
     chk(q[0] === 0 && q[1] === 1, "fila rechazada sale de la cola y queda anotada (no traba)");
     await pg.click("#histBtn");
-    const nh = (await pg.$$("#hist tr")).length; chk(nh === 8, "resumen de hoy con 7 tramos (" + (nh - 1) + ")");
+    const nh = (await pg.$$("#hist .hist-row")).length; chk(nh === 7, "resumen de hoy con 7 tramos (" + nh + ")");
     chk(db.every((r) => r.empleado_id === 7), "los registros llevan el empleado_id");
     const ad = await br.newPage({ viewport: { width: 1280, height: 720 } });
     await ad.goto(url + "admin.html");

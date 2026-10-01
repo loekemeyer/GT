@@ -173,6 +173,16 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### Diseño para celular (v1.1, Thomas: *«que sea más lindo… se va a usar desde un celular»*)
+
+- **Pulgar:** las acciones de cada pantalla van **fijas abajo** (`.acciones`), el encabezado fijo arriba con
+  el «‹» de volver de 44 px. Todo lo que se toca mide **48 px o más**.
+- **Campos de 16 px o más** de letra: menos que eso y el iPhone hace zoom al tocarlos.
+- Áreas en **tarjetas con ícono** (`ICONO` en `app.js`; un área nueva sin ícono usa 🏷️), 2 columnas en el
+  celular y 3 si entra. El área abierta va arriba con el **tiempo que lleva** (se actualiza cada 30 s).
+- Resumen del día en tarjetas, horas en 24 h, **modo oscuro** si el celular lo tiene.
+- Colores en variables de `:root` (`styles.css`); el modo oscuro las redefine.
+
 ### Versión (Thomas, 01/10/2026)
 
 **La app arrancó de nuevo en 1.0** (lo anterior, v1.0 a v12.0, fue el armado). Cada modificación sube
