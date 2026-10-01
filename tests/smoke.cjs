@@ -26,6 +26,16 @@ const srv = http.createServer((req, res) => {
       else if (fn === "gt_clave_validar") out = b.p_clave === "1234" ? { ok: true, empleados: [{ id: 7, nombre: "Prueba" }, { id: 8, nombre: "Otro" }] } : { ok: false };
       else if (fn === "gt_botones") out = AREAS;
       else if (fn === "gt_codigos_area") out = CODIGOS;
+      else if (fn === "gt_admin_produccion") out = b.p_pass === CLAVE_MON ? [
+        { empleado: "Prueba", area: "Encolado", rubro: "ENCOL", codigo: "080", descripcion: "Cuadro Ciudades MDF", desde: "2026-10-01T11:00:00Z", hasta: "2026-10-01T12:00:00Z", cantidad: 10, unidad: "cajas encoladas", uxb: 24, unidades: 240 },
+        { empleado: "Prueba", area: "Corte", rubro: "CORTE", codigo: "1", descripcion: "03 Bco", desde: "2026-10-01T12:00:00Z", hasta: null, cantidad: null, unidad: "unidades cortadas", uxb: null, unidades: null }] : [];
+      else if (fn === "gt_admin_asistencia") out = b.p_pass === CLAVE_MON ? [
+        { empleado: "Prueba", legajo: "t1", entrada: "2026-10-01T08:12:00", entrada_prevista: "2026-10-01T08:00:00", almuerzo_sale: null, almuerzo_vuelve: null,
+          almuerzo_desde: "2026-10-01T12:00:00", almuerzo_hasta: "2026-10-01T13:00:00", flexible: false, fin: null, salida_prevista: "2026-10-01T17:30:00",
+          area_abierta: true, termino: false, tolerancia_min: 5 },
+        { empleado: "Otro", legajo: "t2", entrada: null, entrada_prevista: "2026-10-01T08:00:00", almuerzo_sale: null, almuerzo_vuelve: null,
+          almuerzo_desde: "2026-10-01T12:00:00", almuerzo_hasta: "2026-10-01T13:00:00", flexible: false, fin: null, salida_prevista: "2026-10-01T17:30:00",
+          area_abierta: false, termino: false, tolerancia_min: 5 }] : [];
       else if (fn === "gt_contraido_pendiente") out = [{ codigo: "760", descripcion: "Otra", cajas: 12 }];
       else if (fn === "gt_registros_hoy") out = db.filter((r) => r.empleado_id === b.p_empleado);
       else if (fn === "gt_registrar") {
@@ -175,6 +185,16 @@ srv.listen(0, async () => {
     await ad.waitForFunction(() => document.getElementById("seg").textContent !== "--");
     const seg = Number(await ad.textContent("#seg"));
     chk(seg > 0 && seg <= 42, "monitor admin muestra el código y la cuenta regresiva (" + seg + " s)");
+    await ad.click(".tab[data-tab=prod]"); await ad.waitForSelector("#prodArea table");
+    chk((await ad.textContent("#prodArea")).includes("240") && (await ad.textContent("#prodOp")).includes("en curso"),
+        "Producción: por área con unidades (10 cajas × 24 = 240) y lo en curso");
+    await ad.click(".tab[data-tab=asis]"); await ad.fill("#asisDia", "2026-09-30"); await ad.dispatchEvent("#asisDia", "change");
+    await ad.waitForFunction(() => document.getElementById("asisTabla").textContent.includes("No terminó"));
+    const asis = await ad.textContent("#asisTabla");
+    chk(asis.includes("Llegó tarde") && asis.includes("No vino") && asis.includes("Sin almuerzo") && asis.includes("No terminó el día"),
+        "Asistencia: llegó tarde, no vino, sin almuerzo y no terminó el día");
+    await ad.click("#salirMon"); await ad.click(".tab[data-tab=prod]"); await ad.waitForTimeout(800); await ad.waitForSelector("#login:not(.hidden)");
+    chk(!(await ad.isVisible("#prod")), "sin clave, Producción no muestra datos y pide la clave");
   } catch (e) { fallas.push(String(e)); console.log("✗", e.message); }
   await br.close(); srv.close();
   console.log(fallas.length ? "ROJO: " + fallas.length : "VERDE");

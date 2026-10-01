@@ -2,38 +2,67 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="robots" content="noindex,nofollow" />
-  <meta name="theme-color" content="#1e40af" />
+  <meta name="theme-color" content="#f4f5f7" />
   <title>GT Admin</title>
   <link rel="icon" href="data:," />
   <style>
-    :root{--fg:#111;--bg:#fff;--mut:#777;--acc:#1e6bd6;--borde:#ddd;}
-    body{font-family:Arial,sans-serif;margin:0;background:var(--bg);color:var(--fg);}
-    header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--borde);}
-    header h1{font-size:20px;margin:0;flex:1;}
+    :root{--bg:#f4f5f7;--card:#fff;--fg:#1c1f24;--mut:#6b7280;--borde:#e3e5e9;--acc:#2563eb;--acc-bg:#eaf1ff;
+          --warn:#d97706;--warn-bg:#fff6e5;--err:#dc2626;--err-bg:#fdecec;--ok:#16a34a;--ok-bg:#e9f8ef;--r:14px;
+          --sombra:0 1px 2px rgba(16,24,40,.06),0 2px 8px rgba(16,24,40,.06);}
+    @media (prefers-color-scheme:dark){:root{--bg:#111318;--card:#1b1e25;--fg:#eef0f3;--mut:#9aa1ad;--borde:#2c3039;--acc:#4f8cff;
+          --acc-bg:#1d2a44;--warn:#f0a43a;--warn-bg:#33270f;--err:#f26464;--err-bg:#3a1a1a;--ok:#3ccf73;--ok-bg:#15301f;--sombra:none;}}
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;}
+    .hidden{display:none !important;}
+    header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--borde);background:var(--card);}
+    header h1{font-size:18px;margin:0;flex:1;}
     header a{color:var(--mut);font-size:14px;}
-    .tabs{display:flex;gap:6px;padding:8px 16px;border-bottom:1px solid var(--borde);}
-    .tab{padding:6px 14px;border:1px solid var(--borde);border-radius:999px;font-size:14px;background:#f5f5f5;}
-    .tab.on{background:var(--acc);color:#fff;border-color:var(--acc);}
-    /* MONITOR: sólo el código de ingreso, centrado y grande (≡ monitor/tv.html de Virgilio) */
-    #monitor{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 110px);gap:2vh;}
+    .tabs{display:flex;gap:6px;padding:10px 16px;overflow-x:auto;}
+    .tab{border:1px solid var(--borde);background:var(--card);color:var(--fg);border-radius:999px;padding:8px 16px;font-size:15px;font-weight:600;cursor:pointer;white-space:nowrap;}
+    .tab.on{background:var(--acc);border-color:var(--acc);color:#fff;}
+    button{font:inherit;cursor:pointer;}
+
+    /* MONITOR: sólo el código de ingreso, centrado y grande */
+    #monitor{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 130px);gap:2vh;}
     .rot{font-size:clamp(18px,3vw,40px);color:var(--mut);letter-spacing:2px;text-transform:uppercase;}
     .clave-fila{display:flex;align-items:center;gap:3vw;}
     #clave{font-size:clamp(90px,20vw,320px);font-weight:bold;letter-spacing:.08em;font-variant-numeric:tabular-nums;line-height:1;}
     .rueda{width:clamp(60px,9vw,150px);height:clamp(60px,9vw,150px);}
     .rueda circle{fill:none;stroke-width:10;}
-    .rueda .fondo{stroke:#e5e5e5;}
+    .rueda .fondo{stroke:var(--borde);}
     .rueda .arco{stroke:var(--acc);stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset .9s linear;}
     .rueda text{font-size:30px;font-weight:bold;fill:var(--fg);text-anchor:middle;dominant-baseline:central;}
     #estado{font-size:14px;color:var(--mut);min-height:1em;}
-    #estado.err{color:#c00;}
-    .hidden{display:none !important;}
+    #estado.err{color:var(--err);}
+
     .login{display:flex;flex-direction:column;align-items:center;gap:14px;margin-top:12vh;}
-    .login input{font-size:40px;width:260px;text-align:center;letter-spacing:8px;padding:8px;}
-    .login button{font-size:22px;padding:10px 40px;border-radius:6px;border:none;background:var(--acc);color:#fff;cursor:pointer;}
-    .err-txt{color:#c00;min-height:1em;}
-    @media (prefers-color-scheme:dark){:root{--fg:#eee;--bg:#111;--mut:#999;--borde:#333;}.tab{background:#222;}.rueda .fondo{stroke:#333;}}
+    .login input{font-size:40px;width:260px;text-align:center;letter-spacing:8px;padding:8px;border-radius:12px;border:2px solid var(--borde);background:var(--card);color:var(--fg);}
+    .login button{font-size:20px;padding:10px 40px;border-radius:12px;border:none;background:var(--acc);color:#fff;}
+    .err-txt{color:var(--err);min-height:1em;}
+
+    /* PRODUCCIÓN y ASISTENCIA: tablas compactas, ancho según el dato, todo centrado */
+    .panel{padding:0 16px 24px;max-width:1100px;margin:0 auto;}
+    .barra{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 12px;}
+    .barra input{font:inherit;font-size:15px;padding:7px 10px;border-radius:10px;border:1px solid var(--borde);background:var(--card);color:var(--fg);}
+    .barra button{border:1px solid var(--borde);background:var(--card);color:var(--fg);border-radius:10px;padding:7px 12px;font-size:15px;}
+    .barra .info{color:var(--mut);font-size:13px;}
+    .bloque{background:var(--card);border-radius:var(--r);box-shadow:var(--sombra);padding:12px;margin-bottom:14px;overflow-x:auto;}
+    .bloque h2{font-size:15px;margin:0 0 8px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;}
+    table{border-collapse:collapse;font-size:14px;margin:0 auto;}
+    th{font-size:12px;color:var(--mut);font-weight:600;padding:4px 8px;border-bottom:1px solid var(--borde);line-height:1.15;}
+    td{padding:5px 8px;text-align:center;border-bottom:1px solid var(--borde);font-variant-numeric:tabular-nums;white-space:nowrap;}
+    tr:last-child td{border-bottom:0;}
+    td.izq{text-align:left;}
+    td.num{font-weight:700;}
+    .sep td{border-top:2px solid var(--borde);}
+    tr.curso td{background:var(--warn-bg);}
+    .chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;margin:1px 2px;}
+    .c-ok{background:var(--ok-bg);color:var(--ok);} .c-warn{background:var(--warn-bg);color:var(--warn);} .c-err{background:var(--err-bg);color:var(--err);}
+    .t-err{color:var(--err);font-weight:700;} .t-warn{color:var(--warn);font-weight:700;}
+    .vacio{text-align:center;color:var(--mut);padding:18px;}
+    .desc{color:var(--mut);font-size:12px;}
   </style>
 </head>
 <body>
@@ -42,10 +71,13 @@
     <a href="#" id="salirMon">Salir</a>
     <a href="./">← App de operario</a>
   </header>
-  <div class="tabs"><span class="tab on">📺 Monitor</span></div>
+  <nav class="tabs" id="tabs">
+    <button class="tab on" data-tab="monitor">📺 Monitor</button>
+    <button class="tab" data-tab="prod">📊 Producción</button>
+    <button class="tab" data-tab="asis">⏰ Asistencia</button>
+  </nav>
 
-  <!-- CLAVE DEL MONITOR: la valida la base (gt_monitor_clave, guardada cifrada en gt.config).
-       Se recuerda en ESTA máquina hasta «Salir», así la TV no la pide en cada recarga. -->
+  <!-- CLAVE DEL MONITOR: la valida la base (gt_monitor_clave). Se recuerda en ESTA máquina hasta «Salir». -->
   <div id="login" class="login hidden">
     <div class="rot">🔒 Clave del monitor</div>
     <input id="passInput" type="password" inputmode="numeric" autocomplete="off" />
@@ -53,7 +85,7 @@
     <div id="passError" class="err-txt"></div>
   </div>
 
-  <main id="monitor" class="hidden">
+  <main id="monitor" class="vista hidden">
     <div class="rot">🔑 Código de ingreso</div>
     <div class="clave-fila">
       <div id="clave">····</div>
@@ -66,48 +98,77 @@
     <div id="estado"></div>
   </main>
 
-  <script src="config.js?v=1.4"></script>
+  <section id="prod" class="vista panel hidden">
+    <div class="barra"><input type="date" id="prodDia" /><button id="prodRef">↻ Actualizar</button><span class="info" id="prodInfo"></span></div>
+    <div class="bloque"><h2>Por área</h2><div id="prodArea"></div></div>
+    <div class="bloque"><h2>Por operario</h2><div id="prodOp"></div></div>
+  </section>
+
+  <section id="asis" class="vista panel hidden">
+    <div class="barra"><input type="date" id="asisDia" /><button id="asisRef">↻ Actualizar</button><span class="info" id="asisInfo"></span></div>
+    <div class="bloque"><div id="asisTabla"></div></div>
+  </section>
+
+  <script src="config.js?v=1.5"></script>
   <script>
-  /* Monitor de GT: muestra el código de ingreso de 4 dígitos que cambia cada minuto.
-     Lo calcula la base (public.gt_clave_actual); acá sólo se muestra y se cuenta hacia atrás.
-     Se vuelve a pedir justo después de cada cambio. Si la base no contesta, se dice: el código
-     viejo NO se deja en pantalla como si fuera el bueno (vale 1 minuto más y después no). */
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
     const $ = (id) => document.getElementById(id);
-    let fin = 0, timer = null, ultimoOk = 0, pass = null;
+    const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const num = (n) => Number(n).toLocaleString("es-AR");
+    const hhmm = (ts) => ts ? String(ts).slice(11, 16) : "";                       // timestamp sin zona (hora AR)
+    const hhmmTz = (ts) => ts ? new Date(ts).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" }) : "";
+    const hoyAR = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+    const durMin = (a, b) => Math.max(0, Math.round((new Date(b) - new Date(a)) / 60000));
+    const hm = (m) => Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0");
+    let fin = 0, timer = null, ultimoOk = 0, pass = null, tab = "monitor";
     try { pass = localStorage.getItem(LS_PASS); } catch { /* sin storage */ }
 
-    function verLogin(msg) {
-      clearTimeout(timer); fin = 0;
-      $("monitor").classList.add("hidden"); $("login").classList.remove("hidden");
-      $("passError").textContent = msg || ""; $("passInput").value = ""; $("passInput").focus();
-    }
-    function entrar() {
-      pass = $("passInput").value.trim(); if (!pass) return;
-      $("login").classList.add("hidden"); $("monitor").classList.remove("hidden"); pedir(true);
+    async function rpc(fn, body) {
+      const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 15000);
+      try {
+        const r = await fetch(CFG.SUPABASE_URL + "/rest/v1/rpc/" + fn, { method: "POST", signal: ctl.signal,
+          headers: { apikey: CFG.SUPABASE_KEY, Authorization: "Bearer " + CFG.SUPABASE_KEY, "Content-Type": "application/json" },
+          body: JSON.stringify(body || {}) });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return await r.json();
+      } finally { clearTimeout(t); }
     }
 
+    /* ---------- login y pestañas ---------- */
+    function verLogin(msg) {
+      clearTimeout(timer); fin = 0;
+      document.querySelectorAll(".vista").forEach((v) => v.classList.add("hidden"));
+      $("login").classList.remove("hidden");
+      $("passError").textContent = msg || ""; $("passInput").value = ""; $("passInput").focus();
+    }
+    async function entrar() {
+      pass = $("passInput").value.trim(); if (!pass) return;
+      await pedir(true);                 // valida la clave contra la base y, si sirve, la recuerda
+      if (pass && tab !== "monitor") verTab(tab);
+    }
+    function verTab(t, primera) {
+      tab = t;
+      document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
+      document.querySelectorAll(".vista").forEach((v) => v.classList.toggle("hidden", v.id !== t));
+      if (t === "monitor") pedir(primera); else if (t === "prod") cargarProd(); else cargarAsis();
+    }
+    function sinPermiso() { pass = null; try { localStorage.removeItem(LS_PASS); } catch {} verLogin("Clave incorrecta"); }
+
+    /* ---------- MONITOR ---------- */
     async function pedir(primera) {
-      const p = pass || "";   // sin clave guardada se prueba vacía: si la base no tiene clave configurada, muestra igual
       clearTimeout(timer);
+      const p = pass || "";
       try {
-        const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 10000);
-        const r = await fetch(CFG.SUPABASE_URL + "/rest/v1/rpc/gt_monitor_clave", {
-          method: "POST", signal: ctl.signal,
-          headers: { apikey: CFG.SUPABASE_KEY, Authorization: "Bearer " + CFG.SUPABASE_KEY, "Content-Type": "application/json" },
-          body: JSON.stringify({ p_pass: p }) });
-        clearTimeout(t);
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        const d = await r.json();
-        if (!d.ok) { const msg = p ? "Clave incorrecta" : ""; pass = null; try { localStorage.removeItem(LS_PASS); } catch {} verLogin(msg); return; }
+        const d = await rpc("gt_monitor_clave", { p_pass: p });
+        if (!d.ok) { if (p) sinPermiso(); else verLogin(""); return; }
         if (primera && p && !d.sin_clave) { try { localStorage.setItem(LS_PASS, p); } catch {} }
-        $("monitor").classList.remove("hidden"); $("login").classList.add("hidden");
+        $("login").classList.add("hidden");
+        if (tab === "monitor") $("monitor").classList.remove("hidden");
         $("clave").textContent = d.clave;
-        fin = Date.now() + d.cambia_en_s * 1000;
-        ultimoOk = Date.now();
+        fin = Date.now() + d.cambia_en_s * 1000; ultimoOk = Date.now();
         $("estado").textContent = ""; $("estado").classList.remove("err");
-        timer = setTimeout(pedir, d.cambia_en_s * 1000 + 600);
+        if (tab === "monitor") timer = setTimeout(pedir, d.cambia_en_s * 1000 + 600);
       } catch (e) {
         $("estado").textContent = "⚠ No pude leer el código (" + (e.message || e) + "). Reintentando…";
         $("estado").classList.add("err");
@@ -115,17 +176,121 @@
         timer = setTimeout(pedir, 5000);
       }
     }
-    function tick() {
+    setInterval(() => {
       const s = Math.max(0, Math.ceil((fin - Date.now()) / 1000));
       $("seg").textContent = fin ? s : "--";
       $("arco").style.strokeDashoffset = fin ? String(CIRC * (1 - s / 60)) : "0";
+    }, 250);
+
+    /* ---------- PRODUCCIÓN ---------- */
+    async function cargarProd() {
+      const dia = $("prodDia").value || hoyAR();
+      $("prodInfo").textContent = "Cargando…";
+      let rows;
+      try { rows = await rpc("gt_admin_produccion", { p_pass: pass || "", p_dia: dia }); }
+      catch (e) { $("prodInfo").textContent = "⚠ No pude leer la producción (" + e.message + ")"; return; }
+      if (!rows.length && !(await claveOk())) return;
+      $("prodInfo").textContent = rows.length + " tramos · actualizado " + new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+      // por área: lo cerrado suma; lo en curso se cuenta aparte
+      const porArea = new Map();
+      rows.forEach((r) => {
+        const a = porArea.get(r.area) || { area: r.area, unidad: r.unidad, cant: 0, unid: 0, conUnid: false, curso: 0, ops: new Set() };
+        a.ops.add(r.empleado);
+        if (r.hasta) { a.cant += Number(r.cantidad || 0); if (r.unidades != null) { a.unid += Number(r.unidades); a.conUnid = true; } }
+        else a.curso++;
+        porArea.set(r.area, a);
+      });
+      const areas = [...porArea.values()].sort((x, y) => (y.conUnid ? y.unid : y.cant) - (x.conUnid ? x.unid : x.cant));
+      $("prodArea").innerHTML = areas.length ? "<table><tr><th>Área</th><th>Cant.</th><th>Unidad</th><th>Unid.<br>(cj×UxB)</th><th>Oper.</th><th>En<br>curso</th></tr>" +
+        areas.map((a) => "<tr><td class=izq>" + esc(a.area) + "</td><td class=num>" + num(a.cant) + "</td><td>" + esc(a.unidad) +
+          "</td><td class=num>" + (a.conUnid ? num(a.unid) : "—") + "</td><td>" + a.ops.size + "</td><td>" + (a.curso || "—") + "</td></tr>").join("") + "</table>"
+        : '<div class="vacio">Sin producción registrada ese día.</div>';
+      let prev = null;
+      $("prodOp").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Área</th><th>Código</th><th>Desde</th><th>Hasta</th><th>Dur.</th><th>Cant.</th><th>Unid.</th></tr>" +
+        rows.map((r) => {
+          const nuevo = r.empleado !== prev; prev = r.empleado;
+          const cls = ((r.hasta ? "" : "curso") + (nuevo ? " sep" : "")).trim();
+          return '<tr class="' + cls + '"><td class=izq>' + (nuevo ? "<b>" + esc(r.empleado) + "</b>" : "") + "</td><td>" + esc(r.area) +
+            "</td><td class=izq>" + esc(r.codigo || "—") + (r.descripcion ? ' <span class="desc">' + esc(r.descripcion) + "</span>" : "") +
+            "</td><td>" + hhmmTz(r.desde) + "</td><td>" + (r.hasta ? hhmmTz(r.hasta) : "en curso") + "</td><td>" +
+            hm(durMin(r.desde, r.hasta || new Date())) + "</td><td class=num>" +
+            (r.cantidad == null ? "—" : num(r.cantidad)) + "</td><td class=num>" + (r.unidades == null ? "—" : num(r.unidades)) + "</td></tr>";
+        }).join("") + "</table>" : '<div class="vacio">—</div>';
     }
-    setInterval(tick, 250);
-    document.addEventListener("visibilitychange", () => { if (!document.hidden && pass) pedir(); });
+
+    /* ---------- ASISTENCIA ---------- */
+    async function cargarAsis() {
+      const dia = $("asisDia").value || hoyAR();
+      const esHoy = dia === hoyAR();
+      const ahora = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 19);   // hora AR, mismo formato que la base
+      $("asisInfo").textContent = "Cargando…";
+      let rows;
+      try { rows = await rpc("gt_admin_asistencia", { p_pass: pass || "", p_dia: dia }); }
+      catch (e) { $("asisInfo").textContent = "⚠ No pude leer la asistencia (" + e.message + ")"; return; }
+      if (!rows.length && !(await claveOk())) return;
+      const corre = (ts, min) => { const d = new Date(String(ts).replace(" ", "T") + "Z"); d.setUTCMinutes(d.getUTCMinutes() + min); return d.toISOString().slice(0, 19); };
+      const t19 = (ts) => String(ts).replace(" ", "T").slice(0, 19);
+      let faltas = 0;
+      const html = rows.map((r) => {
+        const tol = r.tolerancia_min || 5, chips = [];
+        let ent, alm = "—", sal = "—";
+        if (!r.entrada) { ent = '<span class="t-err">—</span>'; chips.push('<span class="chip c-err">No vino</span>'); }
+        else {
+          ent = hhmm(r.entrada);
+          if (t19(r.entrada) > corre(r.entrada_prevista, tol)) { ent = '<span class="t-err">' + ent + "</span>"; chips.push('<span class="chip c-err">Llegó tarde</span>'); }
+          else if (t19(r.entrada) > t19(r.entrada_prevista)) { ent = '<span class="t-warn">' + ent + "</span>"; chips.push('<span class="chip c-warn">Entrada en tolerancia</span>'); }
+          if (!r.almuerzo_desde && !r.flexible) alm = '<span class="desc">de corrido</span>';
+          else if (!r.almuerzo_sale) {
+            alm = '<span class="desc">' + (r.flexible ? "rotativo · " : "") + "no fichó</span>";
+            if (!r.flexible && (!esHoy || ahora > t19(r.almuerzo_desde))) chips.push('<span class="chip c-err">Sin almuerzo</span>');
+          } else {
+            let s = hhmm(r.almuerzo_sale), v = r.almuerzo_vuelve ? hhmm(r.almuerzo_vuelve) : "…";
+            if (!r.flexible) {
+              if (t19(r.almuerzo_sale) < corre(r.almuerzo_desde, -tol)) { s = '<span class="t-err">' + s + "</span>"; chips.push('<span class="chip c-err">Salió antes a almorzar</span>'); }
+              else if (t19(r.almuerzo_sale) < t19(r.almuerzo_desde)) s = '<span class="t-warn">' + s + "</span>";
+              if (r.almuerzo_vuelve && t19(r.almuerzo_vuelve) > corre(r.almuerzo_hasta, tol)) { v = '<span class="t-err">' + v + "</span>"; chips.push('<span class="chip c-err">Volvió tarde</span>'); }
+              else if (r.almuerzo_vuelve && t19(r.almuerzo_vuelve) > t19(r.almuerzo_hasta)) v = '<span class="t-warn">' + v + "</span>";
+            }
+            alm = s + "–" + v + (r.flexible ? ' <span class="desc">rotativo</span>' : "");
+          }
+          if (r.termino) {
+            sal = hhmm(r.fin);
+            if (t19(r.fin) < corre(r.salida_prevista, -tol)) { sal = '<span class="t-err">' + sal + "</span>"; chips.push('<span class="chip c-err">Se fue antes</span>'); }
+            else if (t19(r.fin) < t19(r.salida_prevista)) { sal = '<span class="t-warn">' + sal + "</span>"; chips.push('<span class="chip c-warn">Salida en tolerancia</span>'); }
+          } else if (!esHoy || ahora > t19(r.salida_prevista)) {
+            sal = '<span class="t-err">—</span>'; chips.push('<span class="chip c-err">No terminó el día</span>');
+          } else sal = '<span class="desc">trabajando</span>';
+          if (r.area_abierta && (!esHoy || ahora > t19(r.salida_prevista))) chips.push('<span class="chip c-warn">Dejó un área abierta</span>');
+        }
+        if (chips.some((c) => c.includes("c-err"))) faltas++;
+        if (!chips.length) chips.push('<span class="chip c-ok">OK</span>');
+        return "<tr><td class=izq><b>" + esc(r.empleado) + '</b> <span class="desc">' + esc(r.legajo || "") + "</span></td><td>" + ent +
+          '<div class="desc">' + hhmm(r.entrada_prevista) + "</div></td><td>" + alm +
+          (r.almuerzo_desde ? '<div class="desc">' + hhmm(r.almuerzo_desde) + "–" + hhmm(r.almuerzo_hasta) + "</div>" : "") + "</td><td>" + sal +
+          '<div class="desc">' + hhmm(r.salida_prevista) + "</div></td><td class=izq>" + chips.join("") + "</td></tr>";
+      }).join("");
+      $("asisInfo").textContent = rows.length + " operarios · " + faltas + " con faltas · abajo de cada hora, la que le toca";
+      $("asisTabla").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Entrada</th><th>Almuerzo</th><th>Salida</th><th>Estado</th></tr>" + html + "</table>"
+        : '<div class="vacio">Sin datos.</div>';
+    }
+    // una lista vacía puede ser «no hay nada» o «clave mala»: lo distingue el monitor
+    async function claveOk() {
+      try { const d = await rpc("gt_monitor_clave", { p_pass: pass || "" }); if (d.ok) return true; } catch { return true; }
+      sinPermiso(); return false;
+    }
+
+    /* ---------- eventos ---------- */
+    $("prodDia").value = $("asisDia").value = hoyAR();
+    $("tabs").addEventListener("click", (e) => { const b = e.target.closest(".tab"); if (b) verTab(b.dataset.tab); });
+    $("prodRef").onclick = cargarProd; $("asisRef").onclick = cargarAsis;
+    $("prodDia").onchange = cargarProd; $("asisDia").onchange = cargarAsis;
+    setInterval(() => { if (document.hidden) return; if (tab === "prod" && $("prodDia").value === hoyAR()) cargarProd();
+                        if (tab === "asis" && $("asisDia").value === hoyAR()) cargarAsis(); }, 60000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden && tab === "monitor") pedir(); });
     $("passBtn").onclick = entrar;
     $("passInput").addEventListener("keydown", (e) => { if (e.key === "Enter") entrar(); });
     $("salirMon").onclick = (e) => { e.preventDefault(); pass = null; try { localStorage.removeItem(LS_PASS); } catch {} verLogin(); };
-    pedir(true);
+    verTab("monitor", true);
   })();
   </script>
 </body>

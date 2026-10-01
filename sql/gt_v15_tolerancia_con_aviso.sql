@@ -1,0 +1,14 @@
+-- GT v1.5 — APLICADO el 2026-10-01. D24 (Thomas): la tolerancia de 5 min (gt.config.tolerancia_min)
+-- NO perdona en silencio: lo que cae dentro de la tolerancia sale igual en el Telegram, en su propio
+-- bloque ("dentro de la tolerancia"). Afecta gt.alerta_llegada, gt.alerta_jornada y gt.jornada_estado.
+-- La definición completa viva se trae con:
+--   select pg_get_functiondef('gt.alerta_llegada(text,boolean)'::regprocedure);
+--   select pg_get_functiondef('gt.alerta_jornada(text,boolean)'::regprocedure);
+--   select pg_get_functiondef('gt.jornada_estado(date)'::regprocedure);
+-- Cambios respecto de v14:
+--   alerta_llegada: llegada en (08:00, 08:05] → " (dentro de la tolerancia)" al lado del nombre.
+--   alerta_jornada 'almuerzo': bloque "Dentro de la tolerancia:" (salió hasta 5 min antes / volvió hasta 5 min tarde);
+--                  "Salieron antes de hora" y "Volvieron tarde" sólo pasada la tolerancia.
+--   alerta_jornada 'salida': bloque "Se fueron dentro de la tolerancia:"; "Se fueron antes de hora" sólo pasada la tolerancia.
+-- Probado: "Luis Luna — salió 11:57 (le toca 12:00), volvió 13:03 (vuelve 13:00)" y "Luis Luna — 17:27 (sale 17:30)".
+-- Sábados: no se trabaja (D19), las alertas sólo corren lun-vie (isodow > 5 → null).
