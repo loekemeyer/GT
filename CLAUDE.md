@@ -173,10 +173,18 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
-### Versión
+### Versión (Thomas, 01/10/2026)
 
-`APP_VERSION` en `config.js`, `SW_VERSION` en `sw.js`, `version.json` y los `?v=` de `index.html`
-van al **mismo número**. Commits `vX.Y: descripción`, directo a `main`, con el trailer
+**La app arrancó de nuevo en 1.0** (lo anterior, v1.0 a v12.0, fue el armado). Cada modificación sube
+el número de a uno: **1.0 → 1.1 → … → 1.9 → 1.10 → … → 1.99 → 2.0**. Se sube con el script, que mueve
+los 4 lugares juntos (`APP_VERSION` en `config.js`, `SW_VERSION` en `sw.js`, `version.json` y los `?v=`
+de `index.html` y `admin.html`):
+
+```bash
+node scripts/bump-version.cjs        # la siguiente
+```
+
+⚠ 1.10 es **mayor** que 1.9: si algún día se comparan versiones, se comparan por número, no como texto. Commits `vX.Y: descripción`, directo a `main`, con el trailer
 `Hecho-por: <Nombre> (employee_id <N>)`.
 
 ---
