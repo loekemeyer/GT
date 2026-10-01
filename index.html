@@ -11,7 +11,7 @@
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=9.0" />
+  <link rel="stylesheet" href="styles.css?v=10.0" />
 </head>
 <body>
   <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
@@ -55,8 +55,8 @@
     <div class="sigue">
       <div class="label" id="sigueLabel"></div>
       <div id="siguePend" class="cod-pend hidden"></div>
-      <input id="sigueInput" class="text-input" list="sigueLista" autocomplete="off" autocapitalize="characters" placeholder="Código" />
-      <datalist id="sigueLista"></datalist>
+      <input id="sigueInput" class="text-input" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="characters" placeholder="Código" />
+      <div id="sigueHint" class="cod-hint"></div>
       <div id="sigueError" class="error"></div>
     </div>
     <button id="cantBtn" class="primary-btn">Terminar y seguir</button>
@@ -68,14 +68,14 @@
     <div class="top-bar"><span class="back-top" id="codVolver">←</span><span class="op-name" id="codTitulo"></span></div>
     <div class="label" id="codLabel"></div>
     <div id="codPend" class="cod-pend hidden"></div>
-    <input id="codInput" class="text-input" list="codLista" autocomplete="off" autocapitalize="characters" placeholder="Código" />
-    <datalist id="codLista"></datalist>
+    <input id="codInput" class="text-input" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="characters" placeholder="Código" />
+    <div id="codHint" class="cod-hint"></div>
     <div id="codError" class="error"></div>
     <button id="codBtn" class="primary-btn">Empezar</button>
   </div>
 
   <div id="toast" class="toast hidden"></div>
-  <script src="config.js?v=9.0"></script>
-  <script src="app.js?v=9.0"></script>
+  <script src="config.js?v=10.0"></script>
+  <script src="app.js?v=10.0"></script>
 </body>
 </html>

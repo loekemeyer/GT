@@ -72,8 +72,13 @@ srv.listen(0, async () => {
     await pg.fill("#cantInput", "abc"); await pg.click("#cantBtn");
     chk((await pg.textContent("#cantError")).length > 0 && db.length === 1, "cantidad no numérica no se registra");
     await pg.fill("#cantInput", "120"); await pg.fill("#sigueInput", "999"); await pg.click("#cantBtn");
-    chk((await pg.textContent("#sigueError")).includes("no está en la lista") && db.length === 1, "código siguiente fuera de la lista no se acepta (no graba nada)");
-    await pg.fill("#sigueInput", "0505"); await pg.click("#cantBtn"); await alDia();
+    chk((await pg.textContent("#sigueError")).includes("¿Lo registro igual?") && db.length === 1 &&
+        (await pg.textContent("#cantBtn")).includes("registrar el 999"), "código que no está en la lista: pregunta antes de grabar");
+    chk(!(await pg.$("#sigueInput[list]")) && (await pg.getAttribute("#sigueInput", "inputmode")) === "numeric",
+        "sin lista desplegable (no tapa el campo) y teclado numérico si los códigos son números");
+    await pg.fill("#sigueInput", "0505");
+    chk((await pg.textContent("#sigueHint")) === "Pinza · 10*15", "al tipear muestra qué es el código (Pinza · 10*15)");
+    await pg.click("#cantBtn"); await alDia();
     chk(db.length === 3 && db[1].rubro === "CORTE" && db[1].cantidad === 120 && db[1].ts_inicio === db[0].ts_cliente &&
         db[2].rubro === "GRAMP" && db[2].texto === "505" && db[2].ts_inicio === null,
         "Terminé Corte 120 y empezó Grampeado 505 («0505») en el mismo paso");
@@ -81,9 +86,11 @@ srv.listen(0, async () => {
     await termino("GRAMP");
     chk((await pg.textContent("#sigueLabel")).includes("en Grampeado") && (await pg.textContent("#cantLabel")).includes("del 505"),
         "al terminar, por defecto propone seguir en la MISMA área");
-    await pg.fill("#cantInput", "0"); await pg.fill("#sigueInput", "505"); await pg.click("#cantBtn"); await alDia();
-    chk(db.length === 5 && db[3].cantidad === 0 && db[3].texto === "505" && db[4].rubro === "GRAMP" && !db[4].ts_inicio,
-        "Terminé Grampeado 505 y sigo en Grampeado con el código siguiente");
+    await pg.fill("#cantInput", "0"); await pg.fill("#sigueInput", "777"); await pg.click("#cantBtn");
+    chk(db.length === 3 && (await pg.textContent("#sigueHint")).includes("No está en la lista"), "código nuevo: avisa y espera la confirmación");
+    await pg.click("#cantBtn"); await alDia();
+    chk(db.length === 5 && db[3].cantidad === 0 && db[3].texto === "505" && db[4].rubro === "GRAMP" && db[4].texto === "777" && !db[4].ts_inicio,
+        "confirmado, registra el código nuevo y sigue en Grampeado");
     await termino("GRAMP"); await pg.fill("#cantInput", "4"); await pg.click("#cambioBtn"); await alDia();
     chk(db.length === 6 && db[5].cantidad === 4 && !(await pg.$(".box.abierta")), "«Cambiar de área / no sigo» cierra sin abrir otra");
     await pg.click(".box[data-cod=DECO]"); await alDia();

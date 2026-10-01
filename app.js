@@ -8,6 +8,8 @@
  *    (ts_inicio = hora de la apertura, cantidad)
  *  · tocar OTRA área con una abierta     → en una sola pantalla cierra la anterior (con su
  *    cantidad) y empieza la nueva.
+ * v10.0: sin lista desplegable (en el iPhone tapaba el campo): abajo del campo se muestra qué es el código
+ *        mientras se tipea. Un código que NO está en la lista se pregunta y, confirmado, se registra igual.
  * v9.0: al terminar, en la misma pantalla se pregunta «¿con qué seguís?»: por defecto la misma área
  *       (o la que tocó) con el código siguiente. «Cambiar de área / no sigo» cierra y vuelve a la botonera.
  * v8.0: Guardado a góndola «se nutre de lo que salió de Contraído»: al empezar muestra como botones
@@ -173,11 +175,10 @@
     $("cantInput").value = ""; $("cantError").textContent = "";
     $("sigueLabel").textContent = sigue.pide_codigo ? "¿Con qué código seguís en " + sigue.nombre + "?" : "¿Seguís en " + sigue.nombre + "?";
     $("sigueInput").classList.toggle("hidden", !sigue.pide_codigo);
-    $("sigueInput").value = ""; $("sigueError").textContent = "";
-    $("sigueLista").innerHTML = opcionesDe(sigue);
+    prepararInput("sigueInput", "sigueHint", sigue); $("sigueError").textContent = "";
     $("siguePend").classList.add("hidden"); $("siguePend").innerHTML = "";
     if (sigue.codigo === "GUARD" && sigue.pide_codigo) pendientesContraido("siguePend", () => st.pend && st.pend.sigue.codigo === "GUARD");
-    $("cantBtn").textContent = "Terminar y seguir en " + sigue.nombre;
+    restaurarBtn("cantBtn"); $("cantBtn").textContent = "Terminar y seguir en " + sigue.nombre;
     show("cantScreen");
     (pideCant ? $("cantInput") : $("sigueInput")).focus();
   }
@@ -196,13 +197,14 @@
     if (seguir && p.sigue.pide_codigo) {
       nuevo = validarCodigo(p.sigue, $("sigueInput").value);
       if (nuevo.err) { $("sigueError").textContent = nuevo.err; $("sigueInput").focus(); return; }
+      if (nuevo.nuevo && !confirmoNuevo(nuevo.guardo, "sigueError", "cantBtn")) return;
     }
     registrar(p.cierra, { ts_inicio: p.ab.ts_cliente, cantidad: cant, texto: p.ab.texto || "" });
     if (seguir) registrar(p.sigue, nuevo ? { texto: nuevo.guardo } : null, 1);
     flush();
     toast("✓ Terminaste " + p.cierra.nombre + (cant != null ? " · " + num(cant) + " " + p.cierra.unidad : "") +
           (seguir ? " · seguís en " + p.sigue.nombre + (nuevo ? " · " + nuevo.guardo : "") : ""));
-    st.pend = null; show("optionsScreen"); renderBotonera();
+    st.pend = null; restaurarBtn("cantBtn"); show("optionsScreen"); renderBotonera();
   }
 
   // empezar un área: si pide código, primero «¿Qué vas a grampear?»
@@ -210,10 +212,36 @@
     const n = String(a.nombre || "").toLowerCase();
     return /ado$/.test(n) ? "¿Qué vas a " + n.replace(/ado$/, "ar") + "?" : "¿Qué código vas a hacer en " + a.nombre + "?";
   }
-  function opcionesDe(a) {
-    return codigosDe(a).map((c) => '<option value="' + esc(c.codigo) + '">' +
-      esc([c.descripcion, c.medida].filter(Boolean).join(" · ")) + "</option>").join("");
+  // input de código: teclado numérico si todos los códigos del área son números; abajo, qué es lo tipeado
+  function prepararInput(inputId, hintId, a) {
+    const lista = codigosDe(a);
+    const el = $(inputId);
+    el.value = ""; el.dataset.area = a.codigo; el.dataset.hint = hintId;
+    el.setAttribute("inputmode", lista.length && lista.every((c) => /^\d+$/.test(c.codigo)) ? "numeric" : "text");
+    $(hintId).textContent = ""; $(hintId).classList.remove("nuevo");
+    st.nuevoOk = null;
   }
+  function mostrarHint(el) {
+    const a = areaDe(el.dataset.area), h = $(el.dataset.hint);
+    if (!a || !h) return;
+    st.nuevoOk = null;
+    const v = el.value.trim();
+    if (!v) { h.textContent = ""; h.classList.remove("nuevo"); return; }
+    const r = validarCodigo(a, v);
+    const c = r.cod;
+    h.classList.toggle("nuevo", !!r.nuevo);
+    h.textContent = c ? [c.descripcion, c.medida].filter(Boolean).join(" · ") || "✓" :
+      r.nuevo ? "No está en la lista de " + a.nombre : "";
+  }
+  // un código fuera de la lista se registra sólo si se confirma (segundo toque con el mismo código)
+  function confirmoNuevo(cod, errId, btnId) {
+    if (st.nuevoOk === cod) return true;
+    st.nuevoOk = cod;
+    $(errId).textContent = "El " + cod + " no está en la lista. ¿Lo registro igual? Tocá de nuevo para confirmar.";
+    const b = $(btnId); b.dataset.txt = b.dataset.txt || b.textContent; b.textContent = "Sí, registrar el " + cod;
+    return false;
+  }
+  function restaurarBtn(id) { const b = $(id); if (b.dataset.txt) { b.textContent = b.dataset.txt; delete b.dataset.txt; } }
   function empezar(a) {
     if (!a.pide_codigo) {
       registrar(a, null, 1); flush();
@@ -222,10 +250,9 @@
     st.codPara = a;
     $("codTitulo").textContent = "Empecé " + a.nombre;
     $("codLabel").textContent = verbo(a);
-    $("codInput").value = ""; $("codError").textContent = "";
+    prepararInput("codInput", "codHint", a); $("codError").textContent = ""; restaurarBtn("codBtn");
     $("codPend").classList.add("hidden"); $("codPend").innerHTML = "";
     if (a.codigo === "GUARD") pendientesContraido("codPend", () => st.codPara && st.codPara.codigo === "GUARD");
-    $("codLista").innerHTML = opcionesDe(a);
     show("codScreen"); $("codInput").focus();
   }
   // v8.0: lo que salió de Contraído y falta guardar, como botones (en «Empecé» o en «¿con qué seguís?»)
@@ -248,13 +275,15 @@
     const lista = codigosDe(a);
     const sin0 = (x) => String(x).toUpperCase().replace(/^0+(?=\d)/, "");
     const cod = lista.find((c) => sin0(c.codigo) === sin0(v));
-    if (lista.length && !cod) return { err: "El código " + v + " no está en la lista de " + a.nombre };
+    if (lista.length && !cod) return { guardo: v, nuevo: true };   // v10.0: se pregunta, no se rechaza
     return { guardo: cod ? cod.codigo : v, cod };    // se guarda como figura en la lista
   }
   function confirmarCod() {
     const a = st.codPara; if (!a) return;
     const r = validarCodigo(a, $("codInput").value);
     if (r.err) { $("codError").textContent = r.err; return; }
+    if (r.nuevo && !confirmoNuevo(r.guardo, "codError", "codBtn")) return;
+    restaurarBtn("codBtn");
     registrar(a, { texto: r.guardo }, 1); flush();
     const c = r.cod;
     toast("✓ Empezaste " + a.nombre + " · " + r.guardo + (c && c.descripcion ? " " + c.descripcion + (c.medida ? " " + c.medida : "") : ""));
@@ -344,6 +373,10 @@
   $("codBtn").onclick = confirmarCod;
   $("codInput").addEventListener("keydown", (e) => { if (e.key === "Enter") confirmarCod(); });
   $("codVolver").onclick = cancelarCod;
+  ["codInput", "sigueInput"].forEach((id) => $(id).addEventListener("input", (e) => {
+    mostrarHint(e.target); $(id === "codInput" ? "codError" : "sigueError").textContent = "";
+    restaurarBtn(id === "codInput" ? "codBtn" : "cantBtn");
+  }));
   $("codPend").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("codInput").value = b.dataset.cod; confirmarCod(); } });
   $("histBtn").onclick = () => { const h = $("hist"); h.classList.toggle("hidden"); if (!h.classList.contains("hidden")) renderHist(); };
   window.addEventListener("online", flush);

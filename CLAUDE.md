@@ -53,6 +53,14 @@ de Virgilio.
 al terminar pregunta el siguiente código. Va en `gt.tareas` (por rubro); el registro ya tiene
 `rubro` y `cantidad`.
 
+### v10.0 — tipear el código y códigos nuevos (Thomas, 01/10/2026)
+
+- **Sin lista desplegable**: en el iPhone el `datalist` tapaba el campo y no dejaba tipear. Abajo del
+  campo se muestra qué es lo tipeado («03 Bco · 10 cm»). Teclado numérico si todos los códigos del
+  área son números.
+- **Un código que no está en la lista se pregunta** («¿Lo registro igual?») y, con el segundo toque,
+  se registra. Para identificarlos después: `select * from gt.codigos_no_identificados order by ultima desc;`
+
 ### v9.0 — al terminar, «¿con qué seguís?» en la MISMA pantalla (Thomas, 01/10/2026)
 
 Thomas: *«una vez que terminan una tarea te tienen que preguntar con qué seguís, en el mismo momento…
