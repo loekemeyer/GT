@@ -73,6 +73,18 @@ al terminar pregunta el siguiente código. Va en `gt.tareas` (por rubro); el reg
 - **Cola offline** en `localStorage` (`gt_queue_v3`), reintento cada 30 s y al volver la red. Una fila
   rechazada sale de la cola y queda en `gt_rechazados_v3` (no traba al resto — lección v25.20 de Virgilio).
 
+### ⚠ El conector de Supabase NO deja correr un `DROP` desde la sesión
+
+Medido el 01/10/2026: con `execute_sql` y `apply_migration` en «permitir siempre», todo `DROP`
+(tabla o función) se queda esperando una confirmación aparte del conector y **se corta a los 60 s
+sin llegar a la base** (no aparece en `pg_stat_statements`). `CREATE`, `ALTER`, `INSERT` y `UPDATE`
+pasan. Por eso las tablas de la v1 se **renombraron** (`gt.operarios_v1`, `gt.tareas_v1`,
+`gt.registros_v1`, vacías) en vez de borrarse. Un cambio que necesite borrar algo se escribe sin
+`DROP` (renombrar, revocar) o lo corre el dueño en el SQL Editor de Supabase.
+
+**Datos al 01/10/2026:** 9 áreas en `gt.rubros` y 9 empleados en `gt.empleados`, sin legajo
+(Thomas los pasa después).
+
 ### Cargar datos (con el «sí» del dueño, regla BD)
 
 ```sql

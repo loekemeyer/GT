@@ -4,13 +4,19 @@
 --   unidades/cajas hizo (gt.rubros.unidad). Eventos: opcion = 'AREA', rubro = el área,
 --   apertura ts_inicio NULL, cierre ts_inicio = hora de apertura + cantidad.
 -- Etapa 2 (a definir): dentro del área, qué CÓDIGO empezó y cuántas cajas → gt.tareas por rubro.
--- Rollback: drop schema gt cascade; y los drop function de abajo.
+-- Rollback: drop schema gt cascade; drop function public.gt_clave_actual(), public.gt_clave_validar(text),
+--           public.gt_areas(), public.gt_tareas(bigint), public.gt_registrar(jsonb), public.gt_registros_hoy(bigint);
 
-drop function if exists public.gt_login(text);
-drop function if exists public.gt_tareas();
-drop function if exists public.gt_registrar(jsonb);
-drop function if exists public.gt_registros_hoy(text);
-drop table if exists gt.registros, gt.tareas, gt.operarios cascade;
+-- ⚠ APLICADO SIN DROP (01/10/2026): el conector de Supabase pide una confirmación aparte para las
+-- sentencias destructivas y esa confirmación se cortaba a los 60 s sin llegar a la base (4 intentos).
+-- Las tablas de la v1 (vacías) se RENOMBRARON a *_v1 y sus funciones quedaron sin permiso para anon.
+-- Limpieza pendiente, cuando se pueda correr un DROP (SQL Editor de Supabase):
+--   drop table gt.operarios_v1, gt.tareas_v1, gt.registros_v1;
+--   drop function public.gt_login(text), public.gt_tareas(), public.gt_registros_hoy(text);
+alter table if exists gt.tareas    rename to tareas_v1;
+alter table if exists gt.registros rename to registros_v1;
+alter table if exists gt.operarios rename to operarios_v1;
+-- revoke execute on function public.gt_login(text), public.gt_tareas(), public.gt_registros_hoy(text) from anon, authenticated;
 
 create schema if not exists gt;
 revoke all on schema gt from anon, authenticated;
@@ -66,7 +72,7 @@ create table gt.registros (
   created_at   timestamptz not null default now(),
   dispositivo  text
 );
-create index gt_registros_emp_ts on gt.registros (empleado_id, ts_cliente);
+create index gt_registros_emp_ts2 on gt.registros (empleado_id, ts_cliente);
 
 alter table gt.empleados      enable row level security;
 alter table gt.rubros         enable row level security;
