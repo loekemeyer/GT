@@ -73,9 +73,11 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 | Deco | sí | 71 de operación (tablero «08. Sector Deco» completo) |
 | Pedidos | no | — (y no pide cantidad) |
 
-Avisos de llegada: hoy van al grupo de Virgilio; el grupo propio de GT se configura con
-`insert into gt.config values ('telegram_chat', '<id>') on conflict (clave) do update set valor = excluded.valor;`
-(el bot es `@Faltantes_Virgilio_bot`, el mismo que vacía `public.telegram_outbox`).
+Avisos de llegada: van al grupo de Telegram **«GT Avisos»** (`gt.config.telegram_chat = -5397417174`,
+configurado y probado el 01/10/2026). El bot es `@Faltantes_Virgilio_bot`, el mismo que vacía
+`public.telegram_outbox` (manda sólo de 07:00 a 21:00). ⚠ Un link de invitación (`t.me/+…`) **no** sirve
+como destino: hace falta el número del grupo. Se saca con `getUpdates` del bot por `net.http_get` (el
+token está en el Vault, `telegram_bot_token`; nada más en el sistema lee los updates del bot).
 
 ### v7.0 — códigos propios de Corte 45° y Grampeado (Thomas, 01/10/2026)
 
