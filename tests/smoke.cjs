@@ -10,7 +10,7 @@ const AREAS = [
   { codigo: "PED", nombre: "Pedidos", unidad: "pedidos armados", orden: 8, pide_cantidad: false },
   { codigo: "DECO", nombre: "Deco", unidad: "unidades fabricadas", orden: 9 },
   { codigo: "GUARD", nombre: "Guardado a góndola", unidad: "cajas guardadas", orden: 10, pide_codigo: true },
-  { codigo: "RECIB", nombre: "Recibir mercadería", unidad: "unidades recibidas", orden: 11, pide_codigo: false },
+  { codigo: "RECIB", nombre: "Recibir mercadería", unidad: "unidades recibidas", orden: 11, pide_codigo: false, pide_cantidad: false },
   { codigo: "ALMU", nombre: "Almuerzo", unidad: "—", orden: 12, pide_codigo: false, pide_cantidad: false },
 ];
 let CLAVE_MON = null; const LOGINS = [];
@@ -136,10 +136,10 @@ srv.listen(0, async () => {
     chk(db[nR - 1].rubro === "RECIB" && !db[nR - 1].ts_inicio && !(await pg.isVisible("#codScreen")),
         "Recibir mercadería empieza directo, sin preguntar Insumo o Moldura (D29)");
     await termino("RECIB");
-    chk(!(await pg.isVisible("#sigueBox")) && (await pg.textContent("#cantLabel")).includes("unidades recibidas") && (await pg.textContent("#cantBtn")) === "Listo",
-        "al terminar Recibir pide sólo la cantidad recibida");
-    await pg.fill("#cantInput", "40"); await pg.click("#cantBtn"); await alDia();
-    chk(db.length === nR + 1 && db[nR].cantidad === 40 && db[nR].rubro === "RECIB", "Terminé Recibir con 40");
+    chk(!(await pg.isVisible("#sigueBox")) && !(await pg.isVisible("#cantInput")) && (await pg.textContent("#cantBtn")) === "Listo",
+        "al terminar Recibir no pregunta nada: sólo «Listo» (D30)");
+    await pg.click("#cantBtn"); await alDia();
+    chk(db.length === nR + 1 && db[nR].cantidad == null && db[nR].rubro === "RECIB" && db[nR].ts_inicio, "Terminé Recibir sin cantidad");
     chk(!(await pg.$(".box[data-cod=ALMU]")) && await pg.isVisible("#almuBtn") && await pg.isVisible("#finBtn"),
         "Almuerzo y Terminar día son botones aparte, no tarjetas de área");
     // almuerzo con un área abierta: cierra el área (cantidad) y empieza el almuerzo

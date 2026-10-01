@@ -83,7 +83,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 | Deco | sí | 71 de operación (tablero «08. Sector Deco» completo) |
 | Pedidos | no | — (y no pide cantidad) |
 | Almuerzo (`ALMU`) | no | botón aparte, no tarjeta; sin cantidad |
-| Recibir mercadería | **no** (1.12, D29) | — ; al terminar, «unidades recibidas» |
+| Recibir mercadería | **no** (1.12, D29) | — ; al terminar no pide cantidad (1.13, D30) |
 
 Avisos de llegada: van al grupo de Telegram **«GT Avisos»** (`gt.config.telegram_chat = -5397417174`,
 configurado y probado el 01/10/2026). El bot es `@Faltantes_Virgilio_bot`, el mismo que vacía
@@ -196,8 +196,8 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 - **D31:** con un sector abierto tampoco están Almuerzo ni Terminar día en la botonera: la pantalla de
   **Terminé** tiene «🍽️ Me voy a almorzar» y «🏁 Terminé el día» (piden la cantidad igual).
 - **D29 (corregido en 1.12):** Recibir mercadería **no pregunta** Insumo / Moldura
-  (`gt.rubros.pide_codigo = false` para `RECIB`, aplicado con el «sí» de Thomas); al terminar pide sólo
-  las unidades recibidas y cierra con «Listo». Se retira la lectura de 1.11 (preguntar al empezar).
+  (`gt.rubros.pide_codigo = false` para `RECIB`, aplicado con el «sí» de Thomas); al terminar **no pide
+  cantidad** (1.13, D30: `pide_cantidad = false`) y cierra con «Listo». Se retira la lectura de 1.11 (preguntar al empezar).
 - **D27:** lunes 08:01, si nadie puso la clave del monitor entre 07:00 y 08:00 → aviso
   (`gt.alerta_monitor_lunes`). Y una clave puesta EN horario pero desde **otro equipo** que el de siempre
   también avisa (el caso del celular de Javier desde otro lugar). `sql/gt_v111_monitor_lunes_sin_clave_y_equipo.sql`.

@@ -12,3 +12,8 @@
 -- GT v1.12 — APLICADO el 2026-10-01 con el «sí» de Thomas (D29): Recibir mercadería no pregunta Insumo / Moldura.
 update gt.rubros set pide_codigo = false where codigo = 'RECIB';
 -- verificado: RECIB pide_codigo=false, pide_cantidad=true, unidad 'unidades recibidas'. Rollback: = true.
+
+-- GT v1.13 — APLICADO el 2026-10-01 (Thomas, D30 «no»): al terminar Recibir mercadería no se pide cantidad.
+update gt.rubros set pide_cantidad = false where codigo = 'RECIB';
+-- verificado: RECIB pide_codigo=false, pide_cantidad=false. Rollback: = true.
+-- D32: el monitor siempre se abre desde la misma PC → el «equipo de siempre» lo fija el primer ingreso en horario.
