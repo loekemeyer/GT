@@ -191,26 +191,41 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 **No se trabaja sábado** (D19). Javier Burgos: sólo el almuerzo es rotativo.
 **Empleados ordenados por legajo** (1.7) en la lista del celular, Producción y Asistencia (`gt.legajo_num`).
 
-### Colores de marco por artículo (base, 01/10/2026 — sin cambio de app)
+### 1.26 — paquete terminado en Corte y surtidos repartidos (Thomas, 01/10/2026: D11, D15)
 
-- `gt.codigo_color` (artículo, color, proporción, fuente): una fila por color; un **surtido** tiene varias filas
-  (la proporción está vacía hasta D11). Origen: las fotos del catálogo de Tierra Nativa, clasificadas por **ChatGPT**
-  (lo pasó Thomas) y por **Claude**, a ciegas. Se cargó sólo donde **coinciden** (179 artículos, 210 filas); el cruce
-  completo, con lo que dijo cada uno, está en `docs/colores_marco_cruce.csv`.
-- **No se cargaron los marrones de las molduras 012 y 05** (Cedro / Marrón / Roble): las dos fuentes no coinciden.
-  Tampoco los decapados (Elegance 020–022), los estampados (045) ni los Lino (275, 276, sin foto).
-- `gt.producto_aro` usa el color: si el artículo tiene UN color, sólo quedan los aros de ese color (`gt.color_aro`:
-  Bco/Bco P → Blanco, Bco T → Blanco total, Nat → Natural). Un artículo «c/Soga» sólo toma aros «p/soga». Lo resuelto
-  así sale con `receta = 'color'`. **De 241 piezas producto→aro, resueltas: 146 (antes 12).** Faltan 95: 31 surtidos
-  (proporción), 51 sin color, 6 blancos 3P 3/4 (Bco P o Bco T) y 7 sin aro en Grampeado (Mold 20mm, 03 Negro 15*21,
-  012 10*10).
-- `sql/gt_v126_color_marco.sql`.
+- **D15:** las varillas miden **2 m en promedio** y cada moldura trae otra cantidad por paquete. **03 = 100 varillas
+  = 200 m** (cargado en `gt.moldura_paquete`). Para las demás: *«cuando terminen un paquete pongan terminé (en Corte)
+  así empezás a tener registros»* → Corte pregunta al terminar **«¿Terminaste el paquete de moldura?» Sí / No**
+  (`gt.rubro_pasos`, momento `terminar`; queda en `detalle.paquete`). No hubo que tocar la app.
+- `gt.corte_paquetes`: un paquete = los metros de piezas cortadas de esa moldura y color entre un «Sí» y el siguiente
+  (piezas × largo del código de Corte). El primero de cada moldura empezó antes del registro y no cuenta como completo.
+  `gt.moldura_paquete_medido`: promedio por moldura de los completos y **aprovechamiento %** contra lo cargado
+  (lo que no llega a 100 % es despunte y desperdicio de los cortes a 45°).
+- **D11:** surtidos = **reparto parejo** entre sus colores (1/n si `proporcion` está vacía); 690 a 694 cargados en
+  1/4 por color (Roble, Verde, Marrón, Cedro). `gt.producto_aro` da **una fila por color** con `cant × proporción`
+  (columnas nuevas `color` y `proporcion`); «Sin marco» sale con `receta = 'sin marco'` y no descuenta aro.
+- Colores de Thomas: 080–089 y 362/366/370 (importados) **sin marco**; 183 y 211 negro; 217, 233, 275 y 276 natural.
+- `sql/gt_v127_surtidos_paquete_corte.sql` (rollback: `sql/gt_producto_aro_v126_vivo.sql`).
+
+### Colores de marco por artículo (base, 01/10/2026)
+
+- `gt.codigo_color` (artículo, color, proporción, fuente): una fila por color; un **surtido** tiene varias filas,
+  repartidas parejo (1.26). Origen: las fotos del catálogo de Tierra Nativa, clasificadas por **ChatGPT** (lo pasó
+  Thomas) y por **Claude**, a ciegas; se cargó donde **coinciden** (179 artículos) más lo que confirmó Thomas
+  (`fuente = 'Thomas 01/10'`). El cruce completo está en `docs/colores_marco_cruce.csv`.
+- **No se cargaron los marrones de las molduras 012 y 05** (Cedro / Marrón / Roble) fuera de 690–694: las dos fuentes
+  no coinciden (D10). Tampoco los estampados (045).
+- `gt.producto_aro` usa el color (`gt.color_aro`: Bco/Bco P → Blanco, Bco T → Blanco total, Nat → Natural). Un
+  artículo «c/Soga» sólo toma aros «p/soga». **De 241 piezas producto→aro, resueltas: 179** (12 al empezar el día).
+  Faltan 62: 46 sin color cargado, 12 sin aro en Grampeado (03 Bco 10*25 del 115; 3P 3/4 30*40 y 60*80 del Porta
+  Gigante 220/224; Mold 20mm; 03 Negro 15*21; 012 10*10) y 6 blancos 3P 3/4 (Bco P o Bco T).
+- `sql/gt_v126_color_marco.sql`, `sql/gt_v127_surtidos_paquete_corte.sql`.
 
 ### 1.25 — Pintado cuenta paquetes y el Porta Cubo (Thomas, 01/10/2026: D6, D7, D8)
 
 - **D8:** Pintado, al terminar, pide **paquetes** («¿Cuántos paquetes de moldura 03?»). Cuántos metros trae un
-  paquete **depende de la moldura**: va en `gt.moldura_paquete` (moldura → metros por paquete), **vacía hasta que
-  Thomas pase los números**. Movimientos: Pintado + `moldura_pintada` (paquetes, con el color) y − `moldura_lijada`
+  paquete **depende de la moldura**: va en `gt.moldura_paquete` (moldura → metros por paquete; 03 = 200 m desde
+  1.26, el resto se mide con el paquete terminado de Corte). Movimientos: Pintado + `moldura_pintada` (paquetes, con el color) y − `moldura_lijada`
   «sin anilina» en metros = paquetes × metros por paquete; sin el dato sale «sin receta» con la nota de lo que falta.
 - **D6:** el **Porta Mold 30mm Cubo** (814 / 815 / 816) arma con los aros **3P 3/4 Bco P chicos** (066 / 067 / 068),
   cargado en `gt.receta_aro`. En Corte esas piezas **se cortan «cubo»** y no están en el tablero (1–156): hasta tener

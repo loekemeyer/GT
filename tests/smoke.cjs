@@ -297,6 +297,16 @@ srv.listen(0, async () => {
     await p2.click("#plantaOpts button[data-planta='PELL']"); await p2.waitForSelector(".box[data-cod=CORTE]");
     chk((await p2.$$("#botonera .box")).length === 7 && (await p2.textContent("#opName")) === "Dario Mendez · Pellegrini",
         "«Cambiar de planta» lo pasa a Pellegrini con su botonera");
+    // 1.26 (D15): Corte pregunta al terminar si se terminó el paquete de moldura (paso «terminar» de la base)
+    PASOS.push({ rubro: "CORTE", orden: 1, campo: "paquete", pregunta: "¿Terminaste el paquete de moldura?", opciones: ["Sí", "No"], momento: "terminar" });
+    await p2.reload(); await p2.waitForSelector(".box[data-cod=CORTE]");
+    const n3 = db.length;
+    await p2.click(".box[data-cod=CORTE]"); await sync2();
+    await p2.click(".termine-btn[data-cod=CORTE]"); await p2.waitForFunction(() => document.getElementById("pasoLabel").textContent === "¿Terminaste el paquete de moldura?");
+    await paso("Sí"); await p2.waitForSelector("#cantScreen:not(.hidden)");
+    await p2.fill("#cantInput", "40"); await p2.click("#cambioBtn"); await sync2();
+    chk(db[n3 + 1].rubro === "CORTE" && db[n3 + 1].ts_inicio && db[n3 + 1].cantidad === 40 && db[n3 + 1].detalle && db[n3 + 1].detalle.paquete === "Sí",
+        "Terminé Corte: pregunta si se terminó el paquete y lo guarda en el detalle (D15)");
     await ctx2.close();
     const ad = await br.newPage({ viewport: { width: 1280, height: 720 } });
     await ad.goto(url + "admin.html");
