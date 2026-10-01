@@ -6,7 +6,7 @@
 create extension if not exists postgres_fdw;
 
 create server if not exists tn_db foreign data wrapper postgres_fdw
-  options (host 'db.zjvpzqhbekxnwxdczpof.supabase.co', port '5432', dbname 'postgres', sslmode 'require');
+  options (host 'db.zjvpzqhbekxnwxdczpof.supabase.co', port '5432', dbname 'postgres', sslmode 'require', connect_timeout '10');
 
 do $$
 declare v_pass text;
