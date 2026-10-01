@@ -8,6 +8,10 @@
  *    (ts_inicio = hora de la apertura, cantidad)
  *  · tocar OTRA área con una abierta     → en una sola pantalla cierra la anterior (con su
  *    cantidad) y empieza la nueva.
+ * 1.24: PREGUNTAS POR ÁREA (Thomas, Esnaola). Moldurado: «¿Qué moldura?» al empezar y metros al terminar. Lijado: moldura,
+ *       «¿Le ponés anilina?» y, si es Sí, el color; metros al terminar. Pintado: color y moldura. Las preguntas salen de
+ *       gt.rubro_pasos (gt_pasos): botones, condición (si_campo = si_valor) y momento (empezar / terminar). La moldura
+ *       va en `texto`; lo demás en `detalle` (jsonb). El cierre lleva el detalle de la apertura.
  * 1.22: PLANTAS (Thomas). Quien trabaja en más de una planta (gt.empleado_planta: Darío Méndez y Luis Luna) elige
  *       al entrar «¿En qué planta trabajás hoy?» (Pellegrini o Esnaola). La botonera muestra sólo las áreas de esa planta
  *       (un área sin planta es de la principal) y cada evento lleva la planta. El resto entra como siempre.
@@ -45,12 +49,13 @@
   const LS_RECH = "gt_rechazados_v3";
   const LS_AREAS = "gt_areas_v5";
   const LS_CODS = "gt_codigos_v6";
+  const LS_PASOS = "gt_pasos_v1";
   const LS_DISP = "gt_dispositivo";
   const TIMEOUT_MS = 15000;
 
   const $ = (id) => document.getElementById(id);
   const st = { emp: null, nombre: null, areas: [], codigos: [], server: [], pend: null, codPara: null, pendCont: null,
-              planta: null, plantas: [], principal: null };
+              planta: null, plantas: [], principal: null, pasos: [], paso: null };
 
   /* ---------- utilidades ---------- */
   function lsGet(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } }
@@ -69,7 +74,7 @@
   function num(n) { return Number(n).toLocaleString("es-AR"); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
   function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.remove("hidden"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add("hidden"), 2500); }
-  function show(id) { ["claveScreen", "nombreScreen", "plantaScreen", "optionsScreen", "cantScreen", "codScreen", "medScreen"].forEach((s) => $(s).classList.toggle("hidden", s !== id)); }
+  function show(id) { ["claveScreen", "nombreScreen", "plantaScreen", "optionsScreen", "cantScreen", "codScreen", "medScreen", "pasoScreen"].forEach((s) => $(s).classList.toggle("hidden", s !== id)); }
 
   async function rpc(name, body) {
     const ctl = new AbortController();
@@ -127,6 +132,21 @@
     return out.sort((a, b) => a.ts_cliente.localeCompare(b.ts_cliente));
   }
   function areaDe(cod) { return st.areas.find((a) => a.codigo === cod) || null; }
+  // 1.24: el detalle en una línea (≡ gt.detalle_txt): «anilina Cedro», «sin anilina», «Blanco total»
+  function detalleTxt(d) {
+    if (!d || typeof d !== "object" || !Object.keys(d).length) return "";
+    if (d.anilina === "No") return "sin anilina";
+    if (d.anilina === "Sí") return "anilina " + (d.color || "?");
+    return Object.keys(d).map((k) => d[k]).join(" · ");
+  }
+  // lo que se está haciendo, en una línea: «012 · anilina Cedro», «136 (30*40)»
+  function etq(r) {
+    let s = r.texto || "";
+    if (r.medida) s += " (" + r.medida + ")";
+    const d = detalleTxt(r.detalle);
+    if (d) s += (s ? " · " : "") + d;
+    return s;
+  }
   // el área abierta se DEDUCE de los eventos (servidor + cola), no se guarda aparte
   function abierta() {
     let ab = null;
@@ -170,7 +190,7 @@
     if (ab) {
       const a = areaDe(ab.rubro);
       $("abiertaBox").innerHTML = '<span class="ab-punto"></span><div class="ab-txt"><div class="ab-area">' +
-        (ICONO[ab.rubro] || "🏷️") + " " + esc(a ? a.nombre : ab.rubro) + (ab.texto ? " · " + esc(ab.texto) : "") + (ab.medida ? " (" + esc(ab.medida) + ")" : "") +
+        (ICONO[ab.rubro] || "🏷️") + " " + esc(a ? a.nombre : ab.rubro) + (etq(ab) ? " · " + esc(etq(ab)) : "") +
         '</div><div class="ab-det">Desde las ' + hhmm(ab.ts_cliente) + (ab.rubro === "ALMU" ? " · tocá «Volví de almorzar»" : "") + "</div></div>" +
         '<div class="ab-tiempo" data-desde="' + esc(ab.ts_cliente) + '">' + transcurrido(ab.ts_cliente) + "</div>";
     }
@@ -233,16 +253,22 @@
     lsSet(LS_QUEUE, q);
   }
 
+  // 1.24: si el área tiene preguntas para el momento de terminar, van antes de la cantidad
   function abrirTermine(ab, cierra, sigue, modo) {
-    st.pend = { ab, cierra, sigue, modo };
+    if (!pasosDe(cierra, "terminar").length) { pintarTermine(ab, cierra, sigue, modo, null); return; }
+    iniciarPasos(cierra, "terminar", "Terminé " + cierra.nombre + (etq(ab) ? " · " + etq(ab) : ""),
+      (resp) => pintarTermine(ab, cierra, sigue, modo, resp), () => { show("optionsScreen"); renderBotonera(); });
+  }
+  function pintarTermine(ab, cierra, sigue, modo, fin) {
+    st.pend = { ab, cierra, sigue, modo, fin };
     const pideCant = cierra.pide_cantidad !== false;
     const almorzar = sigue && sigue.codigo === "ALMU";
     // v1.11 (D29): Recibir mercadería pregunta qué se recibe al EMPEZAR, pero al terminar no pregunta con qué sigue
     const conSigue = modo !== "fin" && sigue && !almorzar && !(sigue.codigo === "RECIB" && cierra.codigo === "RECIB");
-    $("cantTitulo").textContent = (cierra.codigo === "ALMU" ? "Volví de almorzar" : "Terminé " + cierra.nombre) + (ab.texto ? " · " + ab.texto : "") + (ab.medida ? " (" + ab.medida + ")" : "");
+    $("cantTitulo").textContent = (cierra.codigo === "ALMU" ? "Volví de almorzar" : "Terminé " + cierra.nombre) + (etq(ab) ? " · " + etq(ab) : "");
     $("cantSub").textContent = "desde " + hhmm(ab.ts_cliente);
     $("cantBox").classList.toggle("hidden", !pideCant);
-    $("cantLabel").textContent = "¿Cuántas " + cierra.unidad + (ab.texto ? " del " + ab.texto : "") + "?";
+    $("cantLabel").textContent = cuantas(cierra.unidad) + cierra.unidad + (ab.texto ? (esMoldura(cierra) ? " de moldura " : " del ") + ab.texto : "") + "?";
     $("cantInput").value = ""; $("cantError").textContent = "";
     if (!conSigue && !almorzar) st.pend.sigue = null;   // «Listo» cierra y no abre nada
     $("sigueBox").classList.toggle("hidden", !conSigue);
@@ -284,7 +310,17 @@
       const avisoS = nuevo.nuevo ? null : fueraDeContraido(sigue, nuevo.guardo);
       if ((nuevo.nuevo || avisoS) && !confirmoNuevo(nuevo.guardo, "sigueError", "cantBtn", avisoS)) return;
     }
-    registrar(p.cierra, { ts_inicio: p.ab.ts_cliente, cantidad: cant, texto: p.ab.texto || "", medida: p.ab.medida || "" });
+    const finX = extraDe(p.fin || {});
+    const det = Object.assign({}, p.ab.detalle || {}, finX.detalle || {});
+    registrar(p.cierra, { ts_inicio: p.ab.ts_cliente, cantidad: cant, texto: p.ab.texto || finX.texto || "", medida: p.ab.medida || "",
+                          detalle: Object.keys(det).length ? det : null });
+    // 1.24: si sigue en un área con preguntas (Esnaola), primero cierra y después pregunta moldura / anilina / color
+    if (sigue && p.modo !== "fin" && pasosDe(sigue, "empezar").length) {
+      flush(); st.pend = null; restaurarBtn("cantBtn");
+      toast((p.cierra.codigo === "ALMU" ? "✓ Volviste de almorzar" : "✓ Terminaste " + p.cierra.nombre) +
+            (cant != null ? " · " + num(cant) + " " + p.cierra.unidad : ""));
+      empezarConPasos(sigue, "Seguís en " + sigue.nombre); return;
+    }
     // 1.17: si sigue con un set de 3 en Montaje / Gancho, primero cierra y después pregunta la medida
     if (sigue && nuevo && piezasSet(sigue, nuevo.cod)) {
       flush(); const s2 = sigue, n2 = nuevo; st.pend = null; restaurarBtn("cantBtn");
@@ -353,6 +389,7 @@
   }
   function restaurarBtn(id) { const b = $(id); if (b.dataset.txt) { b.textContent = b.dataset.txt; delete b.dataset.txt; } }
   function empezar(a) {
+    if (pasosDe(a, "empezar").length) { empezarConPasos(a, "Empecé " + a.nombre); return; }
     if (!a.pide_codigo) {
       registrar(a, null, 1); flush();
       toast("✓ Empezaste " + a.nombre); show("optionsScreen"); renderBotonera(); return;
@@ -427,6 +464,68 @@
   }
   function cancelarCod() { st.codPara = null; show("optionsScreen"); renderBotonera(); }
 
+  /* ---------- 1.24: preguntas del área (gt.rubro_pasos) ---------- */
+  function pasosDe(a, momento) { return a ? st.pasos.filter((p) => p.rubro === a.codigo && (p.momento || "empezar") === momento) : []; }
+  function esMoldura(a) { return st.pasos.some((p) => p.rubro === a.codigo && p.campo === "texto" && p.fuente === "molduras"); }
+  function cuantas(unidad) { return /^(metros?|kilos?|kg|litros?|pedidos?)\b/i.test(unidad || "") ? "¿Cuántos " : "¿Cuántas "; }
+  // las respuestas: `texto` va en texto (la moldura); el resto, en detalle
+  function extraDe(resp) {
+    const d = {}; let texto = "";
+    Object.keys(resp || {}).forEach((k) => { if (k === "texto") texto = resp[k]; else d[k] = resp[k]; });
+    return { texto, detalle: Object.keys(d).length ? d : null };
+  }
+  function empezarConPasos(a, titulo) {
+    iniciarPasos(a, "empezar", titulo, (resp) => {
+      const x = extraDe(resp);
+      registrar(a, x, 1); flush();
+      toast("✓ Empezaste " + a.nombre + (etq(x) ? " · " + etq(x) : ""));
+      show("optionsScreen"); renderBotonera();
+    }, () => { show("optionsScreen"); renderBotonera(); });
+  }
+  function iniciarPasos(a, momento, titulo, onFin, onCancel) {
+    const pasos = pasosDe(a, momento);
+    if (!pasos.length) { onFin({}); return; }
+    st.paso = { a, pasos, i: -1, resp: {}, vistos: [], titulo, onFin, onCancel };
+    sigPaso();
+  }
+  function aplica(p, resp) { return !p.si_campo || resp[p.si_campo] === p.si_valor; }
+  function sigPaso() {
+    const s = st.paso; if (!s) return;
+    let i = s.i + 1;
+    while (i < s.pasos.length && !aplica(s.pasos[i], s.resp)) i++;
+    if (i >= s.pasos.length) { st.paso = null; s.onFin(s.resp); return; }
+    s.i = i; s.vistos.push(i);
+    pintarPaso();
+  }
+  function respTxt(p, v) {
+    if (v == null || v === "") return "";
+    if (p.campo === "texto") return (p.fuente === "molduras" ? "Moldura " : "") + v;
+    if (p.campo === "anilina") return v === "Sí" ? "con anilina" : "sin anilina";
+    return v;
+  }
+  function pintarPaso() {
+    const s = st.paso, p = s.pasos[s.i];
+    $("pasoTitulo").textContent = s.titulo;
+    const ya = s.vistos.slice(0, -1).map((j) => respTxt(s.pasos[j], s.resp[s.pasos[j].campo])).filter(Boolean);
+    $("pasoResp").textContent = ya.join(" · ");
+    $("pasoResp").classList.toggle("hidden", !ya.length);
+    $("pasoLabel").textContent = p.pregunta;
+    const ops = p.opciones || [];
+    $("pasoOpts").innerHTML = ops.length ? ops.map((o) => '<button data-val="' + esc(o) + '">' + esc(o) + "</button>").join("") :
+      '<div class="error">No hay opciones cargadas para esta pregunta (gt.rubro_pasos).</div>';
+    show("pasoScreen");
+  }
+  function elegirPaso(v) { const s = st.paso; if (!s) return; s.resp[s.pasos[s.i].campo] = v; sigPaso(); }
+  // ‹ vuelve a la pregunta anterior; desde la primera, cancela
+  function volverPaso() {
+    const s = st.paso; if (!s) return;
+    s.vistos.pop();
+    if (!s.vistos.length) { st.paso = null; s.onCancel(); return; }
+    s.i = s.vistos[s.vistos.length - 1];
+    s.pasos.forEach((p, j) => { if (j >= s.i) delete s.resp[p.campo]; });
+    pintarPaso();
+  }
+
   function renderHist() {
     const evs = eventosHoy().filter((r) => r.opcion === "AREA" || r.opcion === "FIN");
     if (!evs.length) { $("hist").innerHTML = '<div class="hist-vacio">Sin registros hoy.</div>'; return; }
@@ -438,7 +537,7 @@
       if (r.opcion === "FIN") return '<div class="hist-row fin"><div class="hist-main"><div class="hist-area">🏁 Terminó el día</div></div>' +
         '<div class="hist-cant">' + hhmm(r.ts_cliente) + "</div></div>";
       const a = areaDe(r.rubro), p = pend.has(r.client_id) ? " ⏳" : "";
-      const nom = (ICONO[r.rubro] || "🏷️") + " " + esc(a ? a.nombre : r.rubro) + (r.texto ? " · " + esc(r.texto) : "") + (r.medida ? " (" + esc(r.medida) + ")" : "");
+      const nom = (ICONO[r.rubro] || "🏷️") + " " + esc(a ? a.nombre : r.rubro) + (etq(r) ? " · " + esc(etq(r)) : "");
       if (!r.ts_inicio) return '<div class="hist-row curso"><div class="hist-main"><div class="hist-area">' + nom +
         '</div><div class="hist-det">Desde ' + hhmm(r.ts_cliente) + p + '</div></div><div class="hist-cant">en curso</div></div>';
       return '<div class="hist-row"><div class="hist-main"><div class="hist-area">' + nom + '</div><div class="hist-det">' +
@@ -476,10 +575,15 @@
     }
     try { st.codigos = await rpc("gt_codigos_area", {}); lsSet(LS_CODS, st.codigos); }
     catch { st.codigos = lsGet(LS_CODS, []); }
+    try { st.pasos = await rpc("gt_pasos", {}); lsSet(LS_PASOS, st.pasos); }
+    catch { st.pasos = lsGet(LS_PASOS, []); }
   }
   async function cargarHoy() {
-    try { st.server = (await rpc("gt_registros_hoy2", { p_empleado: st.emp })).map((r) => Object.assign({ empleado_id: st.emp }, r)); }
-    catch { /* sin red: se arma con la cola */ }
+    // 1.24: gt_registros_hoy3 trae el detalle (anilina, color); si no está, gt_registros_hoy2
+    let r = null;
+    try { r = await rpc("gt_registros_hoy3", { p_empleado: st.emp }); }
+    catch { try { r = await rpc("gt_registros_hoy2", { p_empleado: st.emp }); } catch { /* sin red: se arma con la cola */ } }
+    if (r) st.server = r.map((x) => Object.assign({ empleado_id: st.emp }, x));
   }
 
   // 2) entra con el empleado elegido (o con la sesión del día, sin pedir código)
@@ -561,7 +665,7 @@
   $("cantFinBtn").onclick = () => { if (!st.pend) return; st.pend.modo = "fin"; confirmarCant(false); };
   $("cantInput").addEventListener("keydown", (e) => {
     if (e.key !== "Enter") return;
-    if (st.pend && st.pend.sigue.pide_codigo) $("sigueInput").focus(); else confirmarCant(true);
+    if (st.pend && st.pend.sigue && st.pend.sigue.pide_codigo) $("sigueInput").focus(); else confirmarCant(true);
   });
   $("sigueInput").addEventListener("keydown", (e) => { if (e.key === "Enter") confirmarCant(true); });
   $("siguePend").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("sigueInput").value = b.dataset.cod; confirmarCant(true); } });
@@ -569,6 +673,8 @@
   $("codBtn").onclick = confirmarCod;
   $("medOpts").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) elegirMedida(b.dataset.med); });
   $("medVolver").onclick = () => { st.medPara = null; show("optionsScreen"); renderBotonera(); };
+  $("pasoOpts").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) elegirPaso(b.dataset.val); });
+  $("pasoVolver").onclick = volverPaso;
   $("codInput").addEventListener("keydown", (e) => { if (e.key === "Enter") confirmarCod(); });
   $("codVolver").onclick = cancelarCod;
   $("codOpts").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("codInput").value = b.dataset.cod; confirmarCod(); } });
@@ -601,7 +707,7 @@
       const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
       const v = (await r.json()).version;
       if (verNum(v) <= verNum(CFG.APP_VERSION)) return;
-      const enCarga = !$("cantScreen").classList.contains("hidden") || !$("codScreen").classList.contains("hidden") ||
+      const enCarga = ["cantScreen", "codScreen", "medScreen", "pasoScreen"].some((id) => !$(id).classList.contains("hidden")) ||
                       (document.activeElement && document.activeElement.tagName === "INPUT");
       if (enCarga) return;                                   // se reintenta en la próxima vuelta
       if (new URLSearchParams(location.search).get("v") === v) return;   // ya recargó con ésa: no entra en bucle
@@ -612,5 +718,5 @@
   document.addEventListener("visibilitychange", () => { if (!document.hidden) chequearVersion(); });
   chequearVersion();
 
-  window.__gt = { st, abierta, eventosHoy, flush, verNum };   // para tests
+  window.__gt = { st, abierta, eventosHoy, flush, verNum, detalleTxt };   // para tests
 })();

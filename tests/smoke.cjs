@@ -16,9 +16,19 @@ const AREAS = [
 ];
 // 1.22: las áreas de Esnaola (gt_botones2 trae la planta); en Pellegrini no se ven
 const AREAS2 = AREAS.concat([
-  { codigo: "MOLDU", nombre: "Moldurado", unidad: "—", orden: 21, pide_codigo: false, pide_cantidad: false, planta: "ESNA" },
-  { codigo: "LIJA", nombre: "Lijado", unidad: "—", orden: 22, pide_codigo: false, pide_cantidad: false, planta: "ESNA" },
+  { codigo: "MOLDU", nombre: "Moldurado", unidad: "metros", orden: 21, pide_codigo: false, pide_cantidad: true, planta: "ESNA" },
+  { codigo: "LIJA", nombre: "Lijado", unidad: "metros", orden: 22, pide_codigo: false, pide_cantidad: true, planta: "ESNA" },
   { codigo: "PINT", nombre: "Pintado", unidad: "—", orden: 23, pide_codigo: false, pide_cantidad: false, planta: "ESNA" }]);
+// 1.24: las preguntas de Esnaola (gt_pasos). El paso de PINT al TERMINAR es sólo del mock: prueba el momento 'terminar'.
+const MOLD = ["03", "05", "012"];
+const PASOS = [
+  { rubro: "LIJA", orden: 1, campo: "texto", pregunta: "¿Qué moldura vas a lijar?", opciones: MOLD, fuente: "molduras", momento: "empezar" },
+  { rubro: "LIJA", orden: 2, campo: "anilina", pregunta: "¿Le ponés anilina?", opciones: ["Sí", "No"], momento: "empezar" },
+  { rubro: "LIJA", orden: 3, campo: "color", pregunta: "¿De qué color es la anilina?", opciones: ["Marrón", "Cedro", "Roble", "Verde"], si_campo: "anilina", si_valor: "Sí", momento: "empezar" },
+  { rubro: "MOLDU", orden: 1, campo: "texto", pregunta: "¿Qué moldura vas a hacer?", opciones: MOLD, fuente: "molduras", momento: "empezar" },
+  { rubro: "PINT", orden: 1, campo: "color", pregunta: "¿De qué color vas a pintar?", opciones: ["Blanco parcial", "Blanco total", "Negro"], momento: "empezar" },
+  { rubro: "PINT", orden: 2, campo: "texto", pregunta: "¿Qué moldura vas a pintar?", opciones: MOLD, fuente: "molduras", momento: "empezar" },
+  { rubro: "PINT", orden: 3, campo: "manos", pregunta: "¿Cuántas manos?", opciones: ["1", "2"], momento: "terminar" }];
 const PELL = { codigo: "PELL", nombre: "Pellegrini" }, ESNA = { codigo: "ESNA", nombre: "Esnaola" };
 let CLAVE_MON = null; const LOGINS = []; const REING = [];
 const db = [];
@@ -52,7 +62,8 @@ const srv = http.createServer((req, res) => {
           almuerzo_desde: "2026-10-01T12:00:00", almuerzo_hasta: "2026-10-01T13:00:00", flexible: false, fin: null, salida_prevista: "2026-10-01T17:30:00",
           area_abierta: false, termino: false, tolerancia_min: 5 }] : [];
       else if (fn === "gt_contraido_pendiente") out = [{ codigo: "760", descripcion: "Otra", cajas: 12 }];
-      else if (fn === "gt_registros_hoy2") out = db.filter((r) => r.empleado_id === b.p_empleado);
+      else if (fn === "gt_registros_hoy2" || fn === "gt_registros_hoy3") out = db.filter((r) => r.empleado_id === b.p_empleado);
+      else if (fn === "gt_pasos") out = PASOS;
       else if (fn === "gt_registrar") {
         const ok = [], rech = [];
         b.p_filas.forEach((f) => { if (f.opcion !== "FIN" && !AREAS2.find((a) => a.codigo === f.rubro)) rech.push({ client_id: f.client_id, motivo: "área inexistente" });
@@ -221,13 +232,65 @@ srv.listen(0, async () => {
     const cods = await p2.$$eval("#botonera .box", (bs) => bs.map((b) => b.dataset.cod).join(","));
     chk(cods === "MOLDU,LIJA,PINT" && (await p2.textContent("#opName")) === "Dario Mendez · Esnaola", "en Esnaola: Moldurado, Lijado y Pintado (y nada de Pellegrini)");
     const n0 = db.length;
-    await p2.click(".box[data-cod=MOLDU]");
-    await p2.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
-    chk(db.length === n0 + 1 && db[n0].rubro === "MOLDU" && db[n0].planta === "ESNA" && db[n0].empleado_id === 6, "Empecé Moldurado: el evento lleva la planta Esnaola");
+    const sync2 = () => p2.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
+    const paso = async (val) => { await p2.waitForSelector("#pasoScreen:not(.hidden) #pasoOpts button[data-val='" + val + "']"); await p2.click("#pasoOpts button[data-val='" + val + "']"); };
+    const termino2 = async (cod) => { await p2.click(".termine-btn[data-cod=" + cod + "]"); await p2.waitForSelector("#cantScreen:not(.hidden)"); };
+    // 1.24: Moldurado pregunta la moldura (las de Corte) al empezar y los metros al terminar
+    await p2.click(".box[data-cod=MOLDU]"); await p2.waitForSelector("#pasoScreen:not(.hidden)");
+    chk((await p2.textContent("#pasoLabel")) === "¿Qué moldura vas a hacer?" && (await p2.$$("#pasoOpts button")).length === 3,
+        "Empecé Moldurado: pregunta qué moldura, con las molduras de Corte como botones");
+    await p2.click("#pasoVolver"); await p2.waitForSelector("#optionsScreen:not(.hidden)");
+    chk(db.length === n0, "‹ en la primera pregunta cancela sin registrar nada");
+    await p2.click(".box[data-cod=MOLDU]"); await paso("012"); await sync2();
+    chk(db.length === n0 + 1 && db[n0].rubro === "MOLDU" && db[n0].texto === "012" && db[n0].planta === "ESNA" && db[n0].empleado_id === 6 && !db[n0].detalle,
+        "Empecé Moldurado 012: el evento lleva la moldura y la planta Esnaola");
+    chk((await p2.textContent("#abiertaBox")).includes("012"), "el área abierta muestra la moldura");
     chk(!(await p2.isVisible("#plantaBtn")), "con un área abierta no se puede cambiar de planta");
-    await p2.click(".termine-btn[data-cod=MOLDU]"); await p2.waitForSelector("#cantScreen:not(.hidden)");
-    chk(!(await p2.isVisible("#cantInput")) && (await p2.textContent("#sigueLabel")).includes("Moldurado"), "Moldurado termina sin cantidad y propone seguir");
-    await p2.click("#cambioBtn"); await p2.waitForSelector("#plantaBtn:not(.hidden)");
+    await termino2("MOLDU");
+    chk((await p2.textContent("#cantLabel")) === "¿Cuántos metros de moldura 012?" && (await p2.textContent("#sigueLabel")).includes("Moldurado"),
+        "Terminé Moldurado: pide los metros de la moldura y propone seguir en Moldurado");
+    await p2.fill("#cantInput", "35"); await p2.click("#cantBtn"); await p2.waitForSelector("#pasoScreen:not(.hidden)");
+    chk(db[n0 + 1].cantidad === 35 && db[n0 + 1].texto === "012" && db[n0 + 1].ts_inicio === db[n0].ts_cliente,
+        "cerró Moldurado 012 con 35 metros ANTES de preguntar la moldura siguiente");
+    await paso("05"); await sync2();
+    chk(db[n0 + 2].rubro === "MOLDU" && db[n0 + 2].texto === "05" && !db[n0 + 2].ts_inicio, "siguió en Moldurado con la moldura 05");
+    await termino2("MOLDU"); await p2.fill("#cantInput", "10"); await p2.click("#cambioBtn"); await sync2();
+    // Lijado: moldura, anilina y —sólo si es Sí— el color
+    const n1 = db.length;
+    await p2.click(".box[data-cod=LIJA]"); await paso("012");
+    await p2.waitForFunction(() => document.getElementById("pasoLabel").textContent === "¿Le ponés anilina?");
+    chk((await p2.textContent("#pasoResp")) === "Moldura 012", "Lijado: después de la moldura pregunta la anilina (y muestra lo ya elegido)");
+    await p2.click("#pasoVolver"); await p2.waitForFunction(() => document.getElementById("pasoLabel").textContent === "¿Qué moldura vas a lijar?");
+    chk(await p2.isHidden("#pasoResp"), "‹ vuelve a la pregunta anterior");
+    await paso("012"); await paso("Sí");
+    await p2.waitForFunction(() => document.getElementById("pasoLabel").textContent === "¿De qué color es la anilina?");
+    chk((await p2.$$("#pasoOpts button")).length === 4 && (await p2.textContent("#pasoResp")) === "Moldura 012 · con anilina", "con anilina pregunta el color (4)");
+    await paso("Cedro"); await sync2();
+    chk(db.length === n1 + 1 && db[n1].rubro === "LIJA" && db[n1].texto === "012" && db[n1].detalle && db[n1].detalle.anilina === "Sí" && db[n1].detalle.color === "Cedro",
+        "Empecé Lijado 012 con anilina Cedro (detalle)");
+    chk((await p2.textContent("#abiertaBox")).includes("012 · anilina Cedro"), "el área abierta dice «012 · anilina Cedro»");
+    await termino2("LIJA");
+    chk((await p2.textContent("#cantTitulo")).includes("anilina Cedro") && (await p2.textContent("#cantLabel")) === "¿Cuántos metros de moldura 012?",
+        "Terminé Lijado: muestra la anilina y pide los metros");
+    await p2.fill("#cantInput", "20"); await p2.click("#cambioBtn"); await sync2();
+    chk(db[n1 + 1].cantidad === 20 && db[n1 + 1].detalle && db[n1 + 1].detalle.color === "Cedro" && db[n1 + 1].ts_inicio, "el cierre lleva los metros y el detalle de la apertura");
+    await p2.click(".box[data-cod=LIJA]"); await paso("03"); await paso("No"); await sync2();
+    chk(db[n1 + 2].texto === "03" && db[n1 + 2].detalle && db[n1 + 2].detalle.anilina === "No" && !db[n1 + 2].detalle.color, "sin anilina no pregunta el color");
+    await termino2("LIJA"); await p2.fill("#cantInput", "5"); await p2.click("#cambioBtn"); await sync2();
+    // Pintado: color y moldura; el paso «al terminar» va antes de la pantalla de cierre
+    const n2 = db.length;
+    await p2.click(".box[data-cod=PINT]"); await p2.waitForFunction(() => document.getElementById("pasoLabel").textContent === "¿De qué color vas a pintar?");
+    await paso("Negro"); await paso("03"); await sync2();
+    chk(db[n2].rubro === "PINT" && db[n2].texto === "03" && db[n2].detalle && db[n2].detalle.color === "Negro", "Empecé Pintado: color Negro y moldura 03");
+    await p2.click(".termine-btn[data-cod=PINT]"); await p2.waitForFunction(() => document.getElementById("pasoLabel").textContent === "¿Cuántas manos?");
+    await paso("2"); await p2.waitForSelector("#cantScreen:not(.hidden)");
+    chk(!(await p2.isVisible("#cantInput")), "Pintado no pide cantidad");
+    await p2.click("#cambioBtn"); await sync2();
+    chk(db[n2 + 1].ts_inicio && db[n2 + 1].detalle && db[n2 + 1].detalle.color === "Negro" && db[n2 + 1].detalle.manos === "2",
+        "una pregunta del momento «terminar» se suma al detalle del cierre");
+    await p2.click("#histBtn");
+    chk((await p2.textContent("#hist")).includes("Lijado · 012 · anilina Cedro"), "el resumen del día muestra moldura y anilina");
+    await p2.click("#histCerrar"); await p2.waitForSelector("#plantaBtn:not(.hidden)");
     await p2.reload(); await p2.waitForSelector(".box[data-cod=LIJA]");
     chk(true, "al recargar sigue en Esnaola (la planta queda en la sesión del día)");
     await p2.click("#plantaBtn"); await p2.waitForSelector("#plantaScreen:not(.hidden)");

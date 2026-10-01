@@ -191,6 +191,26 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 **No se trabaja sábado** (D19). Javier Burgos: sólo el almuerzo es rotativo.
 **Empleados ordenados por legajo** (1.7) en la lista del celular, Producción y Asistencia (`gt.legajo_num`).
 
+### 1.24 — Esnaola: moldura, anilina, color y metros (Thomas, 01/10/2026)
+
+| área | al empezar | al terminar |
+|---|---|---|
+| Moldurado | ¿Qué moldura? | metros |
+| Lijado | ¿Qué moldura? · ¿Le ponés anilina? · si Sí, color (Marrón, Cedro, Roble, Verde) | metros |
+| Pintado | color (Blanco parcial, Blanco total, Negro, Verde, Celeste, Rosa, Beige) · ¿Qué moldura? | nada |
+
+- **Las preguntas viven en `gt.rubro_pasos`**, no en el código: orden, botones, condición (`si_campo` =
+  `si_valor`) y `momento` (`empezar` / `terminar`). Cambiar una pregunta o pasarla al final es un `update`.
+  La app las lee con `gt_pasos()` (con caché offline).
+- **Las molduras salen de Corte** (`gt.molduras`: el prefijo de las descripciones del sector 1 de Pellegrini):
+  03, 05, 012, 3P 1/2, 3P 3/4, 045, Trav 20mm. Una moldura nueva en Corte aparece sola.
+- La moldura va en `gt.registros.texto`; anilina y color en **`gt.registros.detalle`** (jsonb). El cierre lleva
+  el detalle de la apertura más lo que se pregunte al terminar. Lo de hoy se lee con `gt_registros_hoy3`.
+- Movimientos internos: Moldurado **+ moldura** (metros); Lijado **− moldura, + moldura_lijada** (con
+  «anilina Cedro» / «sin anilina» en la columna medida). Pintado no mueve (no pide metros).
+- El admin muestra la anilina / el color en la descripción del tramo; el 012 de Moldurado no se cruza con el
+  producto 012. `sql/gt_v124_esnaola_pasos.sql`.
+
 ### 1.23 — movimientos de stock por etapa, sólo internos (Thomas, 01/10/2026)
 
 - *«Por ahora no hace stock, hace solamente movimientos… que internamente funcionen los movimientos, pero que no

@@ -12,7 +12,7 @@
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=1.23" />
+  <link rel="stylesheet" href="styles.css?v=1.24" />
 </head>
 <body>
   <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
@@ -102,6 +102,16 @@
     </div>
   </div>
 
+  <!-- 1.24: PREGUNTAS DEL ÁREA (Esnaola: moldura, anilina, color) — salen de gt.rubro_pasos -->
+  <div id="pasoScreen" class="pantalla hidden">
+    <header class="top-bar"><button class="back-top" id="pasoVolver" aria-label="Volver">‹</button><span class="op-name" id="pasoTitulo"></span><span class="top-esp"></span></header>
+    <div class="tarjeta">
+      <div id="pasoResp" class="paso-resp hidden"></div>
+      <label class="label" id="pasoLabel"></label>
+      <div id="pasoOpts" class="cod-opts"></div>
+    </div>
+  </div>
+
   <!-- 4) CÓDIGO (al empezar un área que lo pide) -->
   <div id="codScreen" class="pantalla hidden">
     <header class="top-bar"><button class="back-top" id="codVolver" aria-label="Volver">‹</button><span class="op-name" id="codTitulo"></span><span class="top-esp"></span></header>
@@ -126,7 +136,7 @@
       <div id="hist" class="pop-cuerpo"></div>
     </div>
   </div>
-  <script src="config.js?v=1.23"></script>
-  <script src="app.js?v=1.23"></script>
+  <script src="config.js?v=1.24"></script>
+  <script src="app.js?v=1.24"></script>
 </body>
 </html>
