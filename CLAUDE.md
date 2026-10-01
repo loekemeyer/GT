@@ -308,6 +308,11 @@ pasa por el chat ni por el repo**: el paso 2 la lee de `vault.decrypted_secrets`
   065): *«Bco T es cubo»* (Thomas). Se retira la lectura de 1.25 (Bco P 066 / 067 / 068). Corte los resuelve solo con
   las piezas **3P 3/4 Bco Total** 136 a 141. Los Bco P chicos quedaron con esas mismas piezas en `gt.receta_corte`
   (D6: «sí, se arman con Bco Total») y hoy ningún producto los usa. `sql/gt_v129_porta_cubo_bco_t.sql`.
+- **D23 (Thomas, 01/10: «ok»):** los aros **Bco P** con lados de 20, 25 y 27,5 cm —**069** 20×25, **117** 20×27,5,
+  **070** 20×30, **103** 27,5×40— toman esos lados de las piezas **Bco Total** de Corte (140 = 20, 142 = 25,
+  143 = 27,5 cm) y los de 30 y 40 de la lista «3P 3/4 Bco» (114, 116). En Corte la 3P 3/4 blanca sólo existe como
+  «Bco Total» por debajo de 30 cm: el «parcial» se define después, no al cortar. `gt.receta_corte`,
+  `sql/gt_v134_d23_bco_p_lados_cortos_bco_total.sql`.
 - **D7:** la anilina de Lijado se pregunta **al empezar** (como quedó en 1.24).
 - `sql/gt_v125_pintado_paquetes_cubo.sql`. La vista completa vigente: `sql/gt_movimientos_vivo.sql`.
 
