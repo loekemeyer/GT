@@ -181,7 +181,11 @@
           '</div><div class="box-desc">' + (esAb ? "● Terminar" : "Empezar") + "</div></div></div>";
       }).join("") + "</div>" :
       '<div class="error">No hay áreas cargadas para GT (gt.rubros).</div>';
-    $("almuBtn").classList.toggle("hidden", !areaDe("ALMU"));
+    // v1.11 (D31): con un sector abierto no hay Almuerzo ni Terminar día: se sale por «Terminé»
+    // (esa pantalla tiene «Me voy a almorzar» y «Terminé el día»). Con el almuerzo abierto, sólo «Volví».
+    const conSector = !!(ab && ab.rubro !== "ALMU");
+    $("almuBtn").classList.toggle("hidden", !areaDe("ALMU") || conSector);
+    $("finBtn").classList.toggle("hidden", !!ab);
     $("almuBtn").textContent = ab && ab.rubro === "ALMU" ? "🍽️ Volví de almorzar" : "🍽️ Almuerzo";
     $("almuBtn").classList.toggle("activo", !!(ab && ab.rubro === "ALMU"));
     syncBadge();
@@ -226,12 +230,14 @@
     st.pend = { ab, cierra, sigue, modo };
     const pideCant = cierra.pide_cantidad !== false;
     const almorzar = sigue && sigue.codigo === "ALMU";
-    const conSigue = modo !== "fin" && sigue && !almorzar;
+    // v1.11 (D29): Recibir mercadería pregunta qué se recibe al EMPEZAR, pero al terminar no pregunta con qué sigue
+    const conSigue = modo !== "fin" && sigue && !almorzar && !(sigue.codigo === "RECIB" && cierra.codigo === "RECIB");
     $("cantTitulo").textContent = (cierra.codigo === "ALMU" ? "Volví de almorzar" : "Terminé " + cierra.nombre) + (ab.texto ? " · " + ab.texto : "");
     $("cantSub").textContent = "desde " + hhmm(ab.ts_cliente);
     $("cantBox").classList.toggle("hidden", !pideCant);
     $("cantLabel").textContent = "¿Cuántas " + cierra.unidad + (ab.texto ? " del " + ab.texto : "") + "?";
     $("cantInput").value = ""; $("cantError").textContent = "";
+    if (!conSigue && !almorzar) st.pend.sigue = null;   // «Listo» cierra y no abre nada
     $("sigueBox").classList.toggle("hidden", !conSigue);
     $("siguePend").classList.add("hidden"); $("siguePend").innerHTML = "";
     if (conSigue) {
@@ -247,6 +253,8 @@
       conSigue ? (cierra.codigo === "ALMU" ? "Volver y seguir en " : "Terminar y seguir en ") + sigue.nombre : "Listo";
     $("cambioBtn").classList.toggle("hidden", !conSigue);
     $("cambioBtn").textContent = cierra.codigo === "ALMU" ? "Volví · elegir otra área" : "Cambiar de área / no sigo";
+    $("salidaBox").classList.toggle("hidden", modo === "fin" || almorzar || cierra.codigo === "ALMU");
+    $("cantAlmuBtn").classList.toggle("hidden", !areaDe("ALMU"));
     show("cantScreen");
     if (pideCant) $("cantInput").focus(); else if (conSigue && sigue.pide_codigo) $("sigueInput").focus();
   }
@@ -460,6 +468,8 @@
   $("finBtn").onclick = terminarDia;
   $("cantBtn").onclick = () => confirmarCant(true);
   $("cambioBtn").onclick = () => confirmarCant(false);
+  $("cantAlmuBtn").onclick = () => { if (!st.pend) return; st.pend.sigue = areaDe("ALMU"); st.pend.modo = "normal"; confirmarCant(true); };
+  $("cantFinBtn").onclick = () => { if (!st.pend) return; st.pend.modo = "fin"; confirmarCant(false); };
   $("cantInput").addEventListener("keydown", (e) => {
     if (e.key !== "Enter") return;
     if (st.pend && st.pend.sigue.pide_codigo) $("sigueInput").focus(); else confirmarCant(true);

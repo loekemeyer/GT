@@ -138,16 +138,17 @@ srv.listen(0, async () => {
     const nR = db.length;
     chk(db[nR - 1].rubro === "RECIB" && db[nR - 1].texto === "MOLDURA", "elegir Moldura empieza Recibir con MOLDURA");
     await termino("RECIB");
-    chk(await pg.isVisible("#sigueOpts button[data-cod='INSUMO']") && !(await pg.isVisible("#sigueInput")), "al terminar, para seguir también ofrece Insumo / Moldura");
-    await pg.fill("#cantInput", "40"); await pg.click("#cambioBtn"); await alDia();
+    chk(!(await pg.isVisible("#sigueBox")) && (await pg.textContent("#cantBtn")) === "Listo", "al terminar Recibir NO pregunta qué sigue recibiendo (D29)");
+    await pg.fill("#cantInput", "40"); await pg.click("#cantBtn"); await alDia();
     chk(db.length === nR + 1 && db[nR].cantidad === 40 && db[nR].texto === "MOLDURA", "Terminé Recibir moldura con 40");
     chk(!(await pg.$(".box[data-cod=ALMU]")) && await pg.isVisible("#almuBtn") && await pg.isVisible("#finBtn"),
         "Almuerzo y Terminar día son botones aparte, no tarjetas de área");
     // almuerzo con un área abierta: cierra el área (cantidad) y empieza el almuerzo
     await pg.click(".box[data-cod=CORTE]"); await alDia();
-    await pg.click("#almuBtn"); await pg.waitForSelector("#cantScreen:not(.hidden)");
-    chk(!(await pg.isVisible("#sigueBox")) && (await pg.textContent("#cantBtn")).includes("almorzar"), "Almuerzo con Corte abierto: pide la cantidad y va a almorzar");
-    await pg.fill("#cantInput", "50"); await pg.click("#cantBtn"); await alDia();
+    chk(!(await pg.isVisible("#almuBtn")) && !(await pg.isVisible("#finBtn")), "con un sector abierto no están Almuerzo ni Terminar día (D31)");
+    await termino("CORTE");
+    chk(await pg.isVisible("#cantAlmuBtn") && await pg.isVisible("#cantFinBtn"), "«Terminé» ofrece «Me voy a almorzar» y «Terminé el día»");
+    await pg.fill("#cantInput", "50"); await pg.click("#cantAlmuBtn"); await alDia();
     const nA = db.length;
     chk(db[nA - 1].rubro === "ALMU" && !db[nA - 1].ts_inicio && db[nA - 2].rubro === "CORTE" && db[nA - 2].cantidad === 50, "cerró Corte con 50 y empezó el almuerzo");
     chk((await pg.textContent("#almuBtn")).includes("Volví"), "el botón pasa a «Volví de almorzar»");
@@ -156,9 +157,8 @@ srv.listen(0, async () => {
     await pg.click("#cantBtn"); await alDia();
     chk(db[db.length - 2].rubro === "ALMU" && db[db.length - 2].ts_inicio && db[db.length - 1].rubro === "CORTE", "volvió de almorzar y siguió en Corte");
     // terminar el día con Corte abierto
-    await pg.click("#finBtn"); await pg.waitForSelector("#cantScreen:not(.hidden)");
-    chk((await pg.textContent("#cantBtn")).includes("Terminar el día") && !(await pg.isVisible("#sigueBox")), "Terminar día con un área abierta pide su cantidad");
-    await pg.fill("#cantInput", "30"); await pg.click("#cantBtn"); await alDia();
+    await termino("CORTE");
+    await pg.fill("#cantInput", "30"); await pg.click("#cantFinBtn"); await alDia();
     chk(db[db.length - 1].opcion === "FIN" && db[db.length - 2].rubro === "CORTE" && db[db.length - 2].cantidad === 30, "cerró Corte y registró el fin del día");
     chk((await pg.textContent("#abiertaBox")).includes("Día terminado"), "la botonera muestra «Día terminado»");
     await pg.evaluate(() => { const q = JSON.parse(localStorage.getItem("gt_queue_v3") || "[]");
