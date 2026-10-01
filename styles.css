@@ -1,5 +1,5 @@
 /* Producción GT — pensada para el celular del operario (v1.1).
-   Pulgar: las acciones van abajo y fijas; todo lo que se toca mide 48 px o más; los campos tienen
+   Pulgar: las acciones van justo debajo del campo (el teclado tapa el fondo); todo lo que se toca mide 48 px o más; los campos tienen
    16 px o más de letra para que el iPhone no haga zoom al tocarlos. */
 :root{
   --bg:#f4f5f7; --card:#fff; --txt:#1c1f24; --mut:#6b7280; --borde:#e3e5e9;
@@ -23,8 +23,8 @@ body{margin:0;background:var(--bg);color:var(--txt);
 /* cada pantalla ocupa el alto del celular; los botones quedan abajo */
 .pantalla{max-width:520px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;
   padding:0 16px calc(16px + env(safe-area-inset-bottom));padding-top:env(safe-area-inset-top);}
-.acciones{margin-top:auto;position:sticky;bottom:0;padding:12px 0 calc(4px + env(safe-area-inset-bottom));
-  background:linear-gradient(to top,var(--bg) 75%,transparent);display:flex;flex-direction:column;gap:10px;}
+/* v1.9 (Thomas): los botones van JUSTO DEBAJO del campo, no pegados abajo: el teclado del iPhone tapa el fondo. */
+.acciones{margin-top:16px;padding:0 0 calc(4px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;}
 
 /* botones */
 button{font:inherit;cursor:pointer;touch-action:manipulation;border-radius:14px;transition:transform .08s,background .15s;}

@@ -245,7 +245,7 @@ Los avisos miden a cada uno contra **su** horario del día y lo muestran entre p
 
 ### Diseño para celular (v1.1, Thomas: *«que sea más lindo… se va a usar desde un celular»*)
 
-- **Pulgar:** las acciones de cada pantalla van **fijas abajo** (`.acciones`), el encabezado fijo arriba con
+- **Pulgar:** las acciones de cada pantalla van **justo debajo del campo** (`.acciones`, 1.9: fijas abajo las tapaba el teclado del iPhone), el encabezado fijo arriba con
   el «‹» de volver de 44 px. Todo lo que se toca mide **48 px o más**.
 - **Campos de 16 px o más** de letra: menos que eso y el iPhone hace zoom al tocarlos.
 - Áreas en **tarjetas con ícono** (`ICONO` en `app.js`; un área nueva sin ícono usa 🏷️), 2 columnas en el
