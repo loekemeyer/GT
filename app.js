@@ -8,6 +8,9 @@
  *    (ts_inicio = hora de la apertura, cantidad)
  *  · tocar OTRA área con una abierta     → en una sola pantalla cierra la anterior (con su
  *    cantidad) y empieza la nueva.
+ * 1.22: PLANTAS (Thomas). Quien trabaja en más de una planta (gt.empleado_planta: Darío Méndez y Luis Luna) elige
+ *       al entrar «¿En qué planta trabajás hoy?» (Pellegrini o Aula). La botonera muestra sólo las áreas de esa planta
+ *       (un área sin planta es de la principal) y cada evento lleva la planta. El resto entra como siempre.
  * v1.3: 🍽️ Almuerzo (al volver propone el área anterior) y 🏁 Terminar día (evento FIN). Los avisos de
  *       almuerzo (13:10) y salida (17:45) los manda la base: gt.alerta_jornada.
  * v1.2: se actualiza sola cuando hay versión nueva (version.json cada 2 min).
@@ -46,7 +49,8 @@
   const TIMEOUT_MS = 15000;
 
   const $ = (id) => document.getElementById(id);
-  const st = { emp: null, nombre: null, areas: [], codigos: [], server: [], pend: null, codPara: null, pendCont: null };
+  const st = { emp: null, nombre: null, areas: [], codigos: [], server: [], pend: null, codPara: null, pendCont: null,
+              planta: null, plantas: [], principal: null };
 
   /* ---------- utilidades ---------- */
   function lsGet(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } }
@@ -65,7 +69,7 @@
   function num(n) { return Number(n).toLocaleString("es-AR"); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
   function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.remove("hidden"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add("hidden"), 2500); }
-  function show(id) { ["claveScreen", "nombreScreen", "optionsScreen", "cantScreen", "codScreen", "medScreen"].forEach((s) => $(s).classList.toggle("hidden", s !== id)); }
+  function show(id) { ["claveScreen", "nombreScreen", "plantaScreen", "optionsScreen", "cantScreen", "codScreen", "medScreen"].forEach((s) => $(s).classList.toggle("hidden", s !== id)); }
 
   async function rpc(name, body) {
     const ctl = new AbortController();
@@ -139,7 +143,7 @@
       client_id: uuid(), empleado_id: st.emp, opcion: "AREA", rubro: area.codigo,
       descripcion: area.nombre, texto: "", cantidad: null,
       ts_cliente: new Date(Date.now() + (offsetMs || 0)).toISOString(), ts_inicio: null,
-      dispositivo: dispositivo(),
+      dispositivo: dispositivo(), planta: st.planta,
     }, extra || {});
     const q = cola(); q.push(fila); lsSet(LS_QUEUE, q);
     return fila;
@@ -148,7 +152,9 @@
   /* ---------- botonera de áreas ---------- */
   // v1.1: ícono por área (se ve en la tarjeta); un área nueva sin ícono usa 🏷️
   const ICONO = { CORTE: "✂️", GRAMP: "📌", ENCOL: "🧴", MONT: "🛠️", GANCHO: "🪝", EMBL: "📦", CONTR: "🎞️",
-                  PED: "🧾", DECO: "🎨", GUARD: "🗄️", RECIB: "🚚", ALMU: "🍽️" };
+                  PED: "🧾", DECO: "🎨", GUARD: "🗄️", RECIB: "🚚", ALMU: "🍽️", MOLDU: "🪚", LIJA: "🧽", PINT: "🖌️" };
+  // 1.22: un área es de la planta elegida; un área sin planta es de la principal
+  function deLaPlanta(a) { return (a.planta || st.principal || null) === (st.planta || st.principal || null); }
   function transcurrido(iso) {
     const m = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
     return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + String(m % 60).padStart(2, "0");
@@ -173,8 +179,8 @@
     if (ab) {
       $("botonera").innerHTML = ab.rubro === "ALMU" ? "" :
         '<button class="termine-btn" data-cod="' + esc(ab.rubro) + '">✅ Terminé</button>';
-    } else $("botonera").innerHTML = st.areas.length ?
-      '<div class="row">' + st.areas.filter((a) => a.codigo !== "ALMU").map((a) => {
+    } else $("botonera").innerHTML = st.areas.some((a) => a.codigo !== "ALMU" && deLaPlanta(a)) ?
+      '<div class="row">' + st.areas.filter((a) => a.codigo !== "ALMU" && deLaPlanta(a)).map((a) => {
         const esAb = ab && ab.rubro === a.codigo;
         return '<div class="box' + (esAb ? " abierta" : "") + '" data-cod="' + esc(a.codigo) + '" role="button">' +
           '<div class="box-ico">' + (ICONO[a.codigo] || "🏷️") + '</div><div><div class="box-title">' + esc(a.nombre) +
@@ -186,6 +192,7 @@
     const conSector = !!(ab && ab.rubro !== "ALMU");
     $("almuBtn").classList.toggle("hidden", !areaDe("ALMU") || conSector);
     $("finBtn").classList.toggle("hidden", !!ab);
+    $("plantaBtn").classList.toggle("hidden", !!ab || st.plantas.length < 2);
     $("almuBtn").textContent = ab && ab.rubro === "ALMU" ? "🍽️ Volví de almorzar" : "🍽️ Almuerzo";
     $("almuBtn").classList.toggle("activo", !!(ab && ab.rubro === "ALMU"));
     syncBadge();
@@ -222,7 +229,7 @@
   function registrarFin() {
     const q = cola();
     q.push({ client_id: uuid(), empleado_id: st.emp, opcion: "FIN", rubro: null, descripcion: "Terminé el día", texto: "",
-             cantidad: null, ts_cliente: new Date(Date.now() + 2).toISOString(), ts_inicio: null, dispositivo: dispositivo() });
+             cantidad: null, ts_cliente: new Date(Date.now() + 2).toISOString(), ts_inicio: null, dispositivo: dispositivo(), planta: st.planta });
     lsSet(LS_QUEUE, q);
   }
 
@@ -451,6 +458,8 @@
     catch { $("claveError").textContent = "Sin conexión. Probá de nuevo."; return; }
     if (!r.ok) { $("claveError").textContent = "Código incorrecto o vencido: mirá el monitor"; return; }
     const emps = r.empleados || [];
+    st.principal = r.principal || null;
+    st.empsPlantas = {}; emps.forEach((e) => { st.empsPlantas[e.id] = e.plantas || []; });
     $("nombreLista").innerHTML = emps.length ? emps.map((e) =>
       '<button data-id="' + e.id + '" data-nombre="' + esc(e.nombre) + '" data-ini="' +
         esc(e.nombre.split(/\s+/).map((x) => x[0] || "").join("").slice(0, 2).toUpperCase()) + '">' + esc(e.nombre) + "</button>").join("") :
@@ -459,8 +468,12 @@
   }
 
   async function cargarAreas() {
-    try { st.areas = await rpc("gt_botones", {}); lsSet(LS_AREAS, st.areas); }
-    catch { st.areas = lsGet(LS_AREAS, []); }
+    // 1.22: gt_botones2 trae la planta de cada área; si no está, gt_botones (todas de la principal)
+    try { st.areas = await rpc("gt_botones2", {}); lsSet(LS_AREAS, st.areas); }
+    catch {
+      try { st.areas = await rpc("gt_botones", {}); lsSet(LS_AREAS, st.areas); }
+      catch { st.areas = lsGet(LS_AREAS, []); }
+    }
     try { st.codigos = await rpc("gt_codigos_area", {}); lsSet(LS_CODS, st.codigos); }
     catch { st.codigos = lsGet(LS_CODS, []); }
   }
@@ -470,10 +483,43 @@
   }
 
   // 2) entra con el empleado elegido (o con la sesión del día, sin pedir código)
-  async function entrar(id, nombre) {
+  // 1.22: después del nombre, si trabaja en más de una planta, «¿En qué planta trabajás hoy?»
+  function elegirEmpleado(id, nombre) {
+    const pl = (st.empsPlantas && st.empsPlantas[id]) || [];
+    if (pl.length < 2) { entrar(id, nombre, pl[0] ? pl[0].codigo : null, pl, st.principal); return; }
+    st.elige = { id, nombre, plantas: pl, cambio: false };
+    mostrarPlantas();
+  }
+  function mostrarPlantas() {
+    const e = st.elige;
+    $("plantaTitulo").textContent = e.nombre;
+    $("plantaOpts").innerHTML = e.plantas.map((p) => '<button data-planta="' + esc(p.codigo) + '">' + esc(p.nombre) + "</button>").join("");
+    show("plantaScreen");
+  }
+  function cambiarPlanta() {
+    if (abierta() || st.plantas.length < 2) return;
+    st.elige = { id: st.emp, nombre: st.nombre, plantas: st.plantas, cambio: true };
+    mostrarPlantas();
+  }
+  function elegirPlanta(cod) {
+    const e = st.elige; if (!e) return;
+    st.elige = null;
+    if (e.cambio) {
+      st.planta = cod; guardarSesion(); ponerNombre(); show("optionsScreen"); renderBotonera();
+      toast("🏭 Ahora en " + nombrePlanta(cod)); return;
+    }
+    entrar(e.id, e.nombre, cod, e.plantas, st.principal);
+  }
+  function nombrePlanta(cod) { const p = st.plantas.find((x) => x.codigo === cod); return p ? p.nombre : cod || ""; }
+  function ponerNombre() { $("opName").textContent = st.nombre + (st.plantas.length > 1 && st.planta ? " · " + nombrePlanta(st.planta) : ""); }
+  function guardarSesion() {
+    lsSet(LS_SESION, { id: st.emp, nombre: st.nombre, dia: hoyAR(), planta: st.planta, plantas: st.plantas, principal: st.principal });
+  }
+  async function entrar(id, nombre, planta, plantas, principal) {
     st.emp = Number(id); st.nombre = nombre;
-    lsSet(LS_SESION, { id: st.emp, nombre, dia: hoyAR() });
-    $("opName").textContent = nombre;
+    st.planta = planta || null; st.plantas = plantas || []; st.principal = principal || null;
+    guardarSesion();
+    ponerNombre();
     show("optionsScreen");
     await Promise.all([cargarAreas(), cargarHoy()]);
     renderBotonera(); flush();
@@ -500,7 +546,10 @@
   $("verBadge").textContent = "v" + CFG.APP_VERSION;
   $("claveBtn").onclick = validarClave;
   $("claveInput").addEventListener("keydown", (e) => { if (e.key === "Enter") validarClave(); });
-  $("nombreLista").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) entrar(b.dataset.id, b.dataset.nombre); });
+  $("nombreLista").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) elegirEmpleado(b.dataset.id, b.dataset.nombre); });
+  $("plantaOpts").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) elegirPlanta(b.dataset.planta); });
+  $("plantaVolver").onclick = () => { const c = st.elige && st.elige.cambio; st.elige = null; show(c ? "optionsScreen" : "nombreScreen"); };
+  $("plantaBtn").onclick = cambiarPlanta;
   $("nombreVolver").onclick = () => show("claveScreen");
   $("botonera").addEventListener("click", (e) => { const b = e.target.closest(".box, .termine-btn"); if (b) tocar(b.dataset.cod); });
   $("salirBtn").onclick = salir;
@@ -540,7 +589,7 @@
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 
   const ses = lsGet(LS_SESION, null);
-  if (ses && ses.dia === hoyAR() && ses.id) entrar(ses.id, ses.nombre);
+  if (ses && ses.dia === hoyAR() && ses.id) entrar(ses.id, ses.nombre, ses.planta, ses.plantas, ses.principal);
   else show("claveScreen");
 
   // v1.2: la app se actualiza sola. GitHub Pages deja la página en caché hasta 10 min y nadie avisaba:

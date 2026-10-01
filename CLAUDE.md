@@ -191,6 +191,19 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 **No se trabaja sábado** (D19). Javier Burgos: sólo el almuerzo es rotativo.
 **Empleados ordenados por legajo** (1.7) en la lista del celular, Producción y Asistencia (`gt.legajo_num`).
 
+### 1.22 — plantas: Pellegrini y Aula (Thomas, 01/10/2026)
+
+- Después del código de la TV y el nombre, **quien trabaja en más de una planta** elige *«¿En qué planta trabajás
+  hoy?»*. Hoy son **Darío Méndez (6) y Luis Luna (5)**; el resto entra siempre en Pellegrini y no ve la pregunta.
+- La botonera muestra sólo las áreas de esa planta: un área (`gt.rubros.planta`) **sin planta es de la principal**
+  (la de menor `orden` en `gt.plantas`). En **Aula** se moldura, se lija y se pinta (las molduras que después se
+  cortan en Pellegrini): áreas **Moldurado · Lijado · Pintado**, por ahora sólo tiempo (sin código ni cantidad).
+- La planta queda en la sesión del día y viaja en cada evento (`gt.registros.planta`). «🏭 Cambiar de planta» sólo
+  con nada abierto.
+- Quién trabaja en qué planta = `gt.empleado_planta` (sin filas = sólo la principal). Agregar a alguien es un `insert`.
+- La app lee `gt_botones2()` (trae la planta); si falla, cae a `gt_botones()`. `sql/gt_v122_plantas.sql` (rollback
+  en la cabecera; los datos van al final y se cargan con el «sí» de Thomas).
+
 ### 1.18 — deco se agrupa por modelo (Thomas, 01/10/2026)
 
 Bandejas, cajones, percheros, cuelgas…: sólo van juntos si la descripción es la misma salvo el diseño

@@ -12,7 +12,7 @@
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=1.21" />
+  <link rel="stylesheet" href="styles.css?v=1.22" />
 </head>
 <body>
   <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
@@ -40,6 +40,15 @@
     <div id="nombreLista" class="nombres"></div>
   </div>
 
+  <!-- 1c) ¿EN QUÉ PLANTA? (1.22, Thomas): sólo a quien trabaja en más de una planta (Darío Méndez y Luis Luna) -->
+  <div id="plantaScreen" class="pantalla hidden">
+    <header class="top-bar"><button class="back-top" id="plantaVolver" aria-label="Volver">‹</button><span class="op-name" id="plantaTitulo"></span><span class="top-esp"></span></header>
+    <div class="tarjeta">
+      <label class="label">🏭 ¿En qué planta trabajás hoy?</label>
+      <div id="plantaOpts" class="cod-opts"></div>
+    </div>
+  </div>
+
   <!-- 2) BOTONERA -->
   <div id="optionsScreen" class="pantalla hidden">
     <header class="top-bar">
@@ -54,6 +63,7 @@
       <button id="finBtn" class="fin-btn">🏁 Terminar día</button>
     </div>
     <button id="histBtn" class="sec-btn">📋 Resumen de hoy</button>
+    <button id="plantaBtn" class="sec-btn hidden">🏭 Cambiar de planta</button>
   </div>
 
   <!-- 3) TERMINÉ: cantidad + «¿con qué seguís?» en la misma pantalla -->
@@ -116,7 +126,7 @@
       <div id="hist" class="pop-cuerpo"></div>
     </div>
   </div>
-  <script src="config.js?v=1.21"></script>
-  <script src="app.js?v=1.21"></script>
+  <script src="config.js?v=1.22"></script>
+  <script src="app.js?v=1.22"></script>
 </body>
 </html>

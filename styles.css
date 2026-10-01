@@ -34,6 +34,7 @@ button:active{transform:scale(.97);}
 .primary-btn:active{background:var(--acc-d);}
 .sec-btn{width:100%;min-height:50px;border:1.5px solid var(--borde);background:var(--card);color:var(--txt);font-size:17px;font-weight:500;}
 #histBtn{margin-top:16px;}
+#plantaBtn{margin-top:10px;}
 
 /* encabezado fijo */
 .top-bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;margin:0 -16px 10px;

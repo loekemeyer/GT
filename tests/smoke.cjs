@@ -14,6 +14,12 @@ const AREAS = [
   { codigo: "RECIB", nombre: "Recibir mercadería", unidad: "unidades recibidas", orden: 11, pide_codigo: false, pide_cantidad: false },
   { codigo: "ALMU", nombre: "Almuerzo", unidad: "—", orden: 12, pide_codigo: false, pide_cantidad: false },
 ];
+// 1.22: las áreas de Aula (gt_botones2 trae la planta); en Pellegrini no se ven
+const AREAS2 = AREAS.concat([
+  { codigo: "MOLDU", nombre: "Moldurado", unidad: "—", orden: 21, pide_codigo: false, pide_cantidad: false, planta: "AULA" },
+  { codigo: "LIJA", nombre: "Lijado", unidad: "—", orden: 22, pide_codigo: false, pide_cantidad: false, planta: "AULA" },
+  { codigo: "PINT", nombre: "Pintado", unidad: "—", orden: 23, pide_codigo: false, pide_cantidad: false, planta: "AULA" }]);
+const PELL = { codigo: "PELL", nombre: "Pellegrini" }, AULA = { codigo: "AULA", nombre: "Aula" };
 let CLAVE_MON = null; const LOGINS = []; const REING = [];
 const db = [];
 const CODIGOS = [{ codigo: "505", descripcion: "Pinza", medida: "10*15", rubro: "GRAMP" }, { codigo: "760", descripcion: "Otra", medida: null, rubro: "DECO" },
@@ -27,8 +33,10 @@ const srv = http.createServer((req, res) => {
       if (fn === "gt_monitor_clave") out = !CLAVE_MON ? { ok: true, sin_clave: true, clave: "1234", cambia_en_s: 42 } : b.p_pass === CLAVE_MON ? { ok: true, clave: "1234", cambia_en_s: 42 } : { ok: false };
       else if (fn === "gt_monitor_login") { LOGINS.push(b); out = { ok: b.p_pass === CLAVE_MON, en_horario: false }; }
       else if (fn === "gt_reingreso") { REING.push(b.p_empleado); out = null; }
-      else if (fn === "gt_clave_validar") out = b.p_clave === "1234" ? { ok: true, empleados: [{ id: 7, nombre: "Prueba" }, { id: 8, nombre: "Otro" }] } : { ok: false };
+      else if (fn === "gt_clave_validar") out = b.p_clave === "1234" ? { ok: true, principal: "PELL", empleados: [{ id: 7, nombre: "Prueba", plantas: [PELL] }, { id: 8, nombre: "Otro", plantas: [PELL] },
+          { id: 6, nombre: "Dario Mendez", plantas: [PELL, AULA] }] } : { ok: false };
       else if (fn === "gt_botones") out = AREAS;
+      else if (fn === "gt_botones2") out = AREAS2;
       else if (fn === "gt_codigos_area") out = CODIGOS;
       else if (fn === "gt_admin_produccion2") out = b.p_pass === CLAVE_MON ? [
         { empleado: "Prueba", area: "Encolado", rubro: "ENCOL", codigo: "080", descripcion: "Cuadro Ciudades MDF", desde: "2026-10-01T11:00:00Z", hasta: "2026-10-01T12:00:00Z", cantidad: 10, unidad: "cajas encoladas", uxb: 24, unidades: 240 },
@@ -47,7 +55,7 @@ const srv = http.createServer((req, res) => {
       else if (fn === "gt_registros_hoy2") out = db.filter((r) => r.empleado_id === b.p_empleado);
       else if (fn === "gt_registrar") {
         const ok = [], rech = [];
-        b.p_filas.forEach((f) => { if (f.opcion !== "FIN" && !AREAS.find((a) => a.codigo === f.rubro)) rech.push({ client_id: f.client_id, motivo: "área inexistente" });
+        b.p_filas.forEach((f) => { if (f.opcion !== "FIN" && !AREAS2.find((a) => a.codigo === f.rubro)) rech.push({ client_id: f.client_id, motivo: "área inexistente" });
           else { if (!db.find((x) => x.client_id === f.client_id)) db.push(f); ok.push(f.client_id); } });
         out = { ok, rechazados: rech };
       }
@@ -74,14 +82,16 @@ srv.listen(0, async () => {
     chk(await pg.isVisible("#claveScreen"), "código equivocado no entra");
     await pg.fill("#claveInput", "1234"); await pg.click("#claveBtn");
     await pg.waitForSelector("#nombreLista button");
-    chk((await pg.$$("#nombreLista button")).length === 2, "con el código bueno aparece la lista de nombres");
+    chk((await pg.$$("#nombreLista button")).length === 3, "con el código bueno aparece la lista de nombres");
     await pg.click("#nombreLista button[data-id='7']");
     await pg.waitForSelector(".box[data-cod=CORTE]");
     chk((await pg.textContent("#opName")) === "Prueba", "entra con el nombre elegido");
-    chk((await pg.$$(".box")).length === 7, "botonera = las áreas de gt_botones (7)");
+    chk((await pg.$$(".box")).length === 7, "botonera = las áreas de Pellegrini (7): las de Aula no aparecen");
+    chk(!(await pg.isVisible("#plantaBtn")), "quien trabaja en una sola planta no ve «Cambiar de planta»");
     const alDia = () => pg.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
     await pg.click(".box[data-cod=CORTE]"); await alDia();
     chk(db.length === 1 && db[0].opcion === "AREA" && db[0].rubro === "CORTE" && db[0].ts_inicio === null, "Empecé Corte: apertura con ts_inicio NULL");
+    chk(db[0].planta === "PELL", "el evento lleva la planta (Pellegrini, la de siempre)");
     await pg.reload(); await pg.waitForSelector(".termine-btn[data-cod=CORTE]");
     chk(true, "al recargar, Corte sigue abierta (sesión del día + historial del servidor)");
     const termino = async (cod) => { await pg.click(".termine-btn[data-cod=" + cod + "]"); await pg.waitForSelector("#cantScreen:not(.hidden)"); };
@@ -200,6 +210,31 @@ srv.listen(0, async () => {
     chk(db[nM].cantidad === 5 && db[nM].medida === "30*40" && db[nM + 1].medida === "20*30" && !db[nM + 1].ts_inicio,
         "cerró 30*40 con 5 y siguió con el mismo set en 20*30");
     await termino("MONT"); await pg.fill("#cantInput", "2"); await pg.click("#cambioBtn"); await alDia();
+    // 1.22: Darío trabaja en dos plantas → al entrar elige; en Aula la botonera es Moldurado / Lijado / Pintado
+    const ctx2 = await br.newContext({ viewport: { width: 390, height: 800 } }); const p2 = await ctx2.newPage();
+    await p2.goto(url); await p2.fill("#claveInput", "1234"); await p2.click("#claveBtn");
+    await p2.waitForSelector("#nombreLista button[data-id='6']"); await p2.click("#nombreLista button[data-id='6']");
+    await p2.waitForSelector("#plantaScreen:not(.hidden)");
+    chk((await p2.$$("#plantaOpts button")).length === 2 && (await p2.textContent("#plantaScreen")).includes("¿En qué planta trabajás hoy?"),
+        "Darío (dos plantas): lo primero que pregunta es en qué planta trabaja (Pellegrini o Aula)");
+    await p2.click("#plantaOpts button[data-planta='AULA']"); await p2.waitForSelector(".box[data-cod=MOLDU]");
+    const cods = await p2.$$eval("#botonera .box", (bs) => bs.map((b) => b.dataset.cod).join(","));
+    chk(cods === "MOLDU,LIJA,PINT" && (await p2.textContent("#opName")) === "Dario Mendez · Aula", "en Aula: Moldurado, Lijado y Pintado (y nada de Pellegrini)");
+    const n0 = db.length;
+    await p2.click(".box[data-cod=MOLDU]");
+    await p2.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
+    chk(db.length === n0 + 1 && db[n0].rubro === "MOLDU" && db[n0].planta === "AULA" && db[n0].empleado_id === 6, "Empecé Moldurado: el evento lleva la planta Aula");
+    chk(!(await p2.isVisible("#plantaBtn")), "con un área abierta no se puede cambiar de planta");
+    await p2.click(".termine-btn[data-cod=MOLDU]"); await p2.waitForSelector("#cantScreen:not(.hidden)");
+    chk(!(await p2.isVisible("#cantInput")) && (await p2.textContent("#sigueLabel")).includes("Moldurado"), "Moldurado termina sin cantidad y propone seguir");
+    await p2.click("#cambioBtn"); await p2.waitForSelector("#plantaBtn:not(.hidden)");
+    await p2.reload(); await p2.waitForSelector(".box[data-cod=LIJA]");
+    chk(true, "al recargar sigue en Aula (la planta queda en la sesión del día)");
+    await p2.click("#plantaBtn"); await p2.waitForSelector("#plantaScreen:not(.hidden)");
+    await p2.click("#plantaOpts button[data-planta='PELL']"); await p2.waitForSelector(".box[data-cod=CORTE]");
+    chk((await p2.$$("#botonera .box")).length === 7 && (await p2.textContent("#opName")) === "Dario Mendez · Pellegrini",
+        "«Cambiar de planta» lo pasa a Pellegrini con su botonera");
+    await ctx2.close();
     const ad = await br.newPage({ viewport: { width: 1280, height: 720 } });
     await ad.goto(url + "admin.html");
     await ad.waitForFunction(() => document.getElementById("clave").textContent === "1234");
