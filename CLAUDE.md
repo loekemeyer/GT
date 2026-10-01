@@ -58,6 +58,8 @@ al terminar pregunta el siguiente código. Va en `gt.tareas` (por rubro); el reg
 - **Sin lista desplegable**: en el iPhone el `datalist` tapaba el campo y no dejaba tipear. Abajo del
   campo se muestra qué es lo tipeado («03 Bco · 10 cm»). Teclado numérico si todos los códigos del
   área son números.
+- **D7 hecho (01/10):** ya no existen `gt.*_v1` ni las funciones viejas (`gt_login`, `gt_areas`, `gt_botonera`,
+  `gt_codigos`, `gt_clave_actual`, `gt_tareas()`, `gt_registros_hoy(text)`).
 - **Un código que no está en la lista se pregunta** («¿Lo registro igual?») y, con el segundo toque,
   se registra. Para identificarlos después: `select * from gt.codigos_no_identificados order by ultima desc;`
 
@@ -77,7 +79,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 | Corte | sí | 156 propios (Corte 45°) |
 | Grampeado | sí | 123 propios |
 | Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos |
-| Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`) |
+| Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`). Acepta **cualquier** producto, pero si no salió de Contraído **avisa y pide confirmar** (v11.0, D17) |
 | Deco | sí | 71 de operación (tablero «08. Sector Deco» completo) |
 | Pedidos | no | — (y no pide cantidad) |
 

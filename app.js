@@ -8,6 +8,8 @@
  *    (ts_inicio = hora de la apertura, cantidad)
  *  · tocar OTRA área con una abierta     → en una sola pantalla cierra la anterior (con su
  *    cantidad) y empieza la nueva.
+ * v11.0: Guardado a góndola acepta cualquier producto, pero si el código no salió de Contraído (o ya no le
+ *        quedan cajas pendientes) avisa y pide confirmar con un segundo toque.
  * v10.0: sin lista desplegable (en el iPhone tapaba el campo): abajo del campo se muestra qué es el código
  *        mientras se tipea. Un código que NO está en la lista se pregunta y, confirmado, se registra igual.
  * v9.0: al terminar, en la misma pantalla se pregunta «¿con qué seguís?»: por defecto la misma área
@@ -37,7 +39,7 @@
   const TIMEOUT_MS = 15000;
 
   const $ = (id) => document.getElementById(id);
-  const st = { emp: null, nombre: null, areas: [], codigos: [], server: [], pend: null, codPara: null };
+  const st = { emp: null, nombre: null, areas: [], codigos: [], server: [], pend: null, codPara: null, pendCont: null };
 
   /* ---------- utilidades ---------- */
   function lsGet(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } }
@@ -197,7 +199,8 @@
     if (seguir && p.sigue.pide_codigo) {
       nuevo = validarCodigo(p.sigue, $("sigueInput").value);
       if (nuevo.err) { $("sigueError").textContent = nuevo.err; $("sigueInput").focus(); return; }
-      if (nuevo.nuevo && !confirmoNuevo(nuevo.guardo, "sigueError", "cantBtn")) return;
+      const avisoS = nuevo.nuevo ? null : fueraDeContraido(p.sigue, nuevo.guardo);
+      if ((nuevo.nuevo || avisoS) && !confirmoNuevo(nuevo.guardo, "sigueError", "cantBtn", avisoS)) return;
     }
     registrar(p.cierra, { ts_inicio: p.ab.ts_cliente, cantidad: cant, texto: p.ab.texto || "" });
     if (seguir) registrar(p.sigue, nuevo ? { texto: nuevo.guardo } : null, 1);
@@ -234,12 +237,19 @@
       r.nuevo ? "No está en la lista de " + a.nombre : "";
   }
   // un código fuera de la lista se registra sólo si se confirma (segundo toque con el mismo código)
-  function confirmoNuevo(cod, errId, btnId) {
+  function confirmoNuevo(cod, errId, btnId, msg) {
     if (st.nuevoOk === cod) return true;
     st.nuevoOk = cod;
-    $(errId).textContent = "El " + cod + " no está en la lista. ¿Lo registro igual? Tocá de nuevo para confirmar.";
+    $(errId).textContent = (msg || "El " + cod + " no está en la lista.") + " ¿Lo registro igual? Tocá de nuevo para confirmar.";
     const b = $(btnId); b.dataset.txt = b.dataset.txt || b.textContent; b.textContent = "Sí, registrar el " + cod;
     return false;
+  }
+  // v11.0: en Guardado, ¿el código salió de Contraído y le quedan cajas por guardar?
+  function fueraDeContraido(a, cod) {
+    if (a.codigo !== "GUARD" || !st.pendCont) return null;          // sin lista leída no se avisa
+    const sin0 = (x) => String(x).toUpperCase().replace(/^0+(?=\d)/, "");
+    return st.pendCont.some((x) => sin0(x.codigo) === sin0(cod)) ? null :
+      "El " + cod + " no salió de Contraído o ya no le quedan cajas por guardar.";
   }
   function restaurarBtn(id) { const b = $(id); if (b.dataset.txt) { b.textContent = b.dataset.txt; delete b.dataset.txt; } }
   function empezar(a) {
@@ -258,7 +268,9 @@
   // v8.0: lo que salió de Contraído y falta guardar, como botones (en «Empecé» o en «¿con qué seguís?»)
   async function pendientesContraido(destId, sigueVigente) {
     let p = [];
-    try { p = await rpc("gt_contraido_pendiente", {}); } catch { return; }   // sin red: se tipea el código
+    st.pendCont = null;
+    try { p = await rpc("gt_contraido_pendiente", {}); } catch { return; }   // sin red: se tipea el código (sin aviso)
+    st.pendCont = p;
     if (!sigueVigente()) return;
     $(destId).innerHTML = p.length
       ? '<div class="cod-pend-t">Salió de Contraído y falta guardar:</div>' + p.map((x) =>
@@ -282,7 +294,8 @@
     const a = st.codPara; if (!a) return;
     const r = validarCodigo(a, $("codInput").value);
     if (r.err) { $("codError").textContent = r.err; return; }
-    if (r.nuevo && !confirmoNuevo(r.guardo, "codError", "codBtn")) return;
+    const avisoC = r.nuevo ? null : fueraDeContraido(a, r.guardo);
+    if ((r.nuevo || avisoC) && !confirmoNuevo(r.guardo, "codError", "codBtn", avisoC)) return;
     restaurarBtn("codBtn");
     registrar(a, { texto: r.guardo }, 1); flush();
     const c = r.cod;

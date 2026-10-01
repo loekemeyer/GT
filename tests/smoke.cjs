@@ -106,6 +106,10 @@ srv.listen(0, async () => {
     await pg.click(".box[data-cod=GUARD]"); await pg.waitForSelector("#codScreen:not(.hidden)");
     await pg.waitForSelector("#codPend button[data-cod='760']");
     chk((await pg.textContent("#codPend")).includes("12 cajas"), "Guardado muestra lo que salió de Contraído (760 · 12 cajas)");
+    await pg.fill("#codInput", "505"); await pg.click("#codBtn");
+    chk((await pg.textContent("#codError")).includes("no salió de Contraído") && db.length === 10,
+        "Guardado con un código que no salió de Contraído: avisa y pide confirmar");
+    await pg.fill("#codInput", "");
     await pg.click("#codPend button[data-cod='760']"); await alDia();
     chk(db.length === 11 && db[10].rubro === "GUARD" && db[10].texto === "760", "tocar el pendiente empieza Guardado con ese código");
     await termino("GUARD"); await pg.waitForSelector("#siguePend button[data-cod='760']");
