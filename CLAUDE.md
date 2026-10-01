@@ -208,7 +208,7 @@ el pedido es una **orden de fabricación**, no de despacho: no se arma y sale en
 | `gt.producto_max` | los DOS máximos por producto, en cajas: `maximo_cajas` (góndola) y `maximo_consumo_cajas` (consumo). D25: vienen con el archivo de D19. Vacía |
 | `gt.stock_inicial` | conteo inicial por depósito (en la unidad del depósito); los movimientos posteriores al conteo se suman encima. Vacía |
 | `gt.stock` | saldo por depósito y código = conteo + `gt.movimientos` posteriores; `con_conteo = false` cuando no hay conteo |
-| `gt.pedidos` + `gt.pedido_items` | la copia local de los pedidos (venga de donde venga): `pedido_ref` único por origen, `np`, `es_super`, `plazo_dias` (14), `estado` abierto → parcial → armado → cargado → entregado / cancelado; cajas y cajas armadas por renglón. Vacías hasta el sync con Tierra Nativa (D12) |
+| `gt.pedidos` + `gt.pedido_items` | la copia local de los pedidos (venga de donde venga): `pedido_ref` único por origen, `np`, `es_super`, `plazo_dias` (14), `estado` abierto → parcial → armado → cargado → entregado / cancelado; cajas y cajas armadas por renglón. Las llena `gt.sync_pedidos_tn()` desde la página de TN (D12, cada 10 min) |
 | `gt.demanda_producto` | **objetivo = máximo que rige + pedidos abiertos** (rige el de consumo si está cargado, si no el de góndola: `maximo_rige`, `supera_gondola_cajas`); `a_fabricar` = objetivo − góndola; `a_empezar` descuenta además lo que ya está en proceso (encolado a contraído). Sin conteo la góndola vale 0 y lo dice la `nota` |
 | `gt.demanda_aros` · `gt.demanda_corte` | eso traducido a aros a grampear y piezas a cortar con las recetas de 1.23–1.26, menos lo que ya hay en stock |
 | `gt.pedidos_plazo` | cada pedido contra su plazo (días, vence, vencido), % armado y si **puede salir completo o parcial** con la góndola de hoy |
@@ -248,9 +248,9 @@ el pedido es una **orden de fabricación**, no de despacho: no se arma y sale en
   discontinuos y **22 sin color cargado** (deco, 045 y el 817).
 - `sql/gt_v132_d22_d25_discontinuos_aros_consumo.sql` (rollback en la cabecera). Probado en transacción abortada.
 
-### Pedidos de Tierra Nativa — acceso de sólo lectura, UNA sola vez (D12)
+### Pedidos de Tierra Nativa — acceso de sólo lectura, UNA sola vez (D12) · ✅ CONECTADO el 01/10/2026
 
-**Thomas:** *«¿solo una vez?»* — sí. Son dos pasos y ninguno se repite, salvo que se cambie la contraseña:
+**Thomas:** *«¿solo una vez?»* — sí. Fueron dos pasos y ninguno se repite, salvo que se cambie la contraseña:
 
 | paso | quién | qué |
 |---|---|---|
@@ -258,9 +258,27 @@ el pedido es una **orden de fabricación**, no de despacho: no se arma y sale en
 | 1b | Thomas, en el Vault de Gestión (`hrxfctzncixxqmpfhskv`) | guarda esa contraseña como `tn_fdw_pass` |
 | 2 | Claude, en Gestión | `sql/gt_tn_fdw_2_lado_gestion.sql`: servidor `tn_db` (host directo `db.<ref>.supabase.co:5432`, como LK → Virgilio), user mapping leyendo la contraseña **del Vault**, y las tablas de TN en el schema `gt_tn` (revocado a `anon`) |
 
-Después se arma el sync (cada 10 min, ~2,4 s por conexión entre proyectos) que copia a `gt.pedidos` /
-`gt.pedido_items`, y ahí entra el armado pedido por pedido (D13 *«va de la mano con D12»*). **La contraseña nunca
-pasa por el chat ni por el repo**: el paso 2 la lee de `vault.decrypted_secrets`.
+**La contraseña nunca pasa por el chat ni por el repo**: el paso 2 la lee de `vault.decrypted_secrets`.
+
+**Qué quedó andando (01/10, 20:44 ART):**
+
+- Servidor `tn_db` + schema **`gt_tn`** con las **48 tablas** de la página de TN (misma estructura que la página LK:
+  `orders`, `order_items`, `customers`, `products`, `customer_delivery_addresses`…), sólo lectura y revocado a `anon`.
+  Cada consulta abre una conexión entre proyectos (~2,4 s): no se lee desde el celular ni en cada pantalla.
+- **`gt.sync_pedidos_tn()`**, cron **`gt-sync-pedidos-tn`** (jobid 126, `4-59/10 * * * *`): copia a `gt.pedidos` /
+  `gt.pedido_items` todo pedido de TN desde **`gt.config.pedidos_tn_desde`** (hoy `2026-09-01`) que no esté todavía,
+  con NP **`TN 0001`, `TN 0002`…** en orden de llegada (lock, sin huecos), y marca `cancelado` lo que la página cancele
+  si acá no salió. **Lo que ya está en GT no se pisa**: el estado lo mueve GT. Renglones borrados en la página después
+  de entrar no se sacan (no hay `DELETE`). Los 358 renglones de TN matchean los 323 productos de `gt.codigos`.
+- **Medido:** la página tiene **24 pedidos, todos `pendiente`**, del 01/04 al 09/09, ninguno enviado a compras (la
+  página de TN no tiene el cron del mail). Con el corte en 2026-09-01 entraron **2**: `TN 0001` = pedido 29 (Huang
+  Chun Chieh, 26 cajas) y `TN 0002` = pedido 30 (Bazares y Mas, 11 cajas), los dos ya **vencidos** contra los 14 días.
+  La demanda con esos dos: 31 productos → 19 aros → 24 piezas de corte. **Los 22 anteriores: D28** (si ya salieron,
+  no se cargan; si no, se corre el corte: `update gt.config set valor = '2026-04-01' where clave = 'pedidos_tn_desde'`).
+- Falta la **app**: el área Pedidos todavía no registra qué pedido se arma ni cuántas cajas (D13 *«va de la mano con
+  D12»*), y el `stock_pedidos_activo` sigue apagado.
+- `sql/gt_tn_fdw_2_lado_gestion.sql` (aplicado como `gt_v136_tn_fdw_lado_gestion`), `sql/gt_v136_sync_pedidos_tn.sql`
+  (aplicado como `gt_v137_sync_pedidos_tn`).
 
 ### 1.26 — paquete terminado en Corte y surtidos repartidos (Thomas, 01/10/2026: D11, D15)
 
