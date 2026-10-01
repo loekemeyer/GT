@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#1e40af" />
+  <title>GT Admin</title>
+  <link rel="icon" href="data:," />
+  <style>
+    :root{--fg:#111;--bg:#fff;--mut:#777;--acc:#1e6bd6;--borde:#ddd;}
+    body{font-family:Arial,sans-serif;margin:0;background:var(--bg);color:var(--fg);}
+    header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--borde);}
+    header h1{font-size:20px;margin:0;flex:1;}
+    header a{color:var(--mut);font-size:14px;}
+    .tabs{display:flex;gap:6px;padding:8px 16px;border-bottom:1px solid var(--borde);}
+    .tab{padding:6px 14px;border:1px solid var(--borde);border-radius:999px;font-size:14px;background:#f5f5f5;}
+    .tab.on{background:var(--acc);color:#fff;border-color:var(--acc);}
+    /* MONITOR: sólo el código de ingreso, centrado y grande (≡ monitor/tv.html de Virgilio) */
+    #monitor{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 110px);gap:2vh;}
+    .rot{font-size:clamp(18px,3vw,40px);color:var(--mut);letter-spacing:2px;text-transform:uppercase;}
+    .clave-fila{display:flex;align-items:center;gap:3vw;}
+    #clave{font-size:clamp(90px,20vw,320px);font-weight:bold;letter-spacing:.08em;font-variant-numeric:tabular-nums;line-height:1;}
+    .rueda{width:clamp(60px,9vw,150px);height:clamp(60px,9vw,150px);}
+    .rueda circle{fill:none;stroke-width:10;}
+    .rueda .fondo{stroke:#e5e5e5;}
+    .rueda .arco{stroke:var(--acc);stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset .9s linear;}
+    .rueda text{font-size:30px;font-weight:bold;fill:var(--fg);text-anchor:middle;dominant-baseline:central;}
+    #estado{font-size:14px;color:var(--mut);min-height:1em;}
+    #estado.err{color:#c00;}
+    @media (prefers-color-scheme:dark){:root{--fg:#eee;--bg:#111;--mut:#999;--borde:#333;}.tab{background:#222;}.rueda .fondo{stroke:#333;}}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>GT · Admin</h1>
+    <a href="./">← App de operario</a>
+  </header>
+  <div class="tabs"><span class="tab on">📺 Monitor</span></div>
+
+  <main id="monitor">
+    <div class="rot">🔑 Código de ingreso</div>
+    <div class="clave-fila">
+      <div id="clave">····</div>
+      <svg class="rueda" viewBox="0 0 100 100" aria-label="segundos para el próximo código">
+        <circle class="fondo" cx="50" cy="50" r="42"></circle>
+        <circle class="arco" id="arco" cx="50" cy="50" r="42" stroke-dasharray="263.9" stroke-dashoffset="0"></circle>
+        <text x="50" y="50" id="seg">--</text>
+      </svg>
+    </div>
+    <div id="estado"></div>
+  </main>
+
+  <script src="config.js?v=2.0"></script>
+  <script>
+  /* Monitor de GT: muestra el código de ingreso de 4 dígitos que cambia cada minuto.
+     Lo calcula la base (public.gt_clave_actual); acá sólo se muestra y se cuenta hacia atrás.
+     Se vuelve a pedir justo después de cada cambio. Si la base no contesta, se dice: el código
+     viejo NO se deja en pantalla como si fuera el bueno (vale 1 minuto más y después no). */
+  (function () {
+    const CFG = window.GT_CFG, CIRC = 263.9;
+    const $ = (id) => document.getElementById(id);
+    let fin = 0, timer = null, ultimoOk = 0;
+
+    async function pedir() {
+      clearTimeout(timer);
+      try {
+        const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 10000);
+        const r = await fetch(CFG.SUPABASE_URL + "/rest/v1/rpc/gt_clave_actual", {
+          method: "POST", signal: ctl.signal,
+          headers: { apikey: CFG.SUPABASE_KEY, Authorization: "Bearer " + CFG.SUPABASE_KEY, "Content-Type": "application/json" },
+          body: "{}" });
+        clearTimeout(t);
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const d = await r.json();
+        $("clave").textContent = d.clave;
+        fin = Date.now() + d.cambia_en_s * 1000;
+        ultimoOk = Date.now();
+        $("estado").textContent = ""; $("estado").classList.remove("err");
+        timer = setTimeout(pedir, d.cambia_en_s * 1000 + 600);
+      } catch (e) {
+        $("estado").textContent = "⚠ No pude leer el código (" + (e.message || e) + "). Reintentando…";
+        $("estado").classList.add("err");
+        if (Date.now() - ultimoOk > 120000) $("clave").textContent = "····";
+        timer = setTimeout(pedir, 5000);
+      }
+    }
+    function tick() {
+      const s = Math.max(0, Math.ceil((fin - Date.now()) / 1000));
+      $("seg").textContent = fin ? s : "--";
+      $("arco").style.strokeDashoffset = fin ? String(CIRC * (1 - s / 60)) : "0";
+    }
+    setInterval(tick, 250);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) pedir(); });
+    pedir();
+  })();
+  </script>
+</body>
+</html>

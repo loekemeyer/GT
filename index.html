@@ -11,16 +11,23 @@
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=1.0" />
+  <link rel="stylesheet" href="styles.css?v=2.0" />
 </head>
 <body>
-  <!-- 1) LEGAJO -->
-  <div id="legajoScreen">
+  <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
+  <div id="claveScreen">
     <h1>Producción GT</h1>
-    <input id="legajoInput" inputmode="numeric" autocomplete="off" placeholder="Legajo" />
-    <div id="legajoError" class="error"></div>
-    <button id="legajoBtn" class="primary-btn">Entrar</button>
-    <div class="version" id="verBadge"></div>
+    <div class="label">🔑 Código de ingreso (en el monitor)</div>
+    <input id="claveInput" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000" />
+    <div id="claveError" class="error"></div>
+    <button id="claveBtn" class="primary-btn">Siguiente</button>
+    <div class="version"><span id="verBadge"></span> · <a href="admin.html">⚙ Admin</a></div>
+  </div>
+
+  <!-- 1b) ¿QUIÉN SOS? -->
+  <div id="nombreScreen" class="hidden">
+    <div class="top-bar"><span class="back-top" id="nombreVolver">←</span><span class="op-name">¿Quién sos?</span></div>
+    <div id="nombreLista" class="nombres"></div>
   </div>
 
   <!-- 2) BOTONERA -->
@@ -50,7 +57,7 @@
   </div>
 
   <div id="toast" class="toast hidden"></div>
-  <script src="config.js?v=1.0"></script>
-  <script src="app.js?v=1.0"></script>
+  <script src="config.js?v=2.0"></script>
+  <script src="app.js?v=2.0"></script>
 </body>
 </html>

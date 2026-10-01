@@ -1,44 +1,60 @@
 # CLAUDE.md — Producción GT
 
 App web (PWA, sin framework) de **operario** para la planta **GT**. Copia el molde de la app de
-operario de Gestión Virgilio / Cervantes: **legajo → botonera de tareas → cada toque es un evento**.
-Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
+operario de Gestión Virgilio: **código del monitor + nombre → botonera de tareas → cada toque es un
+evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 
 ## Cómo está armada
 
 | pieza | dónde |
 |---|---|
-| pantalla | `index.html` + `app.js` + `styles.css` (sin dependencias) |
+| app de operario | `index.html` + `app.js` + `styles.css` (sin dependencias) |
+| módulo admin (monitor) | `admin.html` |
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
-| estructura de la base | `sql/gt_schema_v1.sql` (con rollback en la cabecera) |
+| estructura de la base | `sql/gt_schema_v2.sql` (con rollback en la cabecera) |
 | prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) |
+
+### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
+
+1. El **monitor** (`admin.html`) muestra el **código de ingreso**: 4 dígitos que **cambian cada
+   minuto** (`public.gt_clave_actual`). Vale también el del minuto anterior.
+2. En el celular el operario escribe el código → `public.gt_clave_validar` devuelve la lista de
+   empleados activos → **elige su nombre**.
+3. La sesión dura **el día**: al recargar no se vuelve a pedir el código.
+
+⚠ **No es un candado**: el monitor lee el código con la clave pública. Sirve para que se entre
+estando en la planta. La semilla es propia (`:gt-clave:`): el código de GT nunca coincide con el
+de Virgilio.
 
 ### Base: schema `gt`
 
 | tabla | qué es |
 |---|---|
-| `gt.operarios` | legajo, nombre, activo. **Sin fila acá, el legajo no entra** |
-| `gt.tareas` | la botonera: código, descripción, `tipo` (`tarea` abre/cierra · `evento` un toque), `pide_texto` + `etiqueta_texto`, `fila`/`orden` |
+| `gt.empleados` | id, **nombre** (único), legajo (opcional), activo |
+| `gt.rubros` | rubros habilitados: código, nombre, orden, activo |
+| `gt.tareas` | la botonera: código, descripción, `tipo` (`tarea` abre/cierra · `evento` un toque), `rubro`, `pide_texto` + `etiqueta_texto`, `fila`/`orden` |
+| `gt.empleado_rubro` | qué rubros tiene cada empleado. **Sin filas, ve todas las tareas**; con filas, las de sus rubros + las sin rubro |
 | `gt.registros` | el log de eventos, mismo formato que `Registros_Produccion_Virgilio`: apertura con `ts_inicio` NULL, cierre con `ts_inicio` = hora de la apertura. `client_id` único = sin duplicados |
 
 - **El celular NO lee el schema `gt`**: RLS prendida y todo revocado para `anon`/`authenticated`.
-  Entra sólo por cuatro RPC SECURITY DEFINER: `public.gt_login`, `public.gt_tareas`,
-  `public.gt_registrar` (lote, contesta fila por fila `ok` / `rechazados`) y `public.gt_registros_hoy`.
+  Entra sólo por RPC SECURITY DEFINER: `gt_clave_actual`, `gt_clave_validar`, `gt_tareas(empleado)`,
+  `gt_registrar` (lote, contesta fila por fila `ok` / `rechazados`) y `gt_registros_hoy(empleado)`.
   Por eso **no hace falta exponer el schema en la API**.
-- **La botonera NO está en el código**: agregar o sacar una tarea es un `insert`/`update` en
-  `gt.tareas`, no un deploy. Lo mismo con los operarios.
+- **La botonera NO está en el código**: agregar o sacar una tarea, un rubro o un empleado es un
+  `insert`/`update` en el schema, no un deploy.
 - **Una sola tarea abierta por operario.** La tarea abierta no se guarda: se deduce de los eventos
   del día (servidor + cola local), así sobrevive a una recarga.
-- **Cola offline** en `localStorage` (`gt_queue_v1`), reintento cada 30 s y al volver la red. Una fila
-  rechazada sale de la cola y queda en `gt_rechazados_v1` (no traba al resto — lección v25.20 de Virgilio).
+- **Cola offline** en `localStorage` (`gt_queue_v2`), reintento cada 30 s y al volver la red. Una fila
+  rechazada sale de la cola y queda en `gt_rechazados_v2` (no traba al resto — lección v25.20 de Virgilio).
 
 ### Cargar datos (con el «sí» del dueño, regla BD)
 
 ```sql
-insert into gt.operarios (legajo, nombre) values ('<legajo>', '<Nombre>') on conflict do nothing;
-insert into gt.tareas (codigo, descripcion, tipo, pide_texto, etiqueta_texto, fila, orden)
-values ('<COD>', '<Descripción>', 'tarea', false, null, 1, 1) on conflict do nothing;
+insert into gt.empleados (nombre) values ('<Nombre Apellido>') on conflict (nombre) do nothing;
+insert into gt.rubros (codigo, nombre, orden) values ('<COD>', '<Rubro>', 1) on conflict do nothing;
+insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_texto, fila, orden)
+values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
 ### Versión

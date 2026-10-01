@@ -15,9 +15,10 @@ const srv = http.createServer((req, res) => {
     let body = ""; req.on("data", (c) => (body += c)); req.on("end", () => {
       const b = JSON.parse(body || "{}"), fn = req.url.split("/").pop();
       let out;
-      if (fn === "gt_login") out = b.p_legajo === "7" ? [{ legajo: "7", nombre: "Prueba" }] : [];
+      if (fn === "gt_clave_actual") out = { clave: "1234", cambia_en_s: 42 };
+      else if (fn === "gt_clave_validar") out = b.p_clave === "1234" ? { ok: true, empleados: [{ id: 7, nombre: "Prueba" }, { id: 8, nombre: "Otro" }] } : { ok: false };
       else if (fn === "gt_tareas") out = TAREAS;
-      else if (fn === "gt_registros_hoy") out = db.filter((r) => r.legajo === b.p_legajo);
+      else if (fn === "gt_registros_hoy") out = db.filter((r) => r.empleado_id === b.p_empleado);
       else if (fn === "gt_registrar") {
         const ok = [], rech = [];
         b.p_filas.forEach((f) => { if (f.opcion === "ZZ") rech.push({ client_id: f.client_id, motivo: "tarea inexistente" });
@@ -42,11 +43,15 @@ srv.listen(0, async () => {
   const pg = await br.newPage({ viewport: { width: 390, height: 800 } });
   try {
     await pg.goto(url);
-    await pg.fill("#legajoInput", "99"); await pg.click("#legajoBtn");
-    await pg.waitForFunction(() => document.getElementById("legajoError").textContent.length > 0);
-    chk(await pg.isVisible("#legajoScreen"), "legajo inexistente no entra");
-    await pg.fill("#legajoInput", "7"); await pg.click("#legajoBtn");
+    await pg.fill("#claveInput", "9999"); await pg.click("#claveBtn");
+    await pg.waitForFunction(() => document.getElementById("claveError").textContent.length > 0);
+    chk(await pg.isVisible("#claveScreen"), "código equivocado no entra");
+    await pg.fill("#claveInput", "1234"); await pg.click("#claveBtn");
+    await pg.waitForSelector("#nombreLista button");
+    chk((await pg.$$("#nombreLista button")).length === 2, "con el código bueno aparece la lista de nombres");
+    await pg.click("#nombreLista button[data-id='7']");
     await pg.waitForSelector(".box[data-cod=EP]");
+    chk((await pg.textContent("#opName")) === "Prueba", "entra con el nombre elegido");
     chk((await pg.$$(".box")).length === 3, "botonera armada desde gt_tareas (3 botones)");
     await pg.click(".box[data-cod=EP]"); await pg.fill("#textoInput", "OT-15"); await pg.click("#textoBtn");
     await pg.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
@@ -60,13 +65,20 @@ srv.listen(0, async () => {
     await pg.click(".box[data-cod=FJ]");
     await pg.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
     chk(db.length === 3 && db[2].opcion === "FJ", "evento FJ de un toque");
-    await pg.evaluate(() => { const q = JSON.parse(localStorage.getItem("gt_queue_v1") || "[]");
-      q.push({ client_id: "malo", legajo: "7", opcion: "ZZ", ts_cliente: new Date().toISOString() });
-      localStorage.setItem("gt_queue_v1", JSON.stringify(q)); return window.__gt.flush(); });
-    const q = await pg.evaluate(() => [JSON.parse(localStorage.getItem("gt_queue_v1")).length, JSON.parse(localStorage.getItem("gt_rechazados_v1")).length]);
+    await pg.evaluate(() => { const q = JSON.parse(localStorage.getItem("gt_queue_v2") || "[]");
+      q.push({ client_id: "malo", empleado_id: 7, opcion: "ZZ", ts_cliente: new Date().toISOString() });
+      localStorage.setItem("gt_queue_v2", JSON.stringify(q)); return window.__gt.flush(); });
+    const q = await pg.evaluate(() => [JSON.parse(localStorage.getItem("gt_queue_v2")).length, JSON.parse(localStorage.getItem("gt_rechazados_v2")).length]);
     chk(q[0] === 0 && q[1] === 1, "fila rechazada sale de la cola y queda anotada (no traba)");
     await pg.click("#histBtn");
     chk((await pg.$$("#hist tr")).length === 4, "resumen de hoy con 3 registros");
+    chk(db.every((r) => r.empleado_id === 7), "los registros llevan el empleado_id");
+    const ad = await br.newPage({ viewport: { width: 1280, height: 720 } });
+    await ad.goto(url + "admin.html");
+    await ad.waitForFunction(() => document.getElementById("clave").textContent === "1234");
+    await ad.waitForFunction(() => document.getElementById("seg").textContent !== "--");
+    const seg = Number(await ad.textContent("#seg"));
+    chk(seg > 0 && seg <= 42, "monitor admin muestra el código y la cuenta regresiva (" + seg + " s)");
   } catch (e) { fallas.push(String(e)); console.log("✗", e.message); }
   await br.close(); srv.close();
   console.log(fallas.length ? "ROJO: " + fallas.length : "VERDE");

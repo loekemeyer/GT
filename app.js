@@ -1,5 +1,6 @@
 /* Producción GT — app de operario.
- * Mismo molde que la de Virgilio / Cervantes: legajo → botonera → cada toque es un evento.
+ * Mismo molde que la de Virgilio / Cervantes: código del monitor + nombre → botonera → cada toque es un evento.
+ * El código (4 dígitos) cambia cada minuto y sólo se pide al entrar; la sesión dura el día.
  *  · tarea  (abre y cierra): 1er toque = apertura (ts_inicio NULL); 2do toque = cierre
  *    (ts_inicio = hora de la apertura). Sólo UNA tarea abierta por operario a la vez.
  *  · evento (un toque): una sola fila.
@@ -11,15 +12,15 @@
 (function () {
   "use strict";
   const CFG = window.GT_CFG;
-  const LS_SESION = "gt_sesion_v1";
-  const LS_QUEUE = "gt_queue_v1";
-  const LS_RECH = "gt_rechazados_v1";
-  const LS_TAREAS = "gt_tareas_v1";
+  const LS_SESION = "gt_sesion_v2";
+  const LS_QUEUE = "gt_queue_v2";
+  const LS_RECH = "gt_rechazados_v2";
+  const LS_TAREAS = "gt_tareas_v2";
   const LS_DISP = "gt_dispositivo";
   const TIMEOUT_MS = 15000;
 
   const $ = (id) => document.getElementById(id);
-  const st = { legajo: null, nombre: null, tareas: [], server: [], pendTexto: null };
+  const st = { emp: null, nombre: null, tareas: [], server: [], pendTexto: null };
 
   /* ---------- utilidades ---------- */
   function lsGet(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } }
@@ -37,7 +38,7 @@
   function dur(ms) { const m = Math.max(0, Math.round(ms / 60000)); return Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0"); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
   function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.remove("hidden"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add("hidden"), 2500); }
-  function show(id) { ["legajoScreen", "optionsScreen", "textoScreen"].forEach((s) => $(s).classList.toggle("hidden", s !== id)); }
+  function show(id) { ["claveScreen", "nombreScreen", "optionsScreen", "textoScreen"].forEach((s) => $(s).classList.toggle("hidden", s !== id)); }
 
   async function rpc(name, body) {
     const ctl = new AbortController();
@@ -80,7 +81,7 @@
       }
       // lo que entró pasa al historial del servidor; lo que se agregó mientras tanto queda
       const enviados = q.filter((x) => ok.has(x.client_id));
-      st.server = st.server.concat(enviados.filter((x) => x.legajo === st.legajo));
+      st.server = st.server.concat(enviados.filter((x) => x.empleado_id === st.emp));
       lsSet(LS_QUEUE, cola().filter((x) => !ok.has(x.client_id) && !rechIds.has(x.client_id)));
     } catch (e) {
       // sin red o base caída: queda en la cola y se reintenta
@@ -90,7 +91,7 @@
   /* ---------- estado del día ---------- */
   function eventosHoy() {
     const vistos = new Set(), out = [];
-    st.server.concat(cola().filter((x) => x.legajo === st.legajo)).forEach((r) => {
+    st.server.concat(cola().filter((x) => x.empleado_id === st.emp)).forEach((r) => {
       if (vistos.has(r.client_id)) return; vistos.add(r.client_id);
       if (r.ts_cliente && diaAR(r.ts_cliente) === hoyAR()) out.push(r);
     });
@@ -111,7 +112,7 @@
 
   function registrar(t, texto, tsInicio) {
     const fila = {
-      client_id: uuid(), legajo: st.legajo, opcion: t.codigo, descripcion: t.descripcion,
+      client_id: uuid(), empleado_id: st.emp, opcion: t.codigo, descripcion: t.descripcion,
       texto: texto || "", ts_cliente: new Date().toISOString(), ts_inicio: tsInicio || null,
       dispositivo: dispositivo(),
     };
@@ -195,28 +196,35 @@
 
   /* ---------- carga ---------- */
   async function cargarTareas() {
-    try { st.tareas = await rpc("gt_tareas", {}); lsSet(LS_TAREAS, st.tareas); }
+    try { st.tareas = await rpc("gt_tareas", { p_empleado: st.emp }); lsSet(LS_TAREAS, st.tareas); }
     catch { st.tareas = lsGet(LS_TAREAS, []); }
   }
   async function cargarHoy() {
-    try { st.server = (await rpc("gt_registros_hoy", { p_legajo: st.legajo })).map((r) => Object.assign({ legajo: st.legajo }, r)); }
+    try { st.server = (await rpc("gt_registros_hoy", { p_empleado: st.emp })).map((r) => Object.assign({ empleado_id: st.emp }, r)); }
     catch { /* sin red: se arma con la cola */ }
   }
 
-  async function entrar(legajo, nombreCache) {
-    $("legajoError").textContent = "";
-    let nombre = null;
-    try {
-      const r = await rpc("gt_login", { p_legajo: legajo });
-      if (!r.length) { $("legajoError").textContent = "Legajo " + legajo + " no está dado de alta en GT"; return; }
-      nombre = r[0].nombre;
-    } catch {
-      if (!nombreCache) { $("legajoError").textContent = "Sin conexión. Probá de nuevo."; return; }
-      nombre = nombreCache;  // sesión del día ya validada antes
-    }
-    st.legajo = legajo; st.nombre = nombre;
-    lsSet(LS_SESION, { legajo, nombre, dia: hoyAR() });
-    $("opName").textContent = legajo + " · " + nombre;
+  // 1) código del monitor → lista de nombres
+  async function validarClave() {
+    const v = $("claveInput").value.replace(/\D/g, "");
+    $("claveError").textContent = "";
+    if (v.length !== 4) { $("claveError").textContent = "El código tiene 4 números"; return; }
+    let r;
+    try { r = await rpc("gt_clave_validar", { p_clave: v }); }
+    catch { $("claveError").textContent = "Sin conexión. Probá de nuevo."; return; }
+    if (!r.ok) { $("claveError").textContent = "Código incorrecto o vencido: mirá el monitor"; return; }
+    const emps = r.empleados || [];
+    $("nombreLista").innerHTML = emps.length ? emps.map((e) =>
+      '<button data-id="' + e.id + '" data-nombre="' + esc(e.nombre) + '">' + esc(e.nombre) + "</button>").join("") :
+      '<div class="error">No hay empleados cargados en GT.</div>';
+    show("nombreScreen");
+  }
+
+  // 2) entra con el empleado elegido (o con la sesión del día, sin pedir código)
+  async function entrar(id, nombre) {
+    st.emp = Number(id); st.nombre = nombre;
+    lsSet(LS_SESION, { id: st.emp, nombre, dia: hoyAR() });
+    $("opName").textContent = nombre;
     show("optionsScreen");
     await Promise.all([cargarTareas(), cargarHoy()]);
     renderBotonera(); syncBadge(); flush();
@@ -225,14 +233,16 @@
   function salir() {
     if (abierta() && !confirm("Tenés una tarea abierta. ¿Cambiar de operario igual? (queda abierta)")) return;
     try { localStorage.removeItem(LS_SESION); } catch { /* nada */ }
-    st.legajo = null; st.server = []; $("legajoInput").value = ""; $("hist").classList.add("hidden");
-    show("legajoScreen");
+    st.emp = null; st.server = []; $("claveInput").value = ""; $("hist").classList.add("hidden");
+    show("claveScreen");
   }
 
   /* ---------- eventos ---------- */
   $("verBadge").textContent = "v" + CFG.APP_VERSION;
-  $("legajoBtn").onclick = () => { const v = $("legajoInput").value.trim(); if (v) entrar(v, null); };
-  $("legajoInput").addEventListener("keydown", (e) => { if (e.key === "Enter") $("legajoBtn").click(); });
+  $("claveBtn").onclick = validarClave;
+  $("claveInput").addEventListener("keydown", (e) => { if (e.key === "Enter") validarClave(); });
+  $("nombreLista").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) entrar(b.dataset.id, b.dataset.nombre); });
+  $("nombreVolver").onclick = () => show("claveScreen");
   $("botonera").addEventListener("click", (e) => { const b = e.target.closest(".box"); if (b) tocar(b.dataset.cod); });
   $("salirBtn").onclick = salir;
   $("textoBtn").onclick = enviarTexto;
@@ -245,8 +255,8 @@
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 
   const ses = lsGet(LS_SESION, null);
-  if (ses && ses.dia === hoyAR()) entrar(ses.legajo, ses.nombre);
-  else show("legajoScreen");
+  if (ses && ses.dia === hoyAR() && ses.id) entrar(ses.id, ses.nombre);
+  else show("claveScreen");
 
   window.__gt = { st, abierta, eventosHoy, flush };   // para tests
 })();
