@@ -135,6 +135,8 @@ srv.listen(0, async () => {
     await pg.click("#histBtn");
     const nh = (await pg.$$("#hist .hist-row")).length; chk(nh === 7, "resumen de hoy con 7 tramos (" + nh + ")");
     chk(db.every((r) => r.empleado_id === 7), "los registros llevan el empleado_id");
+    chk(await pg.evaluate(() => window.__gt.verNum("1.10") > window.__gt.verNum("1.9") && window.__gt.verNum("2.0") > window.__gt.verNum("1.99")),
+        "versiones: 1.10 es más nueva que 1.9, y 2.0 que 1.99");
     const ad = await br.newPage({ viewport: { width: 1280, height: 720 } });
     await ad.goto(url + "admin.html");
     await ad.waitForFunction(() => document.getElementById("clave").textContent === "1234");

@@ -173,6 +173,15 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.2 — aviso de código no registrado y actualización sola (Thomas, 01/10/2026)
+
+- **Código fuera de la lista → Telegram «GT Avisos»**: trigger `gt_alerta_codigo_nuevo` sobre `gt.registros`
+  (al EMPEZAR un área). Uno por área + código + día. Vive en la base para que avise aunque el celular
+  tenga la app vieja. `sql/gt_alerta_codigo_no_registrado.sql`.
+- **La app se actualiza sola**: cada 2 min lee `version.json`; si hay una más nueva y el operario no está
+  cargando nada, recarga con `?v=<nueva>` (saltea la caché de 10 min de GitHub Pages). Si ya recargó con
+  esa versión no lo repite. `tests/autoupdate.cjs`.
+
 ### Diseño para celular (v1.1, Thomas: *«que sea más lindo… se va a usar desde un celular»*)
 
 - **Pulgar:** las acciones de cada pantalla van **fijas abajo** (`.acciones`), el encabezado fijo arriba con

@@ -8,6 +8,7 @@
  *    (ts_inicio = hora de la apertura, cantidad)
  *  · tocar OTRA área con una abierta     → en una sola pantalla cierra la anterior (con su
  *    cantidad) y empieza la nueva.
+ * v1.2: se actualiza sola cuando hay versión nueva (version.json cada 2 min).
  * v1.1 (numeración nueva): rediseño para celular — tarjetas con ícono, área en curso con el tiempo que lleva,
  *        resumen del día en tarjetas, acciones fijas abajo.
  * v12.0: un área con 6 opciones o menos (Recibir mercadería: Insumo / Moldura) las muestra como botones
@@ -428,5 +429,25 @@
   if (ses && ses.dia === hoyAR() && ses.id) entrar(ses.id, ses.nombre);
   else show("claveScreen");
 
-  window.__gt = { st, abierta, eventosHoy, flush };   // para tests
+  // v1.2: la app se actualiza sola. GitHub Pages deja la página en caché hasta 10 min y nadie avisaba:
+  // cada 2 min se lee version.json (sin caché); si hay una más nueva y el operario no está en medio de
+  // una carga (pantalla de áreas o de ingreso, sin tipear), se recarga con ?v=<nueva> para saltear la caché.
+  function verNum(v) { const [a, b] = String(v).split(".").map(Number); return (a || 0) * 1000 + (b || 0); }  // 1.10 > 1.9
+  async function chequearVersion() {
+    try {
+      const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
+      const v = (await r.json()).version;
+      if (verNum(v) <= verNum(CFG.APP_VERSION)) return;
+      const enCarga = !$("cantScreen").classList.contains("hidden") || !$("codScreen").classList.contains("hidden") ||
+                      (document.activeElement && document.activeElement.tagName === "INPUT");
+      if (enCarga) return;                                   // se reintenta en la próxima vuelta
+      if (new URLSearchParams(location.search).get("v") === v) return;   // ya recargó con ésa: no entra en bucle
+      location.replace(location.pathname + "?v=" + encodeURIComponent(v));
+    } catch { /* sin red: no pasa nada */ }
+  }
+  setInterval(chequearVersion, 120000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) chequearVersion(); });
+  chequearVersion();
+
+  window.__gt = { st, abierta, eventosHoy, flush, verNum };   // para tests
 })();
