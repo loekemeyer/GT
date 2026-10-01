@@ -76,9 +76,9 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 
 | área | pide código | lista |
 |---|---|---|
-| Corte | sí | 156 propios (Corte 45°) |
-| Grampeado | sí | 123 propios |
-| Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos |
+| Corte | sí | 158 propios (Corte 45°; 157 y 158 entraron con D22) |
+| Grampeado | sí | 129 propios (234 a 239 entraron con D22) |
+| Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos (6 discontinuos desde D22: no se listan) |
 | Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`). Acepta **cualquier** producto, pero si no salió de Contraído **avisa y pide confirmar** (v11.0, D17) |
 | Deco | sí | 71 de operación (tablero «08. Sector Deco» completo) |
 | Pedidos | no | — (y no pide cantidad) |
@@ -99,7 +99,7 @@ El mismo número es otra cosa según el área (**080** = «Cuadro Ciudades MDF»
 | fuente | clave | para |
 |---|---|---|
 | `gt.codigos` + `gt.codigo_area` | código del producto, habilitado por área | áreas 3 a 7 (productos de Tierra Nativa) |
-| `gt.codigos_rubro` | **(área, código)** con su propia descripción | Corte 45° (1–156) y Grampeado (003–233) |
+| `gt.codigos_rubro` | **(área, código)** con su propia descripción | Corte 45° (1–158) y Grampeado (003–239) |
 
 El código se compara **sin ceros adelante** («21» = «021») y se guarda como figura en la lista.
 Cargas: `sql/gt_codigos_tierra_nativa.sql` y `sql/gt_codigos_corte_grampeado.sql` (transcripto de las
@@ -205,11 +205,11 @@ el pedido es una **orden de fabricación**, no de despacho: no se arma y sale en
 
 | objeto | qué es |
 |---|---|
-| `gt.producto_max` | máximo de góndola por producto, en cajas (lo carga Thomas, D25). Vacía |
+| `gt.producto_max` | los DOS máximos por producto, en cajas: `maximo_cajas` (góndola) y `maximo_consumo_cajas` (consumo). D25: vienen con el archivo de D19. Vacía |
 | `gt.stock_inicial` | conteo inicial por depósito (en la unidad del depósito); los movimientos posteriores al conteo se suman encima. Vacía |
 | `gt.stock` | saldo por depósito y código = conteo + `gt.movimientos` posteriores; `con_conteo = false` cuando no hay conteo |
 | `gt.pedidos` + `gt.pedido_items` | la copia local de los pedidos (venga de donde venga): `pedido_ref` único por origen, `np`, `es_super`, `plazo_dias` (14), `estado` abierto → parcial → armado → cargado → entregado / cancelado; cajas y cajas armadas por renglón. Vacías hasta el sync con Tierra Nativa (D12) |
-| `gt.demanda_producto` | **objetivo = máximo + pedidos abiertos**; `a_fabricar` = objetivo − góndola; `a_empezar` descuenta además lo que ya está en proceso (encolado a contraído). Sin conteo la góndola vale 0 y lo dice la `nota` |
+| `gt.demanda_producto` | **objetivo = máximo que rige + pedidos abiertos** (rige el de consumo si está cargado, si no el de góndola: `maximo_rige`, `supera_gondola_cajas`); `a_fabricar` = objetivo − góndola; `a_empezar` descuenta además lo que ya está en proceso (encolado a contraído). Sin conteo la góndola vale 0 y lo dice la `nota` |
 | `gt.demanda_aros` · `gt.demanda_corte` | eso traducido a aros a grampear y piezas a cortar con las recetas de 1.23–1.26, menos lo que ya hay en stock |
 | `gt.pedidos_plazo` | cada pedido contra su plazo (días, vence, vencido), % armado y si **puede salir completo o parcial** con la góndola de hoy |
 
@@ -220,6 +220,44 @@ el pedido es una **orden de fabricación**, no de despacho: no se arma y sale en
   cubribles. Es la primera versión; el orden de fabricación (D19) espera el archivo de Thomas.
 - Todo es `security_invoker` y revocado a `anon` / `authenticated`: lo lee el MCP o una RPC futura, no el celular.
 - `sql/gt_v131_pedidos_demanda.sql` (rollback en la cabecera).
+
+### D22 y D25 (Thomas, 01/10/2026): discontinuos, aros nuevos, 713/714 Roble y el máximo por consumo
+
+- **D25** *«máximo por góndola + máximo por consumo, se necesitan ambos»* → `gt.producto_max` lleva los dos
+  (`maximo_cajas` = góndola, `maximo_consumo_cajas` = consumo; alcanza con uno). **Regla tomada de las OCs de
+  Virgilio (*«la proyección es rey»*): rige el de CONSUMO si está cargado, si no el de GÓNDOLA**, y lo que el
+  consumo supera a la góndola se fabrica igual y se guarda aparte (`supera_gondola_cajas`). Es lo elegido mientras
+  llega el archivo de D19: si Thomas lo quiere al revés, es un cambio en `gt.demanda_producto`, no en los datos.
+  Probado: 183 con góndola 100, consumo 150 y 50 en góndola → objetivo 150, fabricar 100, supera 50.
+- **D22 discontinuos**: 115, 604, 640, 641, 642 y 645 (643 y 644 no existen) → `gt.codigos.activo = false` +
+  `discontinuado_en` / `discontinuado_nota`. Salen de la lista del operario (`gt_codigos_area`) y de la demanda; si
+  alguien lo tipea igual, entra como código no registrado y avisa por Telegram. `select codigo, discontinuado_nota
+  from gt.codigos where not activo;`
+- **D22 aros nuevos** en Grampeado (hay que agregarlos al tablero físico): **234** 3P 3/4 Bco P 30*40 y **235** 3P 3/4
+  Negro 30*40 (224 Porta Gigante), **236** Bco P 60*80 y **237** Negro 60*80 (220), **238** 03 Negro 15*21 (sets 408 /
+  409), **239** 012 Nat 10*10 (281). Y dos piezas de Corte, **157** 03 Negro 15 cm y **158** 03 Negro 21 cm, porque el
+  tablero de Corte no las tenía y sin ellas el 238 quedaba sin receta. Todas resuelven solas (`gt.aro_piezas`).
+- **D22 713 y 714 son Roble** → aros 017 / 020. **Un color se cambia con `select gt.color_fijar('713',
+  array['Roble'], 'Thomas')`**: lo que no está en la lista queda `activo = false` en `gt.codigo_color` (no se borra:
+  queda la historia, y el conector no deja `DELETE`); `gt.producto_aro` lee sólo las activas.
+- **D22 «012 cedro para 30x40, no va»**: el 214 (Diploma 012 c/Vidrio, 30*40) queda sin aro hasta saber qué lleva (D26).
+- Resultado: **269 de 301 pares producto→aro resueltos** (antes 264 de 305). Los 32 sin resolver: 6 de los
+  discontinuos, **25 sin color cargado** (deco, 045 y el 817) y el 214.
+- `sql/gt_v132_d22_d25_discontinuos_aros_consumo.sql` (rollback en la cabecera). Probado en transacción abortada.
+
+### Pedidos de Tierra Nativa — acceso de sólo lectura, UNA sola vez (D12)
+
+**Thomas:** *«¿solo una vez?»* — sí. Son dos pasos y ninguno se repite, salvo que se cambie la contraseña:
+
+| paso | quién | qué |
+|---|---|---|
+| 1 | Thomas, en el SQL Editor del proyecto de Tierra Nativa (`zjvpzqhbekxnwxdczpof`) | `sql/gt_tn_fdw_1_lado_tierra_nativa.sql`: crea el rol `gt_reader` (sólo SELECT, con una política de lectura por tabla con RLS, el mismo molde de `lk_ppp_reader` en Virgilio) |
+| 1b | Thomas, en el Vault de Gestión (`hrxfctzncixxqmpfhskv`) | guarda esa contraseña como `tn_fdw_pass` |
+| 2 | Claude, en Gestión | `sql/gt_tn_fdw_2_lado_gestion.sql`: servidor `tn_db` (host directo `db.<ref>.supabase.co:5432`, como LK → Virgilio), user mapping leyendo la contraseña **del Vault**, y las tablas de TN en el schema `gt_tn` (revocado a `anon`) |
+
+Después se arma el sync (cada 10 min, ~2,4 s por conexión entre proyectos) que copia a `gt.pedidos` /
+`gt.pedido_items`, y ahí entra el armado pedido por pedido (D13 *«va de la mano con D12»*). **La contraseña nunca
+pasa por el chat ni por el repo**: el paso 2 la lee de `vault.decrypted_secrets`.
 
 ### 1.26 — paquete terminado en Corte y surtidos repartidos (Thomas, 01/10/2026: D11, D15)
 
@@ -247,7 +285,8 @@ el pedido es una **orden de fabricación**, no de despacho: no se arma y sale en
   Cargada la lectura de Claude, que aplicó esa regla (21 artículos: 214, 400, 402, 550, 553, 604 a 609, 710 a 714 y
   740 a 745). `sql/gt_v130_marrones_012.sql`. Sin cargar: los estampados (045) y los de deco que no se mandaron a ChatGPT.
 - `gt.producto_aro` usa el color (`gt.color_aro`: Bco/Bco P → Blanco, Bco T → Blanco total, Nat → Natural). Un
-  artículo «c/Soga» sólo toma aros «p/soga». **De 241 piezas producto→aro, resueltas: 202** (12 al empezar el día).
+  artículo «c/Soga» sólo toma aros «p/soga». **De 301 pares producto→aro, resueltos: 269** (12 al empezar el día; ver D22 arriba —
+  los 14 sin aro de la lista de abajo ya están resueltos, discontinuados o preguntados en D26).
   Faltan 39: 25 sin color cargado (deco, 045 y el 817) y 14 sin aro en Grampeado: 03 Bco 10*25 (115), 3P 3/4 30*40 y 60*80
   (Porta Gigante 224 / 220), Mold 20mm (Porta Atril 640 a 645), 03 Negro 15*21 (Sets 408 / 409), 012 Nat 10*10 (281),
   012 Cedro 30*40 (Diploma 214), 012 Roble p/soga 10*15 (604) y 012 Nat 20*25 / 20*30 (713 / 714).
