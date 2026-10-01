@@ -191,6 +191,13 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 **No se trabaja sábado** (D19). Javier Burgos: sólo el almuerzo es rotativo.
 **Empleados ordenados por legajo** (1.7) en la lista del celular, Producción y Asistencia (`gt.legajo_num`).
 
+### 1.15 — grupo de fabricación (Thomas, 01/10/2026)
+
+Mismo **tipo + moldura (o MDF) + medida** = misma demora en cualquier proceso: el 134 y el 183 son
+«Cuadro · Mold 03 · 30*40» (36 códigos). El ritmo del admin (`gt_admin_ritmo2`) agrupa por ese grupo y
+compara contra el promedio **del grupo** en el área (4 semanas). 226 de 323 códigos en 79 grupos; el resto
+va solo. Excepción a mano: `gt.codigo_grupo`. `sql/gt_v115_grupo_fabricacion.sql`.
+
 ### 1.14 — celular nuevo / compartido, cierre automático y ritmo (Thomas, 01/10/2026: D33, D34, D35)
 
 - **D33 (trigger `gt_alerta_dispositivo` sobre `gt.registros`):** cada evento trae el id del celular. Avisa a

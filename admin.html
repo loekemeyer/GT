@@ -112,7 +112,7 @@
     <div class="bloque"><div id="asisTabla"></div></div>
   </section>
 
-  <script src="config.js?v=1.14"></script>
+  <script src="config.js?v=1.15"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -258,17 +258,17 @@
     // Sólo tramos de 2 min o más con cantidad; menos de 15 min en el día no se informa (un toque no es un ritmo).
     async function cargarRitmo(dia) {
       let rows;
-      try { rows = await rpc("gt_admin_ritmo", { p_pass: pass || "", p_dia: dia }); }
+      try { rows = await rpc("gt_admin_ritmo2", { p_pass: pass || "", p_dia: dia }); }   // 1.15: por GRUPO (tipo + moldura + medida)
       catch (e) { $("prodRitmo").innerHTML = '<div class="vacio">⚠ No pude leer el ritmo (' + esc(e.message) + ")</div>"; return; }
       let prev = null;
-      $("prodRitmo").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Área</th><th>Hecho</th><th>Horas</th><th>Por<br>hora</th><th>Prom.<br>área 4 sem</th><th>vs<br>prom.</th></tr>" +
+      $("prodRitmo").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Área</th><th>Grupo<br><span class=desc>códigos</span></th><th>Hecho</th><th>Horas</th><th>Por<br>hora</th><th>Prom.<br>grupo 4 sem</th><th>vs<br>prom.</th></tr>" +
         rows.map((r) => {
           const nuevo = r.empleado !== prev; prev = r.empleado;
-          const pct = r.por_hora != null && r.prom_area ? Math.round((r.por_hora / r.prom_area - 1) * 100) : null;
+          const pct = r.por_hora != null && r.prom_grupo ? Math.round((r.por_hora / r.prom_grupo - 1) * 100) : null;
           const cpct = pct == null ? "" : pct <= -20 ? "malo" : pct >= 20 ? "bueno" : "";
-          return '<tr' + (nuevo ? ' class="sep"' : "") + '><td class=izq>' + (nuevo ? "<b>" + esc(r.empleado) + "</b>" : "") + "</td><td>" + esc(r.area) +
+          return '<tr' + (nuevo ? ' class="sep"' : "") + '><td class=izq>' + (nuevo ? "<b>" + esc(r.empleado) + "</b>" : "") + "</td><td>" + esc(r.area) + "</td><td class=izq>" + (r.grupo ? esc(r.grupo) + '<br><span class="desc">' + esc(r.codigos || "") + "</span>" : "—") +
             '</td><td class=num>' + num(r.hecho) + ' <span class="desc">' + esc(r.unidad) + "</span></td><td>" + hm(Math.round(r.horas * 60)) +
-            "</td><td class=num>" + (r.por_hora == null ? "—" : num(r.por_hora)) + "</td><td class=num>" + (r.prom_area == null ? "—" : num(r.prom_area)) +
+            "</td><td class=num>" + (r.por_hora == null ? "—" : num(r.por_hora)) + "</td><td class=num>" + (r.prom_grupo == null ? "—" : num(r.prom_grupo)) +
             '</td><td class="num ' + cpct + '">' + (pct == null ? "—" : (pct > 0 ? "+" : "") + pct + " %") + "</td></tr>";
         }).join("") + "</table>" : '<div class="vacio">Sin tramos con cantidad ese día.</div>';
     }

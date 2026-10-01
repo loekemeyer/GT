@@ -1,0 +1,13 @@
+-- GT v1.15 — APLICADO el 2026-10-01. Thomas: «todos los cuadros moldura 0,3 de 30*40 tienen que demorar lo mismo
+-- en cualquier proceso (ej. 183 y 134 en montaje, gancho, emblistado y contraído): que el admin los analice por igual».
+-- GRUPO de fabricación = tipo (1.ª palabra) + moldura («Mold 03», «Mold 012», «Mold 20mm»… o «MDF») + medida,
+-- sacado de gt.codigos.descripcion / medida. Ej.: 134 y 183 → «Cuadro · Mold 03 · 30*40» (36 códigos).
+-- Al 01/10: 226 de 323 códigos caen en 79 grupos; los 97 restantes (sin moldura ni MDF en la descripción:
+-- Bandeja borde Madera, Porta Elegance 020…, Cuadro 3P Arpillera…) se comparan contra sí mismos.
+-- Excepción a mano: un insert en gt.codigo_grupo (codigo, grupo, nota) gana sobre la regla automática.
+-- En el admin (Producción → Ritmo) el promedio de 4 semanas es el del GRUPO en esa área, no el del código.
+-- Vale para todas las áreas con productos (Encolado, Montaje, Gancho, Emblistado, Contraído, Guardado).
+-- Probado (transacción abortada): 134 ayer 10 cj × 16 en 1 h = 160/h; 183 hoy 4 cj en 1 h = 64/h → «vs grupo 160».
+-- Funciones: gt.grupo_auto(descripcion, medida), gt.grupo_codigo(codigo), public.gt_admin_ritmo2(pass, día)
+--   (reemplaza a gt_admin_ritmo, que quedó revocada para anon).
+-- Definición viva: select pg_get_functiondef('public.gt_admin_ritmo2(text,date)'::regprocedure);
