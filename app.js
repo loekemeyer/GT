@@ -8,6 +8,8 @@
  *    (ts_inicio = hora de la apertura, cantidad)
  *  · tocar OTRA área con una abierta     → en una sola pantalla cierra la anterior (con su
  *    cantidad) y empieza la nueva.
+ * v6.0: los códigos son POR ÁREA (gt.codigo_area). Un área con códigos asignados sólo acepta esos;
+ *       un área sin códigos asignados acepta cualquiera (hoy Grampeado).
  * v5.0: un área con pide_cantidad = false (hoy Pedidos) se cierra sin preguntar cantidad.
  * v4.0: un área con pide_codigo (hoy GRAMPEADO) pregunta al empezar «¿Qué vas a grampear?» y el
  * código viaja en `texto` de la apertura y del cierre. Si gt.codigos tiene filas, el código tiene
@@ -23,7 +25,7 @@
   const LS_QUEUE = "gt_queue_v3";
   const LS_RECH = "gt_rechazados_v3";
   const LS_AREAS = "gt_areas_v5";
-  const LS_CODS = "gt_codigos_v4";
+  const LS_CODS = "gt_codigos_v6";
   const LS_DISP = "gt_dispositivo";
   const TIMEOUT_MS = 15000;
 
@@ -196,20 +198,22 @@
     $("codTitulo").textContent = "Empecé " + a.nombre;
     $("codLabel").textContent = verbo(a);
     $("codInput").value = ""; $("codError").textContent = "";
-    $("codLista").innerHTML = codigosDe(a).map((c) => '<option value="' + esc(c.codigo) + '">' + esc(c.descripcion || "") + "</option>").join("");
+    $("codLista").innerHTML = codigosDe(a).map((c) => '<option value="' + esc(c.codigo) + '">' +
+      esc([c.descripcion, c.medida].filter(Boolean).join(" · ")) + "</option>").join("");
     show("codScreen"); $("codInput").focus();
   }
-  function codigosDe(a) { return st.codigos.filter((c) => !c.rubro || c.rubro === a.codigo); }
+  function codigosDe(a) { return st.codigos.filter((c) => c.rubro === a.codigo); }
   function confirmarCod() {
     const a = st.codPara; if (!a) return;
     const v = $("codInput").value.trim().toUpperCase();
     if (!v) { $("codError").textContent = "Poné el código"; return; }
     const lista = codigosDe(a);
-    if (st.codigos.length && !lista.some((c) => c.codigo.toUpperCase() === v)) {
+    const cod = lista.find((c) => c.codigo.toUpperCase() === v);
+    if (lista.length && !cod) {
       $("codError").textContent = "El código " + v + " no está en la lista de " + a.nombre; return;
     }
     registrar(a, { texto: v }, 1); flush();
-    toast("✓ Empezaste " + a.nombre + " · " + v);
+    toast("✓ Empezaste " + a.nombre + " · " + v + (cod && cod.descripcion ? " " + cod.descripcion : ""));
     st.codPara = null; show("optionsScreen"); renderBotonera();
   }
   function cancelarCod() { st.codPara = null; show("optionsScreen"); renderBotonera(); }
@@ -251,7 +255,7 @@
   async function cargarAreas() {
     try { st.areas = await rpc("gt_botones", {}); lsSet(LS_AREAS, st.areas); }
     catch { st.areas = lsGet(LS_AREAS, []); }
-    try { st.codigos = await rpc("gt_codigos", {}); lsSet(LS_CODS, st.codigos); }
+    try { st.codigos = await rpc("gt_codigos_area", {}); lsSet(LS_CODS, st.codigos); }
     catch { st.codigos = lsGet(LS_CODS, []); }
   }
   async function cargarHoy() {

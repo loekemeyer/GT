@@ -53,6 +53,17 @@ de Virgilio.
 al terminar pregunta el siguiente código. Va en `gt.tareas` (por rubro); el registro ya tiene
 `rubro` y `cantidad`.
 
+### v6.0 — códigos por área y aviso de llegadas tarde (Thomas, 01/10/2026)
+
+- **Códigos por área:** `gt.codigos` (323 productos de Tierra Nativa, con medida) + `gt.codigo_area`.
+  Las áreas 3 a 7 (Encolado, Montaje, Gancho, Emblistado, Contraído) usan esa lista y piden código
+  al empezar. Un área con código pero **sin** lista asignada (Grampeado, Guardado a góndola) acepta
+  cualquiera. Carga: `sql/gt_codigos_tierra_nativa.sql`.
+- **Llegadas tarde por Telegram** (`gt.alerta_llegada`): 08:05 avisa quién no registró nada antes de
+  las 08:00; 10:30 manda el resumen (quién llegó tarde, con la hora, y quién sigue sin registro).
+  Lun a vie, sin feriados. «Llegó» = primer registro del día en la app: **Tierra Nativa no tiene
+  fichada en la base** (medido: 0 filas con legajo `t…` en las 4 tablas de fichadas).
+
 ### v5.0 — Pedidos sin cantidad y Guardado a góndola (Thomas, 01/10/2026)
 
 `gt.rubros.pide_cantidad = false` cierra el área sin la pantalla de cantidad. La app lee las áreas

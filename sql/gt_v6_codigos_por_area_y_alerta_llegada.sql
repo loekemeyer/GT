@@ -1,0 +1,12 @@
+-- GT v6.0 (01/10/2026, Thomas) — aditivo, sin DROP. APLICADO.
+-- 1) Códigos POR ÁREA: gt.codigo_area (código, área). Un área con filas sólo acepta esos códigos;
+--    sin filas, acepta cualquiera. gt.codigos suma `medida`. La app lee public.gt_codigos_area().
+-- 2) Aviso de llegadas tarde por Telegram: gt.alerta_llegada('ocho' | 'resumen').
+--    «Llegó» = primer registro del día en la app (Tierra Nativa no tiene fichada aparte).
+--    Crons (UTC): gt-alerta-llegada-ocho '5 11 * * 1-5' = 08:05 ART · gt-alerta-llegada-resumen
+--    '30 13 * * 1-5' = 10:30 ART. Saltea sábados, domingos y feriados (public.gv_es_feriado).
+--    Hora límite y chat: gt.config 'hora_entrada' (default 08:00) y 'telegram_chat' (default el grupo de Virgilio).
+--    Probar sin mandar: select gt.alerta_llegada('resumen', false);
+-- Rollback: select cron.unschedule('gt-alerta-llegada-ocho'); select cron.unschedule('gt-alerta-llegada-resumen');
+--           drop function gt.alerta_llegada(text, boolean), public.gt_codigos_area(); drop table gt.codigo_area;
+-- (el cuerpo completo es el que se aplicó por apply_migration «gt_v6_codigos_por_area_y_alerta_llegada»)
