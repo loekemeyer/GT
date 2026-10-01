@@ -164,7 +164,12 @@ srv.listen(0, async () => {
     await termino("CORTE");
     await pg.fill("#cantInput", "30"); await pg.click("#cantFinBtn"); await alDia();
     chk(db[db.length - 1].opcion === "FIN" && db[db.length - 2].rubro === "CORTE" && db[db.length - 2].cantidad === 30, "cerró Corte y registró el fin del día");
-    chk((await pg.textContent("#abiertaBox")).includes("Día terminado"), "la botonera muestra «Día terminado»");
+    await pg.waitForSelector("#claveScreen:not(.hidden)");
+    chk(!(await pg.evaluate(() => localStorage.getItem("gt_sesion_v2"))), "al terminar el día vuelve a la pantalla del código de la TV (sin sesión)");
+    await pg.fill("#claveInput", "1234"); await pg.click("#claveBtn");
+    await pg.waitForSelector("#nombreLista button[data-id='7']"); await pg.click("#nombreLista button[data-id='7']");
+    await pg.waitForSelector("#optionsScreen:not(.hidden)");
+    chk((await pg.textContent("#abiertaBox")).includes("Día terminado"), "si vuelve a entrar, la botonera muestra «Día terminado»");
     await pg.evaluate(() => { const q = JSON.parse(localStorage.getItem("gt_queue_v3") || "[]");
       q.push({ client_id: "malo", empleado_id: 7, opcion: "AREA", rubro: "NOEXISTE", ts_cliente: new Date().toISOString() });
       localStorage.setItem("gt_queue_v3", JSON.stringify(q)); return window.__gt.flush(); });

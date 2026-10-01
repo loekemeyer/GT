@@ -280,7 +280,7 @@ Los avisos miden a cada uno contra **su** horario del día y lo muestran entre p
 - **Jornada**: todos entran a las **08:00**, almuerzan de **12:00 a 13:00** y se van a las **17:30**
   (`gt.config`). **Javier Burgos** tiene almuerzo flexible (`gt.horario_empleado`); **Lautaro** tiene horario fijo por día (1.4).
 - En la app: **🍽️ Almuerzo** (cierra el área con su cantidad; al volver propone el área anterior) y
-  **🏁 Terminar día** (evento `FIN`). Si no lo tocan, el día **no** figura terminado.
+  **🏁 Terminar día** (evento `FIN`; desde 1.20 vuelve a la pantalla del código de la TV y cierra la sesión). Si no lo tocan, el día **no** figura terminado.
 - **Avisos a GT Avisos**: 08:05 y 10:30 (entrada), **13:10 almuerzo** (no ficharon / salieron antes /
   volvieron tarde; los flexibles, informativo) y **17:45 salida** (no terminaron el día / se fueron antes /
   flexibles con almuerzo de más de 1 h). Lun a vie, sin feriados. `gt.alerta_jornada`, `gt.jornada_estado`.

@@ -211,7 +211,7 @@
     const ab = abierta();
     if (!ab) {
       if (!confirm("¿Terminar el día?")) return;
-      registrarFin(); flush(); toast("🏁 Terminaste el día. ¡Hasta mañana!"); renderBotonera(); return;
+      registrarFin(); flush(); toast("🏁 Terminaste el día. ¡Hasta mañana!"); finDelDia(); return;
     }
     abrirTermine(ab, areaDe(ab.rubro) || { codigo: ab.rubro, nombre: ab.rubro, unidad: "cantidad" }, null, "fin");
   }
@@ -290,7 +290,9 @@
           (p.cierra.codigo === "ALMU" ? "✓ Volviste de almorzar" : "✓ Terminaste " + p.cierra.nombre) +
           (cant != null ? " · " + num(cant) + " " + p.cierra.unidad : "") +
           (sigue ? (sigue.codigo === "ALMU" ? " · buen provecho 🍽️" : " · seguís en " + sigue.nombre + (nuevo ? " · " + nuevo.guardo : "")) : ""));
-    st.pend = null; restaurarBtn("cantBtn"); show("optionsScreen"); renderBotonera();
+    st.pend = null; restaurarBtn("cantBtn");
+    if (p.modo === "fin") { finDelDia(); return; }
+    show("optionsScreen"); renderBotonera();
   }
 
   // empezar un área: si pide código, primero «¿Qué vas a grampear?»
@@ -477,6 +479,13 @@
     renderBotonera(); flush();
   }
 
+  // 1.20 (Thomas): al terminar el día vuelve a la pantalla del código de la TV (cierra la sesión).
+  // La cola sigue mandando lo pendiente: cada fila ya lleva su empleado_id.
+  function finDelDia() {
+    try { localStorage.removeItem(LS_SESION); } catch { /* nada */ }
+    st.emp = null; st.server = []; $("claveInput").value = ""; $("histPop").classList.add("hidden");
+    show("claveScreen");
+  }
   function salir() {
     if (abierta() && !confirm("Tenés un área sin terminar. ¿Cambiar de operario igual? (queda abierta)")) return;
     try { localStorage.removeItem(LS_SESION); } catch { /* nada */ }
