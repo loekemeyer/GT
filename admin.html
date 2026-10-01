@@ -77,7 +77,7 @@
     <button class="tab" data-tab="asis">⏰ Asistencia</button>
   </nav>
 
-  <!-- CLAVE DEL MONITOR: la valida la base (gt_monitor_clave). Se recuerda en ESTA máquina hasta «Salir». -->
+  <!-- CLAVE DEL MONITOR: la valida la base (gt_monitor_clave). Se recuerda en ESTA máquina hasta «Salir» o hasta el lunes 07:00 (v1.6). El ingreso tipeado va por gt_monitor_login. -->
   <div id="login" class="login hidden">
     <div class="rot">🔒 Clave del monitor</div>
     <input id="passInput" type="password" inputmode="numeric" autocomplete="off" />
@@ -109,7 +109,7 @@
     <div class="bloque"><div id="asisTabla"></div></div>
   </section>
 
-  <script src="config.js?v=1.5"></script>
+  <script src="config.js?v=1.6"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -122,7 +122,33 @@
     const durMin = (a, b) => Math.max(0, Math.round((new Date(b) - new Date(a)) / 60000));
     const hm = (m) => Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0");
     let fin = 0, timer = null, ultimoOk = 0, pass = null, tab = "monitor";
-    try { pass = localStorage.getItem(LS_PASS); } catch { /* sin storage */ }
+    // v1.6: la clave guardada VENCE cada lunes 07:00 (hora AR): ese día Javier la vuelve a poner.
+    // Lunes 07:00 más reciente, en ms. Una clave guardada antes de eso no vale.
+    const LS_PASS_TS = "gt_monitor_pass_ts", LS_DISP = "gt_dispositivo";
+    let vencio = false;
+    function inicioSemana(now) {
+      const ar = new Date((now || Date.now()) - 3 * 3600e3);          // reloj AR como si fuera UTC
+      const dow = (ar.getUTCDay() + 6) % 7;                            // 0 = lunes
+      let t = Date.UTC(ar.getUTCFullYear(), ar.getUTCMonth(), ar.getUTCDate() - dow, 7) + 3 * 3600e3;
+      if (t > (now || Date.now())) t -= 7 * 864e5;
+      return t;
+    }
+    function passVencida() {
+      let ts = 0; try { ts = Number(localStorage.getItem(LS_PASS_TS)) || 0; } catch {}
+      return ts < inicioSemana();
+    }
+    function olvidarPass() { pass = null; try { localStorage.removeItem(LS_PASS); localStorage.removeItem(LS_PASS_TS); } catch {} }
+    function dispositivo() {
+      try { let d = localStorage.getItem(LS_DISP);
+        if (!d) { d = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random()); localStorage.setItem(LS_DISP, d); }
+        return d; } catch { return null; }
+    }
+    try {
+      pass = localStorage.getItem(LS_PASS);
+      // clave guardada antes de la 1.6 (sin fecha): vale hasta el próximo lunes, no se la pide hoy
+      if (pass && !localStorage.getItem(LS_PASS_TS)) localStorage.setItem(LS_PASS_TS, String(Date.now()));
+      if (pass && passVencida()) { olvidarPass(); vencio = true; }
+    } catch { /* sin storage */ }
 
     async function rpc(fn, body) {
       const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 15000);
@@ -143,8 +169,15 @@
       $("passError").textContent = msg || ""; $("passInput").value = ""; $("passInput").focus();
     }
     async function entrar() {
-      pass = $("passInput").value.trim(); if (!pass) return;
-      await pedir(true);                 // valida la clave contra la base y, si sirve, la recuerda
+      const p = $("passInput").value.trim(); if (!p) return;
+      // el ingreso TIPEADO queda registrado; fuera del lunes 07:00–08:00 la base avisa por Telegram
+      let r;
+      try { r = await rpc("gt_monitor_login", { p_pass: p, p_dispositivo: dispositivo(), p_navegador: navigator.userAgent }); }
+      catch (e) { $("passError").textContent = "No pude validar la clave (" + (e.message || e) + ")"; return; }
+      if (!r || !r.ok) { olvidarPass(); verLogin("Clave incorrecta"); return; }
+      pass = p; vencio = false;
+      try { localStorage.setItem(LS_PASS, p); localStorage.setItem(LS_PASS_TS, String(Date.now())); } catch {}
+      await pedir(true);
       if (pass && tab !== "monitor") verTab(tab);
     }
     function verTab(t, primera) {
@@ -153,16 +186,16 @@
       document.querySelectorAll(".vista").forEach((v) => v.classList.toggle("hidden", v.id !== t));
       if (t === "monitor") pedir(primera); else if (t === "prod") cargarProd(); else cargarAsis();
     }
-    function sinPermiso() { pass = null; try { localStorage.removeItem(LS_PASS); } catch {} verLogin("Clave incorrecta"); }
+    function sinPermiso() { olvidarPass(); verLogin("Clave incorrecta"); }
 
     /* ---------- MONITOR ---------- */
     async function pedir(primera) {
       clearTimeout(timer);
+      if (pass && passVencida()) { olvidarPass(); verLogin("Es lunes: volvé a poner la clave"); return; }
       const p = pass || "";
       try {
         const d = await rpc("gt_monitor_clave", { p_pass: p });
-        if (!d.ok) { if (p) sinPermiso(); else verLogin(""); return; }
-        if (primera && p && !d.sin_clave) { try { localStorage.setItem(LS_PASS, p); } catch {} }
+        if (!d.ok) { if (p) sinPermiso(); else verLogin(vencio ? "Es lunes: volvé a poner la clave" : ""); return; }
         $("login").classList.add("hidden");
         if (tab === "monitor") $("monitor").classList.remove("hidden");
         $("clave").textContent = d.clave;
@@ -289,7 +322,7 @@
     document.addEventListener("visibilitychange", () => { if (!document.hidden && tab === "monitor") pedir(); });
     $("passBtn").onclick = entrar;
     $("passInput").addEventListener("keydown", (e) => { if (e.key === "Enter") entrar(); });
-    $("salirMon").onclick = (e) => { e.preventDefault(); pass = null; try { localStorage.removeItem(LS_PASS); } catch {} verLogin(); };
+    $("salirMon").onclick = (e) => { e.preventDefault(); olvidarPass(); verLogin(); };
     verTab("monitor", true);
   })();
   </script>

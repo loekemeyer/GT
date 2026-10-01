@@ -174,6 +174,17 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.6 — el monitor se abre el LUNES 07:00–08:00; fuera de eso, aviso (Thomas, 01/10/2026)
+
+- Todos los lunes ~07:30 Javier pone la clave en la PC. La clave guardada **vence el lunes 07:00**
+  (hora AR): ese día el monitor la pide de nuevo («Es lunes: volvé a poner la clave»).
+- Cada clave **tipeada** pasa por `public.gt_monitor_login` y queda en `gt.monitor_ingresos` (ok, en
+  horario, equipo, navegador). Clave buena **fuera** de la ventana → 🔐 aviso a «GT Avisos». La lectura
+  del código cada minuto (`gt_monitor_clave`) no cuenta como ingreso.
+- Ventana en `gt.config` (sin fila = default): `monitor_login_dow` 1 · `monitor_login_desde` 07:00 ·
+  `monitor_login_hasta` 08:00. `sql/gt_v16_monitor_login_lunes.sql`.
+- Consulta: `select * from gt.monitor_ingresos order by ts desc;`
+
 ### 1.4 — horario por día de la semana (Thomas, 01/10/2026)
 
 `gt.horario_dia` (empleado, día 1–7): manda sobre `gt.horario_empleado` y `gt.config`. `sin_almuerzo` = de corrido.

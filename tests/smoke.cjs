@@ -13,7 +13,7 @@ const AREAS = [
   { codigo: "RECIB", nombre: "Recibir mercadería", unidad: "unidades recibidas", orden: 11, pide_codigo: true },
   { codigo: "ALMU", nombre: "Almuerzo", unidad: "—", orden: 12, pide_codigo: false, pide_cantidad: false },
 ];
-let CLAVE_MON = null;
+let CLAVE_MON = null; const LOGINS = [];
 const db = [];
 const CODIGOS = [{ codigo: "505", descripcion: "Pinza", medida: "10*15", rubro: "GRAMP" }, { codigo: "760", descripcion: "Otra", medida: null, rubro: "DECO" },
   { codigo: "INSUMO", descripcion: "Insumo", medida: null, rubro: "RECIB" }, { codigo: "MOLDURA", descripcion: "Moldura", medida: null, rubro: "RECIB" }];
@@ -23,6 +23,7 @@ const srv = http.createServer((req, res) => {
       const b = JSON.parse(body || "{}"), fn = req.url.split("/").pop();
       let out;
       if (fn === "gt_monitor_clave") out = !CLAVE_MON ? { ok: true, sin_clave: true, clave: "1234", cambia_en_s: 42 } : b.p_pass === CLAVE_MON ? { ok: true, clave: "1234", cambia_en_s: 42 } : { ok: false };
+      else if (fn === "gt_monitor_login") { LOGINS.push(b); out = { ok: b.p_pass === CLAVE_MON, en_horario: false }; }
       else if (fn === "gt_clave_validar") out = b.p_clave === "1234" ? { ok: true, empleados: [{ id: 7, nombre: "Prueba" }, { id: 8, nombre: "Otro" }] } : { ok: false };
       else if (fn === "gt_botones") out = AREAS;
       else if (fn === "gt_codigos_area") out = CODIGOS;
@@ -182,6 +183,14 @@ srv.listen(0, async () => {
     await ad.waitForFunction(() => document.getElementById("clave").textContent === "1234");
     await ad.reload(); await ad.waitForFunction(() => document.getElementById("clave").textContent === "1234");
     chk(true, "con la clave buena muestra el código y la recuerda al recargar");
+    chk(LOGINS.length === 2 && LOGINS[1].p_dispositivo && LOGINS[1].p_navegador,
+        "cada clave TIPEADA pasa por gt_monitor_login con el equipo (la lectura de cada minuto no cuenta)");
+    // la clave guardada vence el lunes 07:00: una guardada hace 8 días ya no vale
+    await ad.evaluate(() => localStorage.setItem("gt_monitor_pass_ts", String(Date.now() - 8 * 864e5)));
+    await ad.reload(); await ad.waitForSelector("#login:not(.hidden)");
+    chk((await ad.textContent("#passError")).includes("lunes"), "clave guardada antes del último lunes 07:00 vence y la pide de nuevo");
+    await ad.fill("#passInput", "151515"); await ad.click("#passBtn");
+    await ad.waitForFunction(() => document.getElementById("clave").textContent === "1234");
     await ad.waitForFunction(() => document.getElementById("seg").textContent !== "--");
     const seg = Number(await ad.textContent("#seg"));
     chk(seg > 0 && seg <= 42, "monitor admin muestra el código y la cuenta regresiva (" + seg + " s)");
