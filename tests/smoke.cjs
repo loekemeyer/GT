@@ -11,6 +11,7 @@ const AREAS = [
   { codigo: "DECO", nombre: "Deco", unidad: "unidades fabricadas", orden: 9 },
   { codigo: "GUARD", nombre: "Guardado a góndola", unidad: "cajas guardadas", orden: 10, pide_codigo: true },
   { codigo: "RECIB", nombre: "Recibir mercadería", unidad: "unidades recibidas", orden: 11, pide_codigo: true },
+  { codigo: "ALMU", nombre: "Almuerzo", unidad: "—", orden: 12, pide_codigo: false, pide_cantidad: false },
 ];
 let CLAVE_MON = null;
 const db = [];
@@ -29,7 +30,7 @@ const srv = http.createServer((req, res) => {
       else if (fn === "gt_registros_hoy") out = db.filter((r) => r.empleado_id === b.p_empleado);
       else if (fn === "gt_registrar") {
         const ok = [], rech = [];
-        b.p_filas.forEach((f) => { if (!AREAS.find((a) => a.codigo === f.rubro)) rech.push({ client_id: f.client_id, motivo: "área inexistente" });
+        b.p_filas.forEach((f) => { if (f.opcion !== "FIN" && !AREAS.find((a) => a.codigo === f.rubro)) rech.push({ client_id: f.client_id, motivo: "área inexistente" });
           else { if (!db.find((x) => x.client_id === f.client_id)) db.push(f); ok.push(f.client_id); } });
         out = { ok, rechazados: rech };
       }
@@ -127,13 +128,33 @@ srv.listen(0, async () => {
     chk(await pg.isVisible("#sigueOpts button[data-cod='INSUMO']") && !(await pg.isVisible("#sigueInput")), "al terminar, para seguir también ofrece Insumo / Moldura");
     await pg.fill("#cantInput", "40"); await pg.click("#cambioBtn"); await alDia();
     chk(db.length === nR + 1 && db[nR].cantidad === 40 && db[nR].texto === "MOLDURA", "Terminé Recibir moldura con 40");
+    chk(!(await pg.$(".box[data-cod=ALMU]")) && await pg.isVisible("#almuBtn") && await pg.isVisible("#finBtn"),
+        "Almuerzo y Terminar día son botones aparte, no tarjetas de área");
+    // almuerzo con un área abierta: cierra el área (cantidad) y empieza el almuerzo
+    await pg.click(".box[data-cod=CORTE]"); await alDia();
+    await pg.click("#almuBtn"); await pg.waitForSelector("#cantScreen:not(.hidden)");
+    chk(!(await pg.isVisible("#sigueBox")) && (await pg.textContent("#cantBtn")).includes("almorzar"), "Almuerzo con Corte abierto: pide la cantidad y va a almorzar");
+    await pg.fill("#cantInput", "50"); await pg.click("#cantBtn"); await alDia();
+    const nA = db.length;
+    chk(db[nA - 1].rubro === "ALMU" && !db[nA - 1].ts_inicio && db[nA - 2].rubro === "CORTE" && db[nA - 2].cantidad === 50, "cerró Corte con 50 y empezó el almuerzo");
+    chk((await pg.textContent("#almuBtn")).includes("Volví"), "el botón pasa a «Volví de almorzar»");
+    await pg.click("#almuBtn"); await pg.waitForSelector("#cantScreen:not(.hidden)");
+    chk(!(await pg.isVisible("#cantInput")) && (await pg.textContent("#sigueLabel")).includes("Corte"), "al volver, no pide cantidad y propone seguir en Corte (el área de antes)");
+    await pg.click("#cantBtn"); await alDia();
+    chk(db[db.length - 2].rubro === "ALMU" && db[db.length - 2].ts_inicio && db[db.length - 1].rubro === "CORTE", "volvió de almorzar y siguió en Corte");
+    // terminar el día con Corte abierto
+    await pg.click("#finBtn"); await pg.waitForSelector("#cantScreen:not(.hidden)");
+    chk((await pg.textContent("#cantBtn")).includes("Terminar el día") && !(await pg.isVisible("#sigueBox")), "Terminar día con un área abierta pide su cantidad");
+    await pg.fill("#cantInput", "30"); await pg.click("#cantBtn"); await alDia();
+    chk(db[db.length - 1].opcion === "FIN" && db[db.length - 2].rubro === "CORTE" && db[db.length - 2].cantidad === 30, "cerró Corte y registró el fin del día");
+    chk((await pg.textContent("#abiertaBox")).includes("Día terminado"), "la botonera muestra «Día terminado»");
     await pg.evaluate(() => { const q = JSON.parse(localStorage.getItem("gt_queue_v3") || "[]");
       q.push({ client_id: "malo", empleado_id: 7, opcion: "AREA", rubro: "NOEXISTE", ts_cliente: new Date().toISOString() });
       localStorage.setItem("gt_queue_v3", JSON.stringify(q)); return window.__gt.flush(); });
     const q = await pg.evaluate(() => [JSON.parse(localStorage.getItem("gt_queue_v3")).length, JSON.parse(localStorage.getItem("gt_rechazados_v3")).length]);
     chk(q[0] === 0 && q[1] === 1, "fila rechazada sale de la cola y queda anotada (no traba)");
     await pg.click("#histBtn");
-    const nh = (await pg.$$("#hist .hist-row")).length; chk(nh === 7, "resumen de hoy con 7 tramos (" + nh + ")");
+    const nh = (await pg.$$("#hist .hist-row")).length; chk(nh === 11, "resumen de hoy con 10 tramos + fin del día (" + nh + ")");
     chk(db.every((r) => r.empleado_id === 7), "los registros llevan el empleado_id");
     chk(await pg.evaluate(() => window.__gt.verNum("1.10") > window.__gt.verNum("1.9") && window.__gt.verNum("2.0") > window.__gt.verNum("1.99")),
         "versiones: 1.10 es más nueva que 1.9, y 2.0 que 1.99");

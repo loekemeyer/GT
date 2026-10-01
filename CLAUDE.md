@@ -82,6 +82,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 | Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`). Acepta **cualquier** producto, pero si no salió de Contraído **avisa y pide confirmar** (v11.0, D17) |
 | Deco | sí | 71 de operación (tablero «08. Sector Deco» completo) |
 | Pedidos | no | — (y no pide cantidad) |
+| Almuerzo (`ALMU`) | no | botón aparte, no tarjeta; sin cantidad |
 | Recibir mercadería | sí | **Insumo / Moldura** como botones (v12.0); al terminar, «unidades recibidas» |
 
 Avisos de llegada: van al grupo de Telegram **«GT Avisos»** (`gt.config.telegram_chat = -5397417174`,
@@ -172,6 +173,18 @@ insert into gt.rubros (codigo, nombre, unidad, orden) values ('<COD>', '<Área>'
 insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_texto, fila, orden)
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
+
+### 1.3 — unidades por caja y jornada completa (Thomas, 01/10/2026)
+
+- **Unidades por caja** en `gt.codigos.uxb` (los 323 productos). Las áreas 3 a 7 se analizan en unidades:
+  `select * from gt.produccion` da cada tramo con `cantidad` (cajas) y `unidades` (cajas × UxB).
+- **Jornada**: todos entran a las **08:00**, almuerzan de **12:00 a 13:00** y se van a las **17:30**
+  (`gt.config`). **Lautaro Durante y Javier Burgos** tienen almuerzo flexible (`gt.horario_empleado`).
+- En la app: **🍽️ Almuerzo** (cierra el área con su cantidad; al volver propone el área anterior) y
+  **🏁 Terminar día** (evento `FIN`). Si no lo tocan, el día **no** figura terminado.
+- **Avisos a GT Avisos**: 08:05 y 10:30 (entrada), **13:10 almuerzo** (no ficharon / salieron antes /
+  volvieron tarde; los flexibles, informativo) y **17:45 salida** (no terminaron el día / se fueron antes /
+  flexibles con almuerzo de más de 1 h). Lun a vie, sin feriados. `gt.alerta_jornada`, `gt.jornada_estado`.
 
 ### 1.2 — aviso de código no registrado y actualización sola (Thomas, 01/10/2026)
 

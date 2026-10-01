@@ -128,3 +128,11 @@ button:active{transform:scale(.97);}
 /* los avisos vacíos no dejan hueco */
 .error:empty,.cod-hint:empty{min-height:0;margin:0;}
 .tarjeta .chico{text-align:center;}
+/* v1.3: almuerzo y terminar día */
+.jornada{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+.jornada .sec-btn{margin:0;min-height:56px;font-weight:600;}
+#almuBtn.activo{background:var(--warn-bg);border-color:var(--warn);color:var(--warn);}
+.fin-btn{min-height:56px;border:0;background:var(--txt);color:var(--bg);font-size:17px;font-weight:700;}
+.abierta.fin{background:var(--acc-bg);border-color:color-mix(in srgb,var(--acc) 40%,transparent);}
+.hist-row.fin{background:var(--acc-bg);}
+.hist-row.fin .hist-cant{font-size:16px;}

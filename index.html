@@ -12,7 +12,7 @@
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=1.2" />
+  <link rel="stylesheet" href="styles.css?v=1.3" />
 </head>
 <body>
   <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
@@ -49,6 +49,10 @@
     </header>
     <div id="abiertaBox" class="abierta hidden"></div>
     <div id="botonera"></div>
+    <div class="jornada">
+      <button id="almuBtn" class="sec-btn">🍽️ Almuerzo</button>
+      <button id="finBtn" class="fin-btn">🏁 Terminar día</button>
+    </div>
     <button id="histBtn" class="sec-btn">📋 Resumen de hoy</button>
     <div id="hist" class="hidden"></div>
   </div>
@@ -62,7 +66,7 @@
       <input id="cantInput" class="text-input" inputmode="decimal" autocomplete="off" placeholder="0" />
       <div id="cantError" class="error"></div>
     </div>
-    <div class="tarjeta sigue">
+    <div class="tarjeta sigue" id="sigueBox">
       <label class="label" id="sigueLabel" for="sigueInput"></label>
       <div id="sigueOpts" class="cod-opts hidden"></div>
       <div id="siguePend" class="cod-pend hidden"></div>
@@ -93,7 +97,7 @@
   </div>
 
   <div id="toast" class="toast hidden"></div>
-  <script src="config.js?v=1.2"></script>
-  <script src="app.js?v=1.2"></script>
+  <script src="config.js?v=1.3"></script>
+  <script src="app.js?v=1.3"></script>
 </body>
 </html>

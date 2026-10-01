@@ -1,0 +1,12 @@
+-- GT 1.3 (01/10/2026, Thomas) — APLICADO (migraciones gt_v13_uxb_y_jornada y gt_v13_jornada_estado).
+-- 1) gt.codigos.uxb: unidades por caja de los 323 productos (Excel RJOVD2W_con_UxB). Vista gt.produccion:
+--    cada cierre de área con su cantidad y, si el área cuenta CAJAS de un producto con UxB, en unidades.
+-- 2) Jornada: horario general en gt.config (hora_entrada 08:00, almuerzo_desde 12:00, almuerzo_hasta 13:00,
+--    hora_salida 17:30, tolerancia_min 5) y excepciones en gt.horario_empleado (Lautaro Durante y Javier
+--    Burgos con almuerzo_flexible). Área ALMU (Almuerzo, sin código ni cantidad) y evento FIN (gt.tareas).
+-- 3) Avisos a GT Avisos: gt.alerta_jornada('almuerzo') 13:10 y ('salida') 17:45, lun-vie sin feriados.
+--    Estado del día para consultar: select * from gt.jornada_estado();   -- o (date '2026-10-01')
+--    Probar sin mandar: select gt.alerta_jornada('salida', false);
+-- Crons (UTC): gt-alerta-almuerzo '10 16 * * 1-5' · gt-alerta-salida '45 20 * * 1-5'.
+-- Rollback: select cron.unschedule('gt-alerta-almuerzo'); select cron.unschedule('gt-alerta-salida');
+--           (el resto con DROP desde el SQL Editor: gt.alerta_jornada, gt.jornada_estado, gt.produccion, gt.horario_empleado)

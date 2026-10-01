@@ -8,6 +8,8 @@
  *    (ts_inicio = hora de la apertura, cantidad)
  *  · tocar OTRA área con una abierta     → en una sola pantalla cierra la anterior (con su
  *    cantidad) y empieza la nueva.
+ * v1.3: 🍽️ Almuerzo (al volver propone el área anterior) y 🏁 Terminar día (evento FIN). Los avisos de
+ *       almuerzo (13:10) y salida (17:45) los manda la base: gt.alerta_jornada.
  * v1.2: se actualiza sola cuando hay versión nueva (version.json cada 2 min).
  * v1.1 (numeración nueva): rediseño para celular — tarjetas con ícono, área en curso con el tiempo que lleva,
  *        resumen del día en tarjetas, acciones fijas abajo.
@@ -146,29 +148,37 @@
   /* ---------- botonera de áreas ---------- */
   // v1.1: ícono por área (se ve en la tarjeta); un área nueva sin ícono usa 🏷️
   const ICONO = { CORTE: "✂️", GRAMP: "📌", ENCOL: "🧴", MONT: "🛠️", GANCHO: "🪝", EMBL: "📦", CONTR: "🎞️",
-                  PED: "🧾", DECO: "🎨", GUARD: "🗄️", RECIB: "🚚" };
+                  PED: "🧾", DECO: "🎨", GUARD: "🗄️", RECIB: "🚚", ALMU: "🍽️" };
   function transcurrido(iso) {
     const m = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
     return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + String(m % 60).padStart(2, "0");
   }
   function renderBotonera() {
     const ab = abierta();
-    $("abiertaBox").classList.toggle("hidden", !ab);
+    const hoy = eventosHoy(), ult = hoy[hoy.length - 1];
+    const finDia = !ab && ult && ult.opcion === "FIN";
+    $("abiertaBox").classList.toggle("hidden", !ab && !finDia);
+    $("abiertaBox").classList.toggle("fin", !!finDia);
+    if (finDia) $("abiertaBox").innerHTML = '<div class="ab-txt"><div class="ab-area">🏁 Día terminado a las ' + hhmm(ult.ts_cliente) +
+      '</div><div class="ab-det">¡Hasta mañana! Si seguís trabajando, tocá un área.</div></div>';
     if (ab) {
       const a = areaDe(ab.rubro);
       $("abiertaBox").innerHTML = '<span class="ab-punto"></span><div class="ab-txt"><div class="ab-area">' +
         (ICONO[ab.rubro] || "🏷️") + " " + esc(a ? a.nombre : ab.rubro) + (ab.texto ? " · " + esc(ab.texto) : "") +
-        '</div><div class="ab-det">Desde las ' + hhmm(ab.ts_cliente) + " · tocala para terminar</div></div>" +
+        '</div><div class="ab-det">Desde las ' + hhmm(ab.ts_cliente) + (ab.rubro === "ALMU" ? " · tocá «Volví de almorzar»" : " · tocala para terminar") + "</div></div>" +
         '<div class="ab-tiempo" data-desde="' + esc(ab.ts_cliente) + '">' + transcurrido(ab.ts_cliente) + "</div>";
     }
     $("botonera").innerHTML = st.areas.length ?
-      '<div class="row">' + st.areas.map((a) => {
+      '<div class="row">' + st.areas.filter((a) => a.codigo !== "ALMU").map((a) => {
         const esAb = ab && ab.rubro === a.codigo;
         return '<div class="box' + (esAb ? " abierta" : "") + '" data-cod="' + esc(a.codigo) + '" role="button">' +
           '<div class="box-ico">' + (ICONO[a.codigo] || "🏷️") + '</div><div><div class="box-title">' + esc(a.nombre) +
           '</div><div class="box-desc">' + (esAb ? "● Terminar" : "Empezar") + "</div></div></div>";
       }).join("") + "</div>" :
       '<div class="error">No hay áreas cargadas para GT (gt.rubros).</div>';
+    $("almuBtn").classList.toggle("hidden", !areaDe("ALMU"));
+    $("almuBtn").textContent = ab && ab.rubro === "ALMU" ? "🍽️ Volví de almorzar" : "🍽️ Almuerzo";
+    $("almuBtn").classList.toggle("activo", !!(ab && ab.rubro === "ALMU"));
     syncBadge();
     if (!$("hist").classList.contains("hidden")) renderHist();
   }
@@ -181,24 +191,59 @@
     // v9.0: terminar la abierta y, EN LA MISMA PANTALLA, «¿con qué seguís?». Por defecto se sigue en
     // la misma área (lo normal en el día); si tocó otra, se propone ésa.
     const cierra = areaDe(ab.rubro) || { codigo: ab.rubro, nombre: ab.rubro, unidad: "cantidad" };
-    const sigue = ab.rubro === cod ? cierra : a;
-    st.pend = { ab, cierra, sigue };
+    let sigue = ab.rubro === cod ? cierra : a;
+    // v1.3: al volver de almorzar se propone el área en la que estaba antes
+    if (ab.rubro === "ALMU" && cod === "ALMU") sigue = areaAntesDelAlmuerzo(ab);
+    abrirTermine(ab, cierra, sigue, "normal");
+  }
+
+  // v1.3: «🏁 Terminar día». Si hay algo abierto, lo cierra (con su cantidad) y marca el fin del día.
+  function terminarDia() {
+    const ab = abierta();
+    if (!ab) {
+      if (!confirm("¿Terminar el día?")) return;
+      registrarFin(); flush(); toast("🏁 Terminaste el día. ¡Hasta mañana!"); renderBotonera(); return;
+    }
+    abrirTermine(ab, areaDe(ab.rubro) || { codigo: ab.rubro, nombre: ab.rubro, unidad: "cantidad" }, null, "fin");
+  }
+  function areaAntesDelAlmuerzo(ab) {
+    const prev = eventosHoy().filter((r) => r.opcion === "AREA" && r.rubro !== "ALMU" && r.ts_inicio && r.ts_cliente <= ab.ts_cliente);
+    return prev.length ? areaDe(prev[prev.length - 1].rubro) : null;
+  }
+  function registrarFin() {
+    const q = cola();
+    q.push({ client_id: uuid(), empleado_id: st.emp, opcion: "FIN", rubro: null, descripcion: "Terminé el día", texto: "",
+             cantidad: null, ts_cliente: new Date(Date.now() + 2).toISOString(), ts_inicio: null, dispositivo: dispositivo() });
+    lsSet(LS_QUEUE, q);
+  }
+
+  function abrirTermine(ab, cierra, sigue, modo) {
+    st.pend = { ab, cierra, sigue, modo };
     const pideCant = cierra.pide_cantidad !== false;
-    $("cantTitulo").textContent = "Terminé " + cierra.nombre + (ab.texto ? " · " + ab.texto : "");
+    const almorzar = sigue && sigue.codigo === "ALMU";
+    const conSigue = modo !== "fin" && sigue && !almorzar;
+    $("cantTitulo").textContent = (cierra.codigo === "ALMU" ? "Volví de almorzar" : "Terminé " + cierra.nombre) + (ab.texto ? " · " + ab.texto : "");
     $("cantSub").textContent = "desde " + hhmm(ab.ts_cliente);
     $("cantBox").classList.toggle("hidden", !pideCant);
     $("cantLabel").textContent = "¿Cuántas " + cierra.unidad + (ab.texto ? " del " + ab.texto : "") + "?";
     $("cantInput").value = ""; $("cantError").textContent = "";
-    $("sigueLabel").textContent = !sigue.pide_codigo ? "¿Seguís en " + sigue.nombre + "?" :
-      esOpciones(sigue) ? "¿Seguís en " + sigue.nombre + "? ¿" + codigosDe(sigue).map((c) => c.descripcion || c.codigo).join(" o ") + "?" :
-      "¿Con qué código seguís en " + sigue.nombre + "?";
-    prepararInput("sigueInput", "sigueHint", sigue); $("sigueError").textContent = "";
-    if (!sigue.pide_codigo) { $("sigueInput").classList.add("hidden"); $("sigueOpts").classList.add("hidden"); }
+    $("sigueBox").classList.toggle("hidden", !conSigue);
     $("siguePend").classList.add("hidden"); $("siguePend").innerHTML = "";
-    if (sigue.codigo === "GUARD" && sigue.pide_codigo) pendientesContraido("siguePend", () => st.pend && st.pend.sigue.codigo === "GUARD");
-    restaurarBtn("cantBtn"); $("cantBtn").textContent = "Terminar y seguir en " + sigue.nombre;
+    if (conSigue) {
+      $("sigueLabel").textContent = !sigue.pide_codigo ? "¿Seguís en " + sigue.nombre + "?" :
+        esOpciones(sigue) ? "¿Seguís en " + sigue.nombre + "? ¿" + codigosDe(sigue).map((c) => c.descripcion || c.codigo).join(" o ") + "?" :
+        "¿Con qué código seguís en " + sigue.nombre + "?";
+      prepararInput("sigueInput", "sigueHint", sigue); $("sigueError").textContent = "";
+      if (!sigue.pide_codigo) { $("sigueInput").classList.add("hidden"); $("sigueOpts").classList.add("hidden"); }
+      if (sigue.codigo === "GUARD" && sigue.pide_codigo) pendientesContraido("siguePend", () => st.pend && st.pend.sigue && st.pend.sigue.codigo === "GUARD");
+    }
+    restaurarBtn("cantBtn");
+    $("cantBtn").textContent = modo === "fin" ? "🏁 Terminar el día" : almorzar ? "🍽️ Terminar e ir a almorzar" :
+      conSigue ? (cierra.codigo === "ALMU" ? "Volver y seguir en " : "Terminar y seguir en ") + sigue.nombre : "Listo";
+    $("cambioBtn").classList.toggle("hidden", !conSigue);
+    $("cambioBtn").textContent = cierra.codigo === "ALMU" ? "Volví · elegir otra área" : "Cambiar de área / no sigo";
     show("cantScreen");
-    (pideCant ? $("cantInput") : $("sigueInput")).focus();
+    if (pideCant) $("cantInput").focus(); else if (conSigue && sigue.pide_codigo) $("sigueInput").focus();
   }
 
   // seguir = true → cierra y empieza el área propuesta (con su código); false → cierra y vuelve a la botonera
@@ -211,18 +256,22 @@
       if (!/^\d+(\.\d+)?$/.test(v)) { $("cantError").textContent = "Poné un número (0 si no hiciste ninguna)"; $("cantInput").focus(); return; }
       cant = Number(v);
     }
+    const sigue = seguir && p.modo !== "fin" ? p.sigue : null;
     let nuevo = null;
-    if (seguir && p.sigue.pide_codigo) {
-      nuevo = validarCodigo(p.sigue, $("sigueInput").value);
+    if (sigue && sigue.pide_codigo) {
+      nuevo = validarCodigo(sigue, $("sigueInput").value);
       if (nuevo.err) { $("sigueError").textContent = nuevo.err; $("sigueInput").focus(); return; }
-      const avisoS = nuevo.nuevo ? null : fueraDeContraido(p.sigue, nuevo.guardo);
+      const avisoS = nuevo.nuevo ? null : fueraDeContraido(sigue, nuevo.guardo);
       if ((nuevo.nuevo || avisoS) && !confirmoNuevo(nuevo.guardo, "sigueError", "cantBtn", avisoS)) return;
     }
     registrar(p.cierra, { ts_inicio: p.ab.ts_cliente, cantidad: cant, texto: p.ab.texto || "" });
-    if (seguir) registrar(p.sigue, nuevo ? { texto: nuevo.guardo } : null, 1);
+    if (sigue) registrar(sigue, nuevo ? { texto: nuevo.guardo } : null, 1);
+    if (p.modo === "fin") registrarFin();
     flush();
-    toast("✓ Terminaste " + p.cierra.nombre + (cant != null ? " · " + num(cant) + " " + p.cierra.unidad : "") +
-          (seguir ? " · seguís en " + p.sigue.nombre + (nuevo ? " · " + nuevo.guardo : "") : ""));
+    toast(p.modo === "fin" ? "🏁 Terminaste el día. ¡Hasta mañana!" :
+          (p.cierra.codigo === "ALMU" ? "✓ Volviste de almorzar" : "✓ Terminaste " + p.cierra.nombre) +
+          (cant != null ? " · " + num(cant) + " " + p.cierra.unidad : "") +
+          (sigue ? (sigue.codigo === "ALMU" ? " · buen provecho 🍽️" : " · seguís en " + sigue.nombre + (nuevo ? " · " + nuevo.guardo : "")) : ""));
     st.pend = null; restaurarBtn("cantBtn"); show("optionsScreen"); renderBotonera();
   }
 
@@ -329,13 +378,15 @@
   function cancelarCod() { st.codPara = null; show("optionsScreen"); renderBotonera(); }
 
   function renderHist() {
-    const evs = eventosHoy().filter((r) => r.opcion === "AREA");
+    const evs = eventosHoy().filter((r) => r.opcion === "AREA" || r.opcion === "FIN");
     if (!evs.length) { $("hist").innerHTML = '<div class="hist-vacio">Sin registros hoy.</div>'; return; }
     const pend = new Set(cola().map((x) => x.client_id));
     // un renglón por tramo: el cierre trae la duración y la cantidad; una apertura sin cierre es «en curso»
     const cerradas = new Set(evs.filter((r) => r.ts_inicio).map((r) => r.rubro + "|" + r.ts_inicio));
-    const filas = evs.filter((r) => r.ts_inicio || !cerradas.has(r.rubro + "|" + r.ts_cliente));
+    const filas = evs.filter((r) => r.opcion === "FIN" || r.ts_inicio || !cerradas.has(r.rubro + "|" + r.ts_cliente));
     $("hist").innerHTML = filas.slice().reverse().map((r) => {
+      if (r.opcion === "FIN") return '<div class="hist-row fin"><div class="hist-main"><div class="hist-area">🏁 Terminó el día</div></div>' +
+        '<div class="hist-cant">' + hhmm(r.ts_cliente) + "</div></div>";
       const a = areaDe(r.rubro), p = pend.has(r.client_id) ? " ⏳" : "";
       const nom = (ICONO[r.rubro] || "🏷️") + " " + esc(a ? a.nombre : r.rubro) + (r.texto ? " · " + esc(r.texto) : "");
       if (!r.ts_inicio) return '<div class="hist-row curso"><div class="hist-main"><div class="hist-area">' + nom +
@@ -400,6 +451,8 @@
   $("nombreVolver").onclick = () => show("claveScreen");
   $("botonera").addEventListener("click", (e) => { const b = e.target.closest(".box"); if (b) tocar(b.dataset.cod); });
   $("salirBtn").onclick = salir;
+  $("almuBtn").onclick = () => tocar("ALMU");
+  $("finBtn").onclick = terminarDia;
   $("cantBtn").onclick = () => confirmarCant(true);
   $("cambioBtn").onclick = () => confirmarCant(false);
   $("cantInput").addEventListener("keydown", (e) => {
