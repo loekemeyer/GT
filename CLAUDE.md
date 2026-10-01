@@ -77,7 +77,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 | área | pide código | lista |
 |---|---|---|
 | Corte | sí | 158 propios (Corte 45°; 157 y 158 entraron con D22) |
-| Grampeado | sí | 129 propios (234 a 239 entraron con D22) |
+| Grampeado | sí | 130 propios (234 a 240 entraron con D22 y D26) |
 | Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos (6 discontinuos desde D22: no se listan) |
 | Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`). Acepta **cualquier** producto, pero si no salió de Contraído **avisa y pide confirmar** (v11.0, D17) |
 | Deco | sí | 71 de operación (tablero «08. Sector Deco» completo) |
@@ -99,7 +99,7 @@ El mismo número es otra cosa según el área (**080** = «Cuadro Ciudades MDF»
 | fuente | clave | para |
 |---|---|---|
 | `gt.codigos` + `gt.codigo_area` | código del producto, habilitado por área | áreas 3 a 7 (productos de Tierra Nativa) |
-| `gt.codigos_rubro` | **(área, código)** con su propia descripción | Corte 45° (1–158) y Grampeado (003–239) |
+| `gt.codigos_rubro` | **(área, código)** con su propia descripción | Corte 45° (1–158) y Grampeado (003–240) |
 
 El código se compara **sin ceros adelante** («21» = «021») y se guarda como figura en la lista.
 Cargas: `sql/gt_codigos_tierra_nativa.sql` y `sql/gt_codigos_corte_grampeado.sql` (transcripto de las
@@ -240,9 +240,12 @@ el pedido es una **orden de fabricación**, no de despacho: no se arma y sale en
 - **D22 713 y 714 son Roble** → aros 017 / 020. **Un color se cambia con `select gt.color_fijar('713',
   array['Roble'], 'Thomas')`**: lo que no está en la lista queda `activo = false` en `gt.codigo_color` (no se borra:
   queda la historia, y el conector no deja `DELETE`); `gt.producto_aro` lee sólo las activas.
-- **D22 «012 cedro para 30x40, no va»**: el 214 (Diploma 012 c/Vidrio, 30*40) queda sin aro hasta saber qué lleva (D26).
-- Resultado: **269 de 301 pares producto→aro resueltos** (antes 264 de 305). Los 32 sin resolver: 6 de los
-  discontinuos, **25 sin color cargado** (deco, 045 y el 817) y el 214.
+- **D22 «012 cedro para 30x40, no va» + D26 «marrón»**: el 214 (Diploma 012 c/Vidrio, 30*40) es **Marrón** y su aro es
+  **240** 012 Marron 27.5*40 (nuevo, también va al tablero). ⚠ Al existir un solo aro 012 de 27,5×40, las bandejas de cama
+  **540, 542 y 547** (sin color cargado) cayeron solas a ese aro (`receta = 'auto'`): vale sólo si son marrones. Se
+  confirma cuando Thomas pase el color de los de deco. `sql/gt_v133_d26_214_marron.sql`.
+- Resultado: **273 de 301 pares producto→aro resueltos** (antes 264 de 305). Los 28 sin resolver: 6 de los
+  discontinuos y **22 sin color cargado** (deco, 045 y el 817).
 - `sql/gt_v132_d22_d25_discontinuos_aros_consumo.sql` (rollback en la cabecera). Probado en transacción abortada.
 
 ### Pedidos de Tierra Nativa — acceso de sólo lectura, UNA sola vez (D12)
@@ -285,7 +288,7 @@ pasa por el chat ni por el repo**: el paso 2 la lee de `vault.decrypted_secrets`
   Cargada la lectura de Claude, que aplicó esa regla (21 artículos: 214, 400, 402, 550, 553, 604 a 609, 710 a 714 y
   740 a 745). `sql/gt_v130_marrones_012.sql`. Sin cargar: los estampados (045) y los de deco que no se mandaron a ChatGPT.
 - `gt.producto_aro` usa el color (`gt.color_aro`: Bco/Bco P → Blanco, Bco T → Blanco total, Nat → Natural). Un
-  artículo «c/Soga» sólo toma aros «p/soga». **De 301 pares producto→aro, resueltos: 269** (12 al empezar el día; ver D22 arriba —
+  artículo «c/Soga» sólo toma aros «p/soga». **De 301 pares producto→aro, resueltos: 273** (12 al empezar el día; ver D22 arriba —
   los 14 sin aro de la lista de abajo ya están resueltos, discontinuados o preguntados en D26).
   Faltan 39: 25 sin color cargado (deco, 045 y el 817) y 14 sin aro en Grampeado: 03 Bco 10*25 (115), 3P 3/4 30*40 y 60*80
   (Porta Gigante 224 / 220), Mold 20mm (Porta Atril 640 a 645), 03 Negro 15*21 (Sets 408 / 409), 012 Nat 10*10 (281),
