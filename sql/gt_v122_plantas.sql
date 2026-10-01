@@ -5,7 +5,7 @@
 --
 -- PARTE 1 (estructura) — APLICADA el 2026-10-01. No cambia nada para nadie mientras gt.plantas y
 -- gt.empleado_planta estén vacías: la app no pregunta y la botonera es la de siempre.
--- PARTE 2 (datos) — al final, se aplica con el «sí» de Thomas.
+-- PARTE 2 (datos) — al final, APLICADA el 2026-10-01 (Thomas: «D5 es un sí»).
 --
 -- Cómo funciona:
 --   · gt.plantas: la de menor `orden` es la PRINCIPAL. Un área (gt.rubros) sin `planta` es de la principal.
@@ -120,7 +120,7 @@ begin
 end $function$;
 
 -- ============================================================================================
--- PARTE 2 — DATOS (con el «sí» de Thomas). Efectos: Darío Méndez y Luis Luna ven «¿En qué planta
+-- PARTE 2 — DATOS, APLICADA el 2026-10-01. Efectos: Darío Méndez y Luis Luna ven «¿En qué planta
 -- trabajás hoy?» al entrar; el resto entra como siempre (Pellegrini). En Aula la botonera son las
 -- 3 áreas nuevas; en Pellegrini, las 11 de siempre. Las 3 áreas registran sólo el tiempo (sin código
 -- ni cantidad) hasta que Thomas defina qué se cuenta.

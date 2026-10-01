@@ -202,7 +202,7 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
   con nada abierto.
 - Quién trabaja en qué planta = `gt.empleado_planta` (sin filas = sólo la principal). Agregar a alguien es un `insert`.
 - La app lee `gt_botones2()` (trae la planta); si falla, cae a `gt_botones()`. `sql/gt_v122_plantas.sql` (rollback
-  en la cabecera; los datos van al final y se cargan con el «sí» de Thomas).
+  en la cabecera; datos cargados el 01/10: Pellegrini principal, Aula, Darío y Luis en las dos, las 3 áreas).
 
 ### 1.18 — deco se agrupa por modelo (Thomas, 01/10/2026)
 
@@ -384,6 +384,10 @@ siempre y no dependan de que estén cargadas en la sesión.
 
 - **Nunca INSERT / UPDATE / DELETE sin un "sí" del dueño EN ESE MOMENTO.** Antes hay que
   mostrar el **SQL exacto y sus efectos en cadena**. Un "espera" **anula** la autorización.
+- ⚠ **Precisión de Thomas (01/10/2026, GT):** *«No hace falta que me preguntes solamente para que te diga el sí, cuando
+  es algo que yo ya te expliqué y te dije»*. Si la escritura es la ejecución directa de lo que el dueño pidió, se hace
+  sin pedir el «sí». Se pregunta sólo cuando algo no se entendió, cuando se haría de otra manera o cuando la idea es
+  de Claude (una sugerencia).
 - **Después de escribir: SELECT de verificación.** Siempre.
 - **EXCEPCIÓN — Planify**: sólo **crear y cerrar tareas** va automático. Cualquier otro cambio
   requiere el "sí". **Auditoría**: toda escritura requiere confirmación, sin excepción.
