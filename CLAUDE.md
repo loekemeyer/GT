@@ -174,6 +174,23 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### Admin: Monitor · Producción · Asistencia (1.5, Thomas — D26)
+
+`admin.html` pide la clave del monitor (guardada cifrada en `gt.config.monitor_pass`, nunca en el
+repo) y tiene tres pestañas:
+
+| pestaña | RPC | qué muestra |
+|---|---|---|
+| Monitor | `gt_monitor_clave` | el código de ingreso |
+| Producción | `gt_admin_produccion(pass, día)` | total por área (cantidad y unidades = cajas × UxB) y cada tramo por operario, con lo en curso |
+| Asistencia | `gt_admin_asistencia(pass, día)` | entrada, almuerzo y salida contra lo previsto, con chips (llegó tarde, tolerancia, no vino, sin almuerzo, no terminó el día…) |
+
+Las dos RPC exigen la clave (`gt.pass_ok`): con clave mala devuelven 0 filas. Se elige el día; hoy se
+refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
+**Tolerancia de 5 min CON aviso** (D24): lo que cae dentro sale igual en Telegram, en su bloque.
+**No se trabaja sábado** (D19). Javier Burgos: sólo el almuerzo es rotativo.
+**Empleados ordenados por legajo** (1.7) en la lista del celular, Producción y Asistencia (`gt.legajo_num`).
+
 ### 1.6 — el monitor se abre el LUNES 07:00–08:00; fuera de eso, aviso (Thomas, 01/10/2026)
 
 - Todos los lunes ~07:30 Javier pone la clave en la PC. La clave guardada **vence el lunes 07:00**
