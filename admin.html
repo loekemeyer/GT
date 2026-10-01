@@ -28,17 +28,32 @@
     .rueda text{font-size:30px;font-weight:bold;fill:var(--fg);text-anchor:middle;dominant-baseline:central;}
     #estado{font-size:14px;color:var(--mut);min-height:1em;}
     #estado.err{color:#c00;}
+    .hidden{display:none !important;}
+    .login{display:flex;flex-direction:column;align-items:center;gap:14px;margin-top:12vh;}
+    .login input{font-size:40px;width:260px;text-align:center;letter-spacing:8px;padding:8px;}
+    .login button{font-size:22px;padding:10px 40px;border-radius:6px;border:none;background:var(--acc);color:#fff;cursor:pointer;}
+    .err-txt{color:#c00;min-height:1em;}
     @media (prefers-color-scheme:dark){:root{--fg:#eee;--bg:#111;--mut:#999;--borde:#333;}.tab{background:#222;}.rueda .fondo{stroke:#333;}}
   </style>
 </head>
 <body>
   <header>
     <h1>GT · Admin</h1>
+    <a href="#" id="salirMon">Salir</a>
     <a href="./">← App de operario</a>
   </header>
   <div class="tabs"><span class="tab on">📺 Monitor</span></div>
 
-  <main id="monitor">
+  <!-- CLAVE DEL MONITOR: la valida la base (gt_monitor_clave, guardada cifrada en gt.config).
+       Se recuerda en ESTA máquina hasta «Salir», así la TV no la pide en cada recarga. -->
+  <div id="login" class="login hidden">
+    <div class="rot">🔒 Clave del monitor</div>
+    <input id="passInput" type="password" inputmode="numeric" autocomplete="off" />
+    <button id="passBtn">Entrar</button>
+    <div id="passError" class="err-txt"></div>
+  </div>
+
+  <main id="monitor" class="hidden">
     <div class="rot">🔑 Código de ingreso</div>
     <div class="clave-fila">
       <div id="clave">····</div>
@@ -51,28 +66,42 @@
     <div id="estado"></div>
   </main>
 
-  <script src="config.js?v=3.0"></script>
+  <script src="config.js?v=4.0"></script>
   <script>
   /* Monitor de GT: muestra el código de ingreso de 4 dígitos que cambia cada minuto.
      Lo calcula la base (public.gt_clave_actual); acá sólo se muestra y se cuenta hacia atrás.
      Se vuelve a pedir justo después de cada cambio. Si la base no contesta, se dice: el código
      viejo NO se deja en pantalla como si fuera el bueno (vale 1 minuto más y después no). */
   (function () {
-    const CFG = window.GT_CFG, CIRC = 263.9;
+    const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
     const $ = (id) => document.getElementById(id);
-    let fin = 0, timer = null, ultimoOk = 0;
+    let fin = 0, timer = null, ultimoOk = 0, pass = null;
+    try { pass = localStorage.getItem(LS_PASS); } catch { /* sin storage */ }
 
-    async function pedir() {
+    function verLogin(msg) {
+      clearTimeout(timer); fin = 0;
+      $("monitor").classList.add("hidden"); $("login").classList.remove("hidden");
+      $("passError").textContent = msg || ""; $("passInput").value = ""; $("passInput").focus();
+    }
+    function entrar() {
+      pass = $("passInput").value.trim(); if (!pass) return;
+      $("login").classList.add("hidden"); $("monitor").classList.remove("hidden"); pedir(true);
+    }
+
+    async function pedir(primera) {
+      if (!pass) { verLogin(); return; }
       clearTimeout(timer);
       try {
         const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 10000);
-        const r = await fetch(CFG.SUPABASE_URL + "/rest/v1/rpc/gt_clave_actual", {
+        const r = await fetch(CFG.SUPABASE_URL + "/rest/v1/rpc/gt_monitor_clave", {
           method: "POST", signal: ctl.signal,
           headers: { apikey: CFG.SUPABASE_KEY, Authorization: "Bearer " + CFG.SUPABASE_KEY, "Content-Type": "application/json" },
-          body: "{}" });
+          body: JSON.stringify({ p_pass: pass }) });
         clearTimeout(t);
         if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
+        if (!d.ok) { pass = null; try { localStorage.removeItem(LS_PASS); } catch {} verLogin("Clave incorrecta"); return; }
+        if (primera) { try { localStorage.setItem(LS_PASS, pass); } catch {} }
         $("clave").textContent = d.clave;
         fin = Date.now() + d.cambia_en_s * 1000;
         ultimoOk = Date.now();
@@ -91,8 +120,11 @@
       $("arco").style.strokeDashoffset = fin ? String(CIRC * (1 - s / 60)) : "0";
     }
     setInterval(tick, 250);
-    document.addEventListener("visibilitychange", () => { if (!document.hidden) pedir(); });
-    pedir();
+    document.addEventListener("visibilitychange", () => { if (!document.hidden && pass) pedir(); });
+    $("passBtn").onclick = entrar;
+    $("passInput").addEventListener("keydown", (e) => { if (e.key === "Enter") entrar(); });
+    $("salirMon").onclick = (e) => { e.preventDefault(); pass = null; try { localStorage.removeItem(LS_PASS); } catch {} verLogin(); };
+    if (pass) { $("monitor").classList.remove("hidden"); pedir(); } else verLogin();
   })();
   </script>
 </body>

@@ -8,8 +8,9 @@
  *    (ts_inicio = hora de la apertura, cantidad)
  *  · tocar OTRA área con una abierta     → en una sola pantalla cierra la anterior (con su
  *    cantidad) y empieza la nueva.
- * ETAPA 2 (a definir): dentro del área, qué código empezó y cuántas cajas; el registro ya
- * guarda rubro + cantidad para eso.
+ * v4.0: un área con pide_codigo (hoy GRAMPEADO) pregunta al empezar «¿Qué vas a grampear?» y el
+ * código viaja en `texto` de la apertura y del cierre. Si gt.codigos tiene filas, el código tiene
+ * que estar ahí (del área o sin área); vacía, acepta cualquiera.
  *
  * Los eventos van a una cola en localStorage y se mandan en lote; la base contesta fila por
  * fila qué entró y qué rechazó, así una fila mala no traba al resto.
@@ -20,12 +21,13 @@
   const LS_SESION = "gt_sesion_v2";
   const LS_QUEUE = "gt_queue_v3";
   const LS_RECH = "gt_rechazados_v3";
-  const LS_AREAS = "gt_areas_v3";
+  const LS_AREAS = "gt_areas_v4";
+  const LS_CODS = "gt_codigos_v4";
   const LS_DISP = "gt_dispositivo";
   const TIMEOUT_MS = 15000;
 
   const $ = (id) => document.getElementById(id);
-  const st = { emp: null, nombre: null, areas: [], server: [], pend: null };
+  const st = { emp: null, nombre: null, areas: [], codigos: [], server: [], pend: null, codPara: null };
 
   /* ---------- utilidades ---------- */
   function lsGet(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } }
@@ -44,7 +46,7 @@
   function num(n) { return Number(n).toLocaleString("es-AR"); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
   function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.remove("hidden"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add("hidden"), 2500); }
-  function show(id) { ["claveScreen", "nombreScreen", "optionsScreen", "cantScreen"].forEach((s) => $(s).classList.toggle("hidden", s !== id)); }
+  function show(id) { ["claveScreen", "nombreScreen", "optionsScreen", "cantScreen", "codScreen"].forEach((s) => $(s).classList.toggle("hidden", s !== id)); }
 
   async function rpc(name, body) {
     const ctl = new AbortController();
@@ -130,7 +132,8 @@
     $("abiertaBox").classList.toggle("hidden", !ab);
     if (ab) {
       const a = areaDe(ab.rubro);
-      $("abiertaBox").innerHTML = "Estás en <b>" + esc(a ? a.nombre : ab.rubro) + "</b> desde " + hhmm(ab.ts_cliente) +
+      $("abiertaBox").innerHTML = "Estás en <b>" + esc(a ? a.nombre : ab.rubro) + "</b>" + (ab.texto ? " · código <b>" + esc(ab.texto) + "</b>" : "") +
+        " desde " + hhmm(ab.ts_cliente) +
         "<br><small>Tocala para terminar · tocá otra área para pasarte</small>";
     }
     $("botonera").innerHTML = st.areas.length ?
@@ -148,15 +151,12 @@
   function tocar(cod) {
     const a = areaDe(cod); if (!a) return;
     const ab = abierta();
-    if (!ab) {                                         // empezar
-      registrar(a); flush();
-      toast("✓ Empezaste " + a.nombre); renderBotonera(); return;
-    }
+    if (!ab) { empezar(a); return; }
     // terminar la abierta (y, si tocó otra, empezar ésa)
     st.pend = { ab, cierra: areaDe(ab.rubro) || { codigo: ab.rubro, nombre: ab.rubro, unidad: "cantidad" }, sigue: ab.rubro === cod ? null : a };
     $("cantTitulo").textContent = "Terminé " + st.pend.cierra.nombre;
     $("cantSub").textContent = st.pend.sigue ? "y empiezo " + st.pend.sigue.nombre : "desde " + hhmm(ab.ts_cliente);
-    $("cantLabel").textContent = "¿Cuántas " + st.pend.cierra.unidad + "?";
+    $("cantLabel").textContent = "¿Cuántas " + st.pend.cierra.unidad + (ab.texto ? " del " + ab.texto : "") + "?";
     $("cantInput").value = ""; $("cantError").textContent = "";
     show("cantScreen"); $("cantInput").focus();
   }
@@ -165,12 +165,45 @@
     const p = st.pend; if (!p) return;
     const v = $("cantInput").value.trim().replace(",", ".");
     if (!/^\d+(\.\d+)?$/.test(v)) { $("cantError").textContent = "Poné un número (0 si no hiciste ninguna)"; return; }
-    registrar(p.cierra, { ts_inicio: p.ab.ts_cliente, cantidad: Number(v) });
-    if (p.sigue) registrar(p.sigue, null, 1);         // 1 ms después: el orden del día queda claro
+    registrar(p.cierra, { ts_inicio: p.ab.ts_cliente, cantidad: Number(v), texto: p.ab.texto || "" });
     flush();
-    toast("✓ Terminaste " + p.cierra.nombre + " · " + num(v) + " " + p.cierra.unidad + (p.sigue ? " · empezaste " + p.sigue.nombre : ""));
-    st.pend = null; show("optionsScreen"); renderBotonera();
+    toast("✓ Terminaste " + p.cierra.nombre + " · " + num(v) + " " + p.cierra.unidad);
+    st.pend = null;
+    if (p.sigue) { empezar(p.sigue); return; }
+    show("optionsScreen"); renderBotonera();
   }
+
+  // empezar un área: si pide código, primero «¿Qué vas a grampear?»
+  function verbo(a) {
+    const n = String(a.nombre || "").toLowerCase();
+    return /ado$/.test(n) ? "¿Qué vas a " + n.replace(/ado$/, "ar") + "?" : "¿Qué código vas a hacer en " + a.nombre + "?";
+  }
+  function empezar(a) {
+    if (!a.pide_codigo) {
+      registrar(a, null, 1); flush();
+      toast("✓ Empezaste " + a.nombre); show("optionsScreen"); renderBotonera(); return;
+    }
+    st.codPara = a;
+    $("codTitulo").textContent = "Empecé " + a.nombre;
+    $("codLabel").textContent = verbo(a);
+    $("codInput").value = ""; $("codError").textContent = "";
+    $("codLista").innerHTML = codigosDe(a).map((c) => '<option value="' + esc(c.codigo) + '">' + esc(c.descripcion || "") + "</option>").join("");
+    show("codScreen"); $("codInput").focus();
+  }
+  function codigosDe(a) { return st.codigos.filter((c) => !c.rubro || c.rubro === a.codigo); }
+  function confirmarCod() {
+    const a = st.codPara; if (!a) return;
+    const v = $("codInput").value.trim().toUpperCase();
+    if (!v) { $("codError").textContent = "Poné el código"; return; }
+    const lista = codigosDe(a);
+    if (st.codigos.length && !lista.some((c) => c.codigo.toUpperCase() === v)) {
+      $("codError").textContent = "El código " + v + " no está en la lista de " + a.nombre; return;
+    }
+    registrar(a, { texto: v }, 1); flush();
+    toast("✓ Empezaste " + a.nombre + " · " + v);
+    st.codPara = null; show("optionsScreen"); renderBotonera();
+  }
+  function cancelarCod() { st.codPara = null; show("optionsScreen"); renderBotonera(); }
 
   function renderHist() {
     const evs = eventosHoy().filter((r) => r.opcion === "AREA");
@@ -181,7 +214,8 @@
     const filas = evs.filter((r) => r.ts_inicio || !cerradas.has(r.rubro + "|" + r.ts_cliente));
     $("hist").innerHTML = "<table><tr><th>Área</th><th>Desde</th><th>Hasta</th><th>Dur.</th><th>Cant.</th></tr>" +
       filas.slice().reverse().map((r) => {
-        const a = areaDe(r.rubro), nom = esc(a ? a.nombre : r.rubro), p = pend.has(r.client_id) ? " ⏳" : "";
+        const a = areaDe(r.rubro), p = pend.has(r.client_id) ? " ⏳" : "";
+        const nom = esc(a ? a.nombre : r.rubro) + (r.texto ? " · " + esc(r.texto) : "");
         if (!r.ts_inicio) return "<tr><td>" + nom + "</td><td>" + hhmm(r.ts_cliente) + p + "</td><td colspan=3>en curso</td></tr>";
         return "<tr><td>" + nom + "</td><td>" + hhmm(r.ts_inicio) + "</td><td>" + hhmm(r.ts_cliente) + p + "</td><td>" +
           dur(new Date(r.ts_cliente) - new Date(r.ts_inicio)) + "</td><td>" + (r.cantidad == null ? "—" : num(r.cantidad)) + "</td></tr>";
@@ -206,8 +240,10 @@
   }
 
   async function cargarAreas() {
-    try { st.areas = await rpc("gt_areas", {}); lsSet(LS_AREAS, st.areas); }
+    try { st.areas = await rpc("gt_botonera", {}); lsSet(LS_AREAS, st.areas); }
     catch { st.areas = lsGet(LS_AREAS, []); }
+    try { st.codigos = await rpc("gt_codigos", {}); lsSet(LS_CODS, st.codigos); }
+    catch { st.codigos = lsGet(LS_CODS, []); }
   }
   async function cargarHoy() {
     try { st.server = (await rpc("gt_registros_hoy", { p_empleado: st.emp })).map((r) => Object.assign({ empleado_id: st.emp }, r)); }
@@ -242,6 +278,9 @@
   $("cantBtn").onclick = confirmarCant;
   $("cantInput").addEventListener("keydown", (e) => { if (e.key === "Enter") confirmarCant(); });
   $("cantVolver").onclick = () => { st.pend = null; show("optionsScreen"); };
+  $("codBtn").onclick = confirmarCod;
+  $("codInput").addEventListener("keydown", (e) => { if (e.key === "Enter") confirmarCod(); });
+  $("codVolver").onclick = cancelarCod;
   $("histBtn").onclick = () => { const h = $("hist"); h.classList.toggle("hidden"); if (!h.classList.contains("hidden")) renderHist(); };
   window.addEventListener("online", flush);
   setInterval(flush, 30000);

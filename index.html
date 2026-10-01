@@ -11,7 +11,7 @@
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=3.0" />
+  <link rel="stylesheet" href="styles.css?v=4.0" />
 </head>
 <body>
   <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
@@ -53,8 +53,18 @@
     <button id="cantBtn" class="primary-btn">Confirmar</button>
   </div>
 
+  <!-- 4) CÓDIGO (al empezar un área que lo pide, hoy Grampeado) -->
+  <div id="codScreen" class="hidden">
+    <div class="top-bar"><span class="back-top" id="codVolver">←</span><span class="op-name" id="codTitulo"></span></div>
+    <div class="label" id="codLabel"></div>
+    <input id="codInput" class="text-input" list="codLista" autocomplete="off" autocapitalize="characters" placeholder="Código" />
+    <datalist id="codLista"></datalist>
+    <div id="codError" class="error"></div>
+    <button id="codBtn" class="primary-btn">Empezar</button>
+  </div>
+
   <div id="toast" class="toast hidden"></div>
-  <script src="config.js?v=3.0"></script>
-  <script src="app.js?v=3.0"></script>
+  <script src="config.js?v=4.0"></script>
+  <script src="app.js?v=4.0"></script>
 </body>
 </html>

@@ -52,6 +52,17 @@ de Virgilio.
 al terminar pregunta el siguiente código. Va en `gt.tareas` (por rubro); el registro ya tiene
 `rubro` y `cantidad`.
 
+### v4.0 — clave del monitor y código en Grampeado (Thomas, 01/10/2026)
+
+- **El monitor pide clave.** La valida la base (`public.gt_monitor_clave`); está guardada **cifrada**
+  en `gt.config` (`monitor_pass`, bcrypt), que `anon` no puede leer. **La clave no se escribe en el
+  repo.** Se recuerda en esa máquina hasta «Salir». `gt_clave_actual()` sin clave queda revocada
+  para `anon`: si no, el código se leería salteando la pantalla.
+- **Un área con `gt.rubros.pide_codigo`** (hoy **Grampeado**) pregunta al empezar *«¿Qué vas a
+  grampear?»*. El código va en `texto` de la apertura y del cierre, y la cantidad se pide *«del 505»*.
+- **`gt.codigos`**: vacía, acepta cualquier código; con filas, sólo los de esa área o los sin área.
+  Cargar los códigos es un `insert`, no un deploy.
+
 ### Base: schema `gt`
 
 | tabla | qué es |

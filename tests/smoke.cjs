@@ -6,18 +6,20 @@ const http = require("http"), fs = require("fs");
 const ROOT = path.join(__dirname, "..");
 const AREAS = [
   { codigo: "CORTE", nombre: "Corte", unidad: "unidades cortadas", orden: 1 },
-  { codigo: "GRAMP", nombre: "Grampeado", unidad: "unidades grampeadas", orden: 2 },
+  { codigo: "GRAMP", nombre: "Grampeado", unidad: "unidades grampeadas", orden: 2, pide_codigo: true },
   { codigo: "DECO", nombre: "Deco", unidad: "unidades fabricadas", orden: 9 },
 ];
 const db = [];
+const CODIGOS = [{ codigo: "505", descripcion: "Pinza", rubro: "GRAMP" }, { codigo: "760", descripcion: "Otra", rubro: null }];
 const srv = http.createServer((req, res) => {
   if (req.url.startsWith("/rest/v1/rpc/")) {
     let body = ""; req.on("data", (c) => (body += c)); req.on("end", () => {
       const b = JSON.parse(body || "{}"), fn = req.url.split("/").pop();
       let out;
-      if (fn === "gt_clave_actual") out = { clave: "1234", cambia_en_s: 42 };
+      if (fn === "gt_monitor_clave") out = b.p_pass === "151515" ? { ok: true, clave: "1234", cambia_en_s: 42 } : { ok: false };
       else if (fn === "gt_clave_validar") out = b.p_clave === "1234" ? { ok: true, empleados: [{ id: 7, nombre: "Prueba" }, { id: 8, nombre: "Otro" }] } : { ok: false };
-      else if (fn === "gt_areas") out = AREAS;
+      else if (fn === "gt_botonera") out = AREAS;
+      else if (fn === "gt_codigos") out = CODIGOS;
       else if (fn === "gt_registros_hoy") out = db.filter((r) => r.empleado_id === b.p_empleado);
       else if (fn === "gt_registrar") {
         const ok = [], rech = [];
@@ -64,22 +66,40 @@ srv.listen(0, async () => {
     await pg.fill("#cantInput", "abc"); await pg.click("#cantBtn");
     chk((await pg.textContent("#cantError")).length > 0 && db.length === 1, "cantidad no numérica no se registra");
     await pg.fill("#cantInput", "120"); await pg.click("#cantBtn"); await alDia();
-    chk(db.length === 3 && db[1].rubro === "CORTE" && db[1].cantidad === 120 && db[1].ts_inicio === db[0].ts_cliente,
+    chk(db.length === 2 && db[1].rubro === "CORTE" && db[1].cantidad === 120 && db[1].ts_inicio === db[0].ts_cliente,
         "Terminé Corte: cierre con cantidad 120 y ts_inicio = apertura");
-    chk(db[2].rubro === "GRAMP" && db[2].ts_inicio === null, "y empezó Grampeado en el mismo paso");
-    await pg.click(".box[data-cod=GRAMP]"); await pg.fill("#cantInput", "0"); await pg.click("#cantBtn"); await alDia();
-    chk(db.length === 4 && db[3].cantidad === 0 && !(await pg.$(".box.abierta")), "Terminé Grampeado con 0, sin área abierta");
+    await pg.waitForSelector("#codScreen:not(.hidden)");
+    chk((await pg.textContent("#codLabel")) === "¿Qué vas a grampear?", "Grampeado pregunta «¿Qué vas a grampear?»");
+    await pg.fill("#codInput", "999"); await pg.click("#codBtn");
+    chk((await pg.textContent("#codError")).includes("no está en la lista") && db.length === 2, "código fuera de la lista no se acepta");
+    await pg.fill("#codInput", "505"); await pg.click("#codBtn"); await alDia();
+    chk(db.length === 3 && db[2].rubro === "GRAMP" && db[2].texto === "505" && db[2].ts_inicio === null, "empezó Grampeado con código 505");
+    chk((await pg.textContent("#abiertaBox")).includes("505"), "el área abierta muestra el código");
+    await pg.click(".box[data-cod=GRAMP]"); await pg.waitForSelector("#cantScreen:not(.hidden)");
+    chk((await pg.textContent("#cantLabel")).includes("del 505"), "al terminar pregunta la cantidad del 505");
+    await pg.fill("#cantInput", "0"); await pg.click("#cantBtn"); await alDia();
+    chk(db.length === 4 && db[3].cantidad === 0 && db[3].texto === "505" && !(await pg.$(".box.abierta")), "Terminé Grampeado 505 con 0, sin área abierta");
+    await pg.click(".box[data-cod=DECO]"); await alDia();
+    chk(db.length === 5 && db[4].rubro === "DECO" && !(await pg.isVisible("#codScreen")), "un área sin código (Deco) empieza directo");
     await pg.evaluate(() => { const q = JSON.parse(localStorage.getItem("gt_queue_v3") || "[]");
       q.push({ client_id: "malo", empleado_id: 7, opcion: "AREA", rubro: "NOEXISTE", ts_cliente: new Date().toISOString() });
       localStorage.setItem("gt_queue_v3", JSON.stringify(q)); return window.__gt.flush(); });
     const q = await pg.evaluate(() => [JSON.parse(localStorage.getItem("gt_queue_v3")).length, JSON.parse(localStorage.getItem("gt_rechazados_v3")).length]);
     chk(q[0] === 0 && q[1] === 1, "fila rechazada sale de la cola y queda anotada (no traba)");
     await pg.click("#histBtn");
-    chk((await pg.$$("#hist tr")).length === 3, "resumen de hoy con 2 tramos");
+    chk((await pg.$$("#hist tr")).length === 4, "resumen de hoy con 3 tramos (uno en curso)");
     chk(db.every((r) => r.empleado_id === 7), "los registros llevan el empleado_id");
     const ad = await br.newPage({ viewport: { width: 1280, height: 720 } });
     await ad.goto(url + "admin.html");
+    await ad.waitForSelector("#login:not(.hidden)");
+    chk(!(await ad.isVisible("#monitor")), "monitor sin clave no muestra el código");
+    await ad.fill("#passInput", "111111"); await ad.click("#passBtn");
+    await ad.waitForFunction(() => document.getElementById("passError").textContent.length > 0);
+    chk((await ad.textContent("#clave")) !== "1234", "clave equivocada no muestra el código");
+    await ad.fill("#passInput", "151515"); await ad.click("#passBtn");
     await ad.waitForFunction(() => document.getElementById("clave").textContent === "1234");
+    await ad.reload(); await ad.waitForFunction(() => document.getElementById("clave").textContent === "1234");
+    chk(true, "con la clave buena muestra el código y la recuerda al recargar");
     await ad.waitForFunction(() => document.getElementById("seg").textContent !== "--");
     const seg = Number(await ad.textContent("#seg"));
     chk(seg > 0 && seg <= 42, "monitor admin muestra el código y la cuenta regresiva (" + seg + " s)");
