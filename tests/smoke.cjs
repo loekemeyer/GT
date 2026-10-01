@@ -32,7 +32,7 @@ const srv = http.createServer((req, res) => {
         { empleado: "Prueba", area: "Corte", rubro: "CORTE", codigo: "1", descripcion: "03 Bco", desde: "2026-10-01T12:00:00Z", hasta: null, cantidad: null, unidad: "unidades cortadas", uxb: null, unidades: null },
         { empleado: "Otro", area: "Gancho", rubro: "GANCHO", codigo: "080", descripcion: null, desde: "2026-10-01T15:00:00Z", hasta: "2026-10-01T20:30:00Z", cantidad: null, unidad: "cajas", uxb: 24, unidades: null, auto: true }] : [];
       else if (fn === "gt_admin_ritmo2") out = b.p_pass === CLAVE_MON ? [
-        { empleado: "Prueba", legajo: "t1", area: "Montaje", rubro: "MONT", grupo: "Cuadro · Mold 03 · 30*40", codigos: "183", unidad: "unidades", hecho: 240, horas: 1, por_hora: 240, prom_grupo: 400, tramos: 1 }] : [];
+        { empleado: "Prueba", legajo: "t1", area: "Montaje", rubro: "MONT", grupo: "Mold 03 · 30*40", codigos: "183", unidad: "unidades", hecho: 240, horas: 1, por_hora: 240, prom_grupo: 400, tramos: 1 }] : [];
       else if (fn === "gt_admin_asistencia") out = b.p_pass === CLAVE_MON ? [
         { empleado: "Prueba", legajo: "t1", entrada: "2026-10-01T08:12:00", entrada_prevista: "2026-10-01T08:00:00", almuerzo_sale: null, almuerzo_vuelve: null,
           almuerzo_desde: "2026-10-01T12:00:00", almuerzo_hasta: "2026-10-01T13:00:00", flexible: false, fin: null, salida_prevista: "2026-10-01T17:30:00",
@@ -206,7 +206,7 @@ srv.listen(0, async () => {
         "Producción: por área con unidades (10 cajas × 24 = 240) y lo en curso");
     chk((await ad.textContent("#prodOp")).includes("cerrado solo"), "el tramo que cerró el sistema se marca «🔒 cerrado solo» (D34)");
     await ad.waitForFunction(() => document.getElementById("prodRitmo").textContent.includes("-40 %"));
-    chk((await ad.textContent("#prodRitmo")).includes("Cuadro · Mold 03 · 30*40"), "Ritmo: 240 u/h contra 400 del GRUPO (Cuadro · Mold 03 · 30*40) = -40 %");
+    chk((await ad.textContent("#prodRitmo")).includes("Mold 03 · 30*40"), "Ritmo: 240 u/h contra 400 del GRUPO (Mold 03 · 30*40) = -40 %");
     await ad.click(".tab[data-tab=asis]"); await ad.fill("#asisDia", "2026-09-30"); await ad.dispatchEvent("#asisDia", "change");
     await ad.waitForFunction(() => document.getElementById("asisTabla").textContent.includes("No terminó"));
     const asis = await ad.textContent("#asisTabla");

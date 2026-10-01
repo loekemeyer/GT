@@ -11,3 +11,14 @@
 -- Funciones: gt.grupo_auto(descripcion, medida), gt.grupo_codigo(codigo), public.gt_admin_ritmo2(pass, día)
 --   (reemplaza a gt_admin_ritmo, que quedó revocada para anon).
 -- Definición viva: select pg_get_functiondef('public.gt_admin_ritmo2(text,date)'::regprocedure);
+
+-- GT v1.16 — APLICADO el 2026-10-01 (Thomas): el grupo es SÓLO moldura + medida; el tipo no entra.
+create or replace function gt.grupo_auto(p_desc text, p_medida text) returns text
+ language sql immutable set search_path to ''
+as $$
+  select case when mat is null or coalesce(btrim(p_medida), '') = '' then null
+              else mat || ' · ' || btrim(p_medida) end
+    from (select coalesce('Mold ' || (regexp_match(p_desc, 'Mold\s+([0-9]+(?:mm)?)', 'i'))[1],
+                          case when p_desc ~* '\mMDF\M' then 'MDF' end) mat) z
+$$;
+-- Resultado: 226 códigos en 64 grupos. Ej.: «Mold 03 · 30*40» = 38 (cuadros, diplomas, espejos).
