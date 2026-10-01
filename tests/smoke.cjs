@@ -14,7 +14,7 @@ const AREAS = [
   { codigo: "RECIB", nombre: "Recibir mercadería", unidad: "unidades recibidas", orden: 11, pide_codigo: false, pide_cantidad: false },
   { codigo: "ALMU", nombre: "Almuerzo", unidad: "—", orden: 12, pide_codigo: false, pide_cantidad: false },
 ];
-let CLAVE_MON = null; const LOGINS = [];
+let CLAVE_MON = null; const LOGINS = []; const REING = [];
 const db = [];
 const CODIGOS = [{ codigo: "505", descripcion: "Pinza", medida: "10*15", rubro: "GRAMP" }, { codigo: "760", descripcion: "Otra", medida: null, rubro: "DECO" },
   { codigo: "136", descripcion: "Cuadros Mold 03 Set x3 Botanica", medida: "30*40 + 20*30 + 15*21", rubro: "MONT" },
@@ -26,6 +26,7 @@ const srv = http.createServer((req, res) => {
       let out;
       if (fn === "gt_monitor_clave") out = !CLAVE_MON ? { ok: true, sin_clave: true, clave: "1234", cambia_en_s: 42 } : b.p_pass === CLAVE_MON ? { ok: true, clave: "1234", cambia_en_s: 42 } : { ok: false };
       else if (fn === "gt_monitor_login") { LOGINS.push(b); out = { ok: b.p_pass === CLAVE_MON, en_horario: false }; }
+      else if (fn === "gt_reingreso") { REING.push(b.p_empleado); out = null; }
       else if (fn === "gt_clave_validar") out = b.p_clave === "1234" ? { ok: true, empleados: [{ id: 7, nombre: "Prueba" }, { id: 8, nombre: "Otro" }] } : { ok: false };
       else if (fn === "gt_botones") out = AREAS;
       else if (fn === "gt_codigos_area") out = CODIGOS;
@@ -169,7 +170,10 @@ srv.listen(0, async () => {
     await pg.fill("#claveInput", "1234"); await pg.click("#claveBtn");
     await pg.waitForSelector("#nombreLista button[data-id='7']"); await pg.click("#nombreLista button[data-id='7']");
     await pg.waitForSelector("#optionsScreen:not(.hidden)");
-    chk((await pg.textContent("#abiertaBox")).includes("Día terminado"), "si vuelve a entrar, la botonera muestra «Día terminado»");
+    const vioFin = await pg.waitForFunction(() => document.getElementById("abiertaBox").textContent.includes("Día terminado"), null, { timeout: 5000 }).then(() => true, () => false);
+    chk(vioFin, "si vuelve a entrar, la botonera muestra «Día terminado»");
+    await pg.waitForTimeout(300);
+    chk(REING.length === 1 && REING[0] === 7, "volver a entrar después de terminar el día avisa (gt_reingreso)");
     await pg.evaluate(() => { const q = JSON.parse(localStorage.getItem("gt_queue_v3") || "[]");
       q.push({ client_id: "malo", empleado_id: 7, opcion: "AREA", rubro: "NOEXISTE", ts_cliente: new Date().toISOString() });
       localStorage.setItem("gt_queue_v3", JSON.stringify(q)); return window.__gt.flush(); });

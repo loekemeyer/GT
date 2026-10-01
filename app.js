@@ -477,6 +477,9 @@
     show("optionsScreen");
     await Promise.all([cargarAreas(), cargarHoy()]);
     renderBotonera(); flush();
+    // 1.21 (D44): si ya había terminado el día, puede seguir, pero la base avisa por Telegram (una vez por «Terminar día»)
+    const hoy = eventosHoy(), ult = hoy[hoy.length - 1];
+    if (ult && ult.opcion === "FIN") rpc("gt_reingreso", { p_empleado: st.emp }).catch(() => { /* sin red: avisa el primer registro */ });
   }
 
   // 1.20 (Thomas): al terminar el día vuelve a la pantalla del código de la TV (cierra la sesión).

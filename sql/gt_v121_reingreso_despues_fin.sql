@@ -1,0 +1,7 @@
+-- GT v1.21 — APLICADO el 2026-10-01 (Thomas, D44): después de «Terminar día» puede volver a entrar (con el código
+-- de la TV de nuevo), pero avisa a «GT Avisos»: «🔁 GT — <nombre> volvió a entrar después de terminar el día».
+-- Dos caminos con el MISMO dedup (gt-reingreso-<id del FIN>), así sale un solo aviso por cada «Terminar día»:
+--   · la app llama a public.gt_reingreso(empleado) al entrar si el último evento de hoy es el FIN;
+--   · respaldo en la base: trigger gt_reingreso (primer registro después del FIN, para celulares viejos o sin red).
+-- Probado (transacción abortada): sin FIN no avisa; con FIN, entrar + registrar = 1 aviso.
+-- Definición viva: select pg_get_functiondef('gt.aviso_reingreso(bigint,text)'::regprocedure);
