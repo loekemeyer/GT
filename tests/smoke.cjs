@@ -10,7 +10,7 @@ const AREAS = [
   { codigo: "PED", nombre: "Pedidos", unidad: "pedidos armados", orden: 8, pide_cantidad: false },
   { codigo: "DECO", nombre: "Deco", unidad: "unidades fabricadas", orden: 9 },
   { codigo: "GUARD", nombre: "Guardado a góndola", unidad: "cajas guardadas", orden: 10, pide_codigo: true },
-  { codigo: "RECIB", nombre: "Recibir mercadería", unidad: "unidades recibidas", orden: 11, pide_codigo: true },
+  { codigo: "RECIB", nombre: "Recibir mercadería", unidad: "unidades recibidas", orden: 11, pide_codigo: false },
   { codigo: "ALMU", nombre: "Almuerzo", unidad: "—", orden: 12, pide_codigo: false, pide_cantidad: false },
 ];
 let CLAVE_MON = null; const LOGINS = [];
@@ -131,16 +131,15 @@ srv.listen(0, async () => {
     await termino("GUARD"); await pg.waitForSelector("#siguePend button[data-cod='760']");
     chk(true, "al terminar Guardado, los pendientes de Contraído aparecen también para seguir");
     await pg.fill("#cantInput", "3"); await pg.click("#cambioBtn"); await alDia();
-    await pg.click(".box[data-cod=RECIB]"); await pg.waitForSelector("#codOpts button[data-cod='MOLDURA']");
-    chk((await pg.textContent("#codLabel")) === "¿Insumo o Moldura?" && !(await pg.isVisible("#codInput")),
-        "Recibir mercadería pregunta «¿Insumo o Moldura?» con botones, sin teclado");
-    await pg.click("#codOpts button[data-cod='MOLDURA']"); await alDia();
+    await pg.click(".box[data-cod=RECIB]"); await alDia();
     const nR = db.length;
-    chk(db[nR - 1].rubro === "RECIB" && db[nR - 1].texto === "MOLDURA", "elegir Moldura empieza Recibir con MOLDURA");
+    chk(db[nR - 1].rubro === "RECIB" && !db[nR - 1].ts_inicio && !(await pg.isVisible("#codScreen")),
+        "Recibir mercadería empieza directo, sin preguntar Insumo o Moldura (D29)");
     await termino("RECIB");
-    chk(!(await pg.isVisible("#sigueBox")) && (await pg.textContent("#cantBtn")) === "Listo", "al terminar Recibir NO pregunta qué sigue recibiendo (D29)");
+    chk(!(await pg.isVisible("#sigueBox")) && (await pg.textContent("#cantLabel")).includes("unidades recibidas") && (await pg.textContent("#cantBtn")) === "Listo",
+        "al terminar Recibir pide sólo la cantidad recibida");
     await pg.fill("#cantInput", "40"); await pg.click("#cantBtn"); await alDia();
-    chk(db.length === nR + 1 && db[nR].cantidad === 40 && db[nR].texto === "MOLDURA", "Terminé Recibir moldura con 40");
+    chk(db.length === nR + 1 && db[nR].cantidad === 40 && db[nR].rubro === "RECIB", "Terminé Recibir con 40");
     chk(!(await pg.$(".box[data-cod=ALMU]")) && await pg.isVisible("#almuBtn") && await pg.isVisible("#finBtn"),
         "Almuerzo y Terminar día son botones aparte, no tarjetas de área");
     // almuerzo con un área abierta: cierra el área (cantidad) y empieza el almuerzo

@@ -8,3 +8,7 @@
 -- Definición viva: select pg_get_functiondef('public.gt_monitor_login(text,text,text)'::regprocedure);
 --                  select pg_get_functiondef('gt.alerta_monitor_lunes(boolean)'::regprocedure);
 -- Rollback del cron: select cron.unschedule('gt-alerta-monitor-lunes');
+
+-- GT v1.12 — APLICADO el 2026-10-01 con el «sí» de Thomas (D29): Recibir mercadería no pregunta Insumo / Moldura.
+update gt.rubros set pide_codigo = false where codigo = 'RECIB';
+-- verificado: RECIB pide_codigo=false, pide_cantidad=true, unidad 'unidades recibidas'. Rollback: = true.
