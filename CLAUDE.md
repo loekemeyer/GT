@@ -213,12 +213,14 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
   repartidas parejo (1.26). Origen: las fotos del catálogo de Tierra Nativa, clasificadas por **ChatGPT** (lo pasó
   Thomas) y por **Claude**, a ciegas; se cargó donde **coinciden** (179 artículos) más lo que confirmó Thomas
   (`fuente = 'Thomas 01/10'`). El cruce completo está en `docs/colores_marco_cruce.csv`.
-- **No se cargaron los marrones de las molduras 012 y 05** (Cedro / Marrón / Roble) fuera de 690–694: las dos fuentes
-  no coinciden (D10). Tampoco los estampados (045).
+- **Marrones de 012 (D10, Thomas: «012 y 05 sí»):** rojizo = **Cedro**, miel = **Roble**, marrón oscuro = **Marrón**.
+  Cargada la lectura de Claude, que aplicó esa regla (21 artículos: 214, 400, 402, 550, 553, 604 a 609, 710 a 714 y
+  740 a 745). `sql/gt_v130_marrones_012.sql`. Sin cargar: los estampados (045) y los de deco que no se mandaron a ChatGPT.
 - `gt.producto_aro` usa el color (`gt.color_aro`: Bco/Bco P → Blanco, Bco T → Blanco total, Nat → Natural). Un
-  artículo «c/Soga» sólo toma aros «p/soga». **De 241 piezas producto→aro, resueltas: 185** (12 al empezar el día).
-  Faltan 56: 46 sin color cargado y 10 sin aro en Grampeado (03 Bco 10*25 del 115; 3P 3/4 30*40 y 60*80 del Porta
-  Gigante 220/224; Mold 20mm; 03 Negro 15*21; 012 10*10).
+  artículo «c/Soga» sólo toma aros «p/soga». **De 241 piezas producto→aro, resueltas: 202** (12 al empezar el día).
+  Faltan 39: 25 sin color cargado (deco y 045) y 14 sin aro en Grampeado: 03 Bco 10*25 (115), 3P 3/4 30*40 y 60*80
+  (Porta Gigante 224 / 220), Mold 20mm (Porta Atril 640 a 645), 03 Negro 15*21 (Sets 408 / 409), 012 Nat 10*10 (281),
+  012 Cedro 30*40 (Diploma 214), 012 Roble p/soga 10*15 (604) y 012 Nat 20*25 / 20*30 (713 / 714).
 - **Blancos 3P 3/4 (D21, Thomas):** 790 a 793 y 310 llevan **Bco T**; 228 lleva **Bco P** (`gt.receta_aro`).
 - **«Bco T es cubo» (D16, D24):** el Porta Cubo (814 a 816) lleva los aros **Bco T** chicos (063 a 065), igual que
   790 a 792; en Corte salen de las piezas **3P 3/4 Bco Total** (136 a 141, de 10 a 21 cm).
