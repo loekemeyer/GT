@@ -76,26 +76,28 @@ srv.listen(0, async () => {
     const alDia = () => pg.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
     await pg.click(".box[data-cod=CORTE]"); await alDia();
     chk(db.length === 1 && db[0].opcion === "AREA" && db[0].rubro === "CORTE" && db[0].ts_inicio === null, "Empecé Corte: apertura con ts_inicio NULL");
-    await pg.reload(); await pg.waitForSelector(".box[data-cod=CORTE].abierta");
+    await pg.reload(); await pg.waitForSelector(".termine-btn[data-cod=CORTE]");
     chk(true, "al recargar, Corte sigue abierta (sesión del día + historial del servidor)");
-    const termino = async (cod) => { await pg.click(".box[data-cod=" + cod + "]"); await pg.waitForSelector("#cantScreen:not(.hidden)"); };
-    await termino("GRAMP");
-    chk((await pg.textContent("#cantLabel")).includes("unidades cortadas") &&
-        (await pg.textContent("#sigueLabel")) === "¿Con qué código seguís en Grampeado?",
-        "tocar otra área: pide la cantidad de la abierta y, en la misma pantalla, el código para seguir en la nueva");
-    await pg.fill("#cantInput", "abc"); await pg.click("#cantBtn");
+    const termino = async (cod) => { await pg.click(".termine-btn[data-cod=" + cod + "]"); await pg.waitForSelector("#cantScreen:not(.hidden)"); };
+    chk((await pg.$$("#botonera .box")).length === 0 && (await pg.$$("#botonera .termine-btn")).length === 1,
+        "con un sector abierto, la botonera muestra SÓLO «Terminé» (no deja tocar otra área)");
+    await termino("CORTE");
+    chk((await pg.textContent("#cantLabel")).includes("unidades cortadas"), "«Terminé» pide cuánto hizo, en la unidad del área");
+    await pg.fill("#cantInput", "abc"); await pg.click("#cambioBtn");
     chk((await pg.textContent("#cantError")).length > 0 && db.length === 1, "cantidad no numérica no se registra");
-    await pg.fill("#cantInput", "120"); await pg.fill("#sigueInput", "999"); await pg.click("#cantBtn");
-    chk((await pg.textContent("#sigueError")).includes("¿Lo registro igual?") && db.length === 1 &&
-        (await pg.textContent("#cantBtn")).includes("registrar el 999"), "código que no está en la lista: pregunta antes de grabar");
-    chk(!(await pg.$("#sigueInput[list]")) && (await pg.getAttribute("#sigueInput", "inputmode")) === "numeric",
+    await pg.fill("#cantInput", "120"); await pg.click("#cambioBtn"); await alDia();
+    chk((await pg.$$("#botonera .box")).length === 6, "cerrado el sector, vuelven todas las áreas");
+    await pg.click(".box[data-cod=GRAMP]"); await pg.waitForSelector("#codScreen:not(.hidden)");
+    await pg.fill("#codInput", "999"); await pg.click("#codBtn");
+    chk((await pg.textContent("#codError")).includes("¿Lo registro igual?") && db.length === 2, "código que no está en la lista: pregunta antes de grabar");
+    chk(!(await pg.$("#codInput[list]")) && (await pg.getAttribute("#codInput", "inputmode")) === "numeric",
         "sin lista desplegable (no tapa el campo) y teclado numérico si los códigos son números");
-    await pg.fill("#sigueInput", "0505");
-    chk((await pg.textContent("#sigueHint")) === "Pinza · 10*15", "al tipear muestra qué es el código (Pinza · 10*15)");
-    await pg.click("#cantBtn"); await alDia();
+    await pg.fill("#codInput", "0505");
+    chk((await pg.textContent("#codHint")) === "Pinza · 10*15", "al tipear muestra qué es el código (Pinza · 10*15)");
+    await pg.click("#codBtn"); await alDia();
     chk(db.length === 3 && db[1].rubro === "CORTE" && db[1].cantidad === 120 && db[1].ts_inicio === db[0].ts_cliente &&
         db[2].rubro === "GRAMP" && db[2].texto === "505" && db[2].ts_inicio === null,
-        "Terminé Corte 120 y empezó Grampeado 505 («0505») en el mismo paso");
+        "Terminé Corte 120 y empezó Grampeado 505 («0505»)");
     chk((await pg.textContent("#abiertaBox")).includes("505"), "el área abierta muestra el código");
     await termino("GRAMP");
     chk((await pg.textContent("#sigueLabel")).includes("en Grampeado") && (await pg.textContent("#cantLabel")).includes("del 505"),

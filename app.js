@@ -165,10 +165,15 @@
       const a = areaDe(ab.rubro);
       $("abiertaBox").innerHTML = '<span class="ab-punto"></span><div class="ab-txt"><div class="ab-area">' +
         (ICONO[ab.rubro] || "🏷️") + " " + esc(a ? a.nombre : ab.rubro) + (ab.texto ? " · " + esc(ab.texto) : "") +
-        '</div><div class="ab-det">Desde las ' + hhmm(ab.ts_cliente) + (ab.rubro === "ALMU" ? " · tocá «Volví de almorzar»" : " · tocala para terminar") + "</div></div>" +
+        '</div><div class="ab-det">Desde las ' + hhmm(ab.ts_cliente) + (ab.rubro === "ALMU" ? " · tocá «Volví de almorzar»" : "") + "</div></div>" +
         '<div class="ab-tiempo" data-desde="' + esc(ab.ts_cliente) + '">' + transcurrido(ab.ts_cliente) + "</div>";
     }
-    $("botonera").innerHTML = st.areas.length ?
+    // v1.8 (Thomas): con un sector abierto NO se ofrecen los otros: sólo «Terminé», que pide cuánto hizo
+    // (y ahí mismo «¿con qué seguís?»). Con el almuerzo abierto, sólo «Volví de almorzar».
+    if (ab) {
+      $("botonera").innerHTML = ab.rubro === "ALMU" ? "" :
+        '<button class="termine-btn" data-cod="' + esc(ab.rubro) + '">✅ Terminé</button>';
+    } else $("botonera").innerHTML = st.areas.length ?
       '<div class="row">' + st.areas.filter((a) => a.codigo !== "ALMU").map((a) => {
         const esAb = ab && ab.rubro === a.codigo;
         return '<div class="box' + (esAb ? " abierta" : "") + '" data-cod="' + esc(a.codigo) + '" role="button">' +
@@ -449,7 +454,7 @@
   $("claveInput").addEventListener("keydown", (e) => { if (e.key === "Enter") validarClave(); });
   $("nombreLista").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) entrar(b.dataset.id, b.dataset.nombre); });
   $("nombreVolver").onclick = () => show("claveScreen");
-  $("botonera").addEventListener("click", (e) => { const b = e.target.closest(".box"); if (b) tocar(b.dataset.cod); });
+  $("botonera").addEventListener("click", (e) => { const b = e.target.closest(".box, .termine-btn"); if (b) tocar(b.dataset.cod); });
   $("salirBtn").onclick = salir;
   $("almuBtn").onclick = () => tocar("ALMU");
   $("finBtn").onclick = terminarDia;

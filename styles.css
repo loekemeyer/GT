@@ -136,3 +136,5 @@ button:active{transform:scale(.97);}
 .abierta.fin{background:var(--acc-bg);border-color:color-mix(in srgb,var(--acc) 40%,transparent);}
 .hist-row.fin{background:var(--acc-bg);}
 .hist-row.fin .hist-cant{font-size:16px;}
+.termine-btn{display:block;width:100%;min-height:96px;margin:4px 0 0;border:0;border-radius:18px;background:var(--ok);color:#fff;font-size:26px;font-weight:800;cursor:pointer;}
+.termine-btn:active{filter:brightness(.92);}

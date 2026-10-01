@@ -191,6 +191,13 @@ refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 **No se trabaja sábado** (D19). Javier Burgos: sólo el almuerzo es rotativo.
 **Empleados ordenados por legajo** (1.7) en la lista del celular, Producción y Asistencia (`gt.legajo_num`).
 
+### 1.8 — con un sector abierto, sólo «Terminé» (Thomas, 01/10/2026)
+
+Con un área abierta la botonera no muestra las otras: sólo un botón grande **✅ Terminé**, que pide
+cuánto hizo y, en la misma pantalla, «¿con qué seguís?». Para pasar a otra área: Terminé → «Cambiar de
+área / no sigo». Almuerzo y Terminar día siguen visibles (también piden la cantidad antes de cerrar).
+Con el almuerzo abierto, sólo «Volví de almorzar».
+
 ### 1.6 — el monitor se abre el LUNES 07:00–08:00; fuera de eso, aviso (Thomas, 01/10/2026)
 
 - Todos los lunes ~07:30 Javier pone la clave en la PC. La clave guardada **vence el lunes 07:00**
