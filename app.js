@@ -8,6 +8,7 @@
  *    (ts_inicio = hora de la apertura, cantidad)
  *  · tocar OTRA área con una abierta     → en una sola pantalla cierra la anterior (con su
  *    cantidad) y empieza la nueva.
+ * v7.0: el código se compara sin ceros adelante («21» = «021») y se guarda como figura en la lista.
  * v6.0: los códigos son POR ÁREA (gt.codigo_area). Un área con códigos asignados sólo acepta esos;
  *       un área sin códigos asignados acepta cualquiera (hoy Grampeado).
  * v5.0: un área con pide_cantidad = false (hoy Pedidos) se cierra sin preguntar cantidad.
@@ -208,12 +209,14 @@
     const v = $("codInput").value.trim().toUpperCase();
     if (!v) { $("codError").textContent = "Poné el código"; return; }
     const lista = codigosDe(a);
-    const cod = lista.find((c) => c.codigo.toUpperCase() === v);
+    const sin0 = (x) => String(x).toUpperCase().replace(/^0+(?=\d)/, "");   // «21» = «021»
+    const cod = lista.find((c) => sin0(c.codigo) === sin0(v));
     if (lista.length && !cod) {
       $("codError").textContent = "El código " + v + " no está en la lista de " + a.nombre; return;
     }
-    registrar(a, { texto: v }, 1); flush();
-    toast("✓ Empezaste " + a.nombre + " · " + v + (cod && cod.descripcion ? " " + cod.descripcion : ""));
+    const guardo = cod ? cod.codigo : v;                // se guarda como figura en la lista
+    registrar(a, { texto: guardo }, 1); flush();
+    toast("✓ Empezaste " + a.nombre + " · " + guardo + (cod && cod.descripcion ? " " + cod.descripcion + (cod.medida ? " " + cod.medida : "") : ""));
     st.codPara = null; show("optionsScreen"); renderBotonera();
   }
   function cancelarCod() { st.codPara = null; show("optionsScreen"); renderBotonera(); }

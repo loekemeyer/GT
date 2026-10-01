@@ -75,8 +75,8 @@ srv.listen(0, async () => {
     chk((await pg.textContent("#codLabel")) === "¿Qué vas a grampear?", "Grampeado pregunta «¿Qué vas a grampear?»");
     await pg.fill("#codInput", "999"); await pg.click("#codBtn");
     chk((await pg.textContent("#codError")).includes("no está en la lista") && db.length === 2, "código fuera de la lista no se acepta");
-    await pg.fill("#codInput", "505"); await pg.click("#codBtn"); await alDia();
-    chk(db.length === 3 && db[2].rubro === "GRAMP" && db[2].texto === "505" && db[2].ts_inicio === null, "empezó Grampeado con código 505");
+    await pg.fill("#codInput", "0505"); await pg.click("#codBtn"); await alDia();
+    chk(db.length === 3 && db[2].rubro === "GRAMP" && db[2].texto === "505" && db[2].ts_inicio === null, "empezó Grampeado: «0505» se guarda como 505 (sin importar los ceros)");
     chk((await pg.textContent("#abiertaBox")).includes("505"), "el área abierta muestra el código");
     await pg.click(".box[data-cod=GRAMP]"); await pg.waitForSelector("#cantScreen:not(.hidden)");
     chk((await pg.textContent("#cantLabel")).includes("del 505"), "al terminar pregunta la cantidad del 505");

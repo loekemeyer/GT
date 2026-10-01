@@ -53,6 +53,20 @@ de Virgilio.
 al terminar pregunta el siguiente código. Va en `gt.tareas` (por rubro); el registro ya tiene
 `rubro` y `cantidad`.
 
+### v7.0 — códigos propios de Corte 45° y Grampeado (Thomas, 01/10/2026)
+
+El mismo número es otra cosa según el área (**080** = «Cuadro Ciudades MDF» como producto, pero
+«03 Negro 27.5*40» en Grampeado). Por eso hay dos fuentes y la app lee las dos por `gt_codigos_area()`:
+
+| fuente | clave | para |
+|---|---|---|
+| `gt.codigos` + `gt.codigo_area` | código del producto, habilitado por área | áreas 3 a 7 (productos de Tierra Nativa) |
+| `gt.codigos_rubro` | **(área, código)** con su propia descripción | Corte 45° (1–156) y Grampeado (003–233) |
+
+El código se compara **sin ceros adelante** («21» = «021») y se guarda como figura en la lista.
+Cargas: `sql/gt_codigos_tierra_nativa.sql` y `sql/gt_codigos_corte_grampeado.sql` (transcripto de las
+fotos de los tableros: la medida de algunas filas es la lectura más probable).
+
 ### v6.0 — códigos por área y aviso de llegadas tarde (Thomas, 01/10/2026)
 
 - **Códigos por área:** `gt.codigos` (323 productos de Tierra Nativa, con medida) + `gt.codigo_area`.

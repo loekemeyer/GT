@@ -3,5 +3,5 @@
 window.GT_CFG = {
   SUPABASE_URL: "https://hrxfctzncixxqmpfhskv.supabase.co",
   SUPABASE_KEY: "sb_publishable_BqpAgZH6ty-9wft10_YMhw_0rcIPuWT",
-  APP_VERSION: "6.0",
+  APP_VERSION: "7.0",
 };
