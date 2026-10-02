@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos, con dos celulares) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -183,6 +183,29 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.39 — Encolado y Contraído DE A DOS: uno invita y al otro le aparece la pregunta (Elías, 02/10/2026: D45)
+
+- Elías: *«se puede hacer que uno ponga y le aparezca al otro como pregunta: Vas a hacer (tarea) con (persona) · Sí / No»*.
+- **El que empieza**: en Encolado y Contraído (`DE_A_DOS` en `app.js`), después del código, **«¿Con quién lo hacés?»**: los
+  compañeros de su planta (el de la última vez, primero) y «🙋 Solo, sin compañero»; ‹ vuelve al código. La apertura lleva
+  `detalle.pareja = 'con <Nombre>'` y la base deja la invitación (trigger `gt_pareja_invita` → `gt.parejas`). Al terminar
+  pone **las cajas de los dos**.
+- **El compañero**: su celular pregunta cada 15 s (`gt_parejas_pendientes`) y, en la botonera y fuera de Baño / Movimiento
+  / Almuerzo, muestra *«¿Vas a hacer Encolado · 173 Cuadro Mold 03 Grafic Work 10*30 con Walter Saucedo?»* Sí / No.
+  **Sí**: si tenía su propia área abierta, primero pone lo que hizo («Terminar e ir con tu compañero»); si estaba de
+  invitado en otro código, ése se cierra solo. Se le abre el mismo código con `detalle._invitado` y la base marca la
+  invitación aceptada **al llegar esa apertura** (trigger `gt_pareja_acepta`: vale aunque haya contestado sin red).
+  **No**: `gt_pareja_responder(…, false)`, no se abre nada. Una invitación sin contestar vence a los 20 min.
+- **Al terminar, el invitado no carga cajas** («la cantidad la carga Walter») ni se le pregunta con qué sigue: el cierre va
+  sin cantidad (no mueve stock ni cuenta doble). En **Rendimiento** el tramo de quien invitó cuenta también para el que
+  aceptó, con el mismo número (lo que tarda la pareja por unidad; D47).
+- La lista de compañeros sale de «¿Quién sos?» y se guarda en el celular (`gt_empleados_v1`): **quien ya estaba adentro
+  antes de la 1.39 tiene que salir con ‹ y volver a entrar con el código** para que aparezca «¿Con quién?» (sin lista,
+  arranca solo, como antes). `gt.detalle_txt` y el celular no muestran las claves con «_».
+- `sql/gt_v151_parejas.sql` (probado en transacción abortada: invitación pendiente → Walter la ve → su apertura la acepta,
+  sin invitación de vuelta · rendimiento 144 u en 900 s para los dos · «No» la saca de pendientes) y `tests/parejas.cjs`
+  (dos celulares: invitar, Sí con Corte abierto, el baño no interrumpe, seguir con otro código, No, Solo).
+
 ### 1.37 — pestaña 📈 Rendimiento en el admin: segundos por unidad, por área, variable y operario (Elías, 02/10/2026)
 
 - Pedido: *«tablas por rendimiento… dentro de la tabla corte, en una columna las diferentes variables y una columna por
@@ -200,7 +223,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   «segundos por pieza» parecían segundos: ahora sale siempre el número de segundos por unidad, en gris y sin color
   cuando hay menos de 15 min (el tiempo y las unidades, en el globito).
 - **Lo de D46 (filas) y D47 (número de la pareja) está con lo propuesto, a confirmar**; las parejas de Encolado y
-  Contraído (D45) todavía no: cada uno figura con lo suyo.
+  Contraído (D45) cuentan desde 1.39 (ver arriba).
 - `public.gt_admin_rendimiento(clave, desde, hasta)` devuelve json en una fila (el tope de 1.000 filas, 1.35).
   `sql/gt_v150_rendimiento.sql`. Probado con la clave cambiada en una transacción abortada (Luis: Encolado 10*30 2,2 s/u,
   30*40 15,6, 40*50 1,9; Walter: Emblistado Mold 03 · 30*40 3,5) y en `tests/smoke.cjs`.

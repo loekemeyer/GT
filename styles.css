@@ -140,6 +140,9 @@ body.sin-scroll{overflow:hidden;}
 .cod-opts{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px;}
 .cod-opts button{min-height:84px;border:2px solid var(--borde);background:var(--bg);color:var(--txt);font-size:21px;font-weight:700;}
 .cod-opts button:active{border-color:var(--acc);background:var(--acc-bg);}
+.cod-opts.muchas{gap:8px;}
+.cod-opts.muchas button{min-height:52px;font-size:17px;padding:6px 8px;line-height:1.2;}
+.cod-opts.muchas button:last-child:nth-child(odd){grid-column:1/-1;}   /* sin hueco al lado del último */
 .paso-resp{font-size:15px;font-weight:600;color:var(--acc);margin-bottom:6px;text-align:center;}
 .cod-pend{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px;}
 .cod-pend button{min-height:60px;padding:8px;border:1.5px solid color-mix(in srgb,var(--warn) 50%,transparent);
