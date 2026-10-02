@@ -153,7 +153,9 @@ srv.listen(0, async () => {
     await xi.click(".box[data-cod=CONTR]"); await xi.fill("#codInput", "173"); await xi.click("#codBtn");
     await xi.waitForSelector("#pasoScreen:not(.hidden)"); await xi.click("#pasoOpts button[data-val='Luis Luna']");
     await xi.waitForSelector(".termine-btn[data-cod=CONTR]"); await enviar(xi);
-    await lu.evaluate(() => window.__gt.revisarParejas()); await lu.waitForSelector("#pasoScreen:not(.hidden)");
+    // 1.43: sin llamarla a mano, la pregunta aparece sola en menos de 7 s (revisa cada 5)
+    const t0 = Date.now(); await lu.waitForSelector("#pasoScreen:not(.hidden)", { timeout: 7000 });
+    chk(Date.now() - t0 < 7000, "a Luis le aparece sola, sin tocar nada, en " + ((Date.now() - t0) / 1000).toFixed(1) + " s (revisa cada 5 s)");
     chk((await pregunta(lu)) === "¿Vas a hacer Contraído · 173 Cuadro Mold 03 Grafic Work 10*30 con Ximena Ortiz?", "Luis: " + (await pregunta(lu)));
     await lu.click("#pasoOpts button[data-val='No']"); await lu.waitForSelector(".box[data-cod=ENCOL]"); await lu.waitForTimeout(200);
     chk(base.parejas[2].estado === "rechazada" && !base.registros.some((r) => r.empleado_id === 9 && r.opcion === "AREA"), "No: queda rechazada y a Luis no se le abre nada");

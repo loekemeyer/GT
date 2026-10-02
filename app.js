@@ -344,7 +344,26 @@
     $("almuBtn").classList.toggle("activo", !!(ab && ab.rubro === "ALMU"));
     acomodarAreas();
     syncBadge();
+    pintarMuerto();
     if (!$("histPop").classList.contains("hidden")) renderHist();
+  }
+  // 1.43 (Elías: «agregale un contador de tiempo muerto abajo del nombre. Se reinicia a 0 cuando empiezan una tarea y vuelve
+  // a contar cuando le dan a Cambiar de área / no sigo, y también si desde el panel hace Baño o Movimiento (cuando termina
+  // regresan al panel)»): corre mientras no hay nada abierto, desde el último cierre o, al empezar el día, desde el ingreso
+  // con el código. Con algo abierto (un área, una pausa, el almuerzo) queda en 0
+  function desdeMuerto() {
+    if (pilaAbierta().length) return null;
+    const ev = eventosHoy().filter((r) => r.opcion === "INGRESO" || (r.opcion === "AREA" && r.ts_inicio));
+    return ev.length ? ev[ev.length - 1].ts_cliente : null;
+  }
+  function pintarMuerto() {
+    const el = $("muerto"); if (!el || !st.emp || $("optionsScreen").classList.contains("hidden")) return;
+    const d = desdeMuerto(), s = d ? Math.max(0, Math.floor((Date.now() - new Date(d).getTime()) / 1000)) : 0;
+    const m = Math.floor(s / 60), p2 = (n) => String(n).padStart(2, "0");
+    // en pantallas angostas el rótulo va abreviado («T. muerto»): con más de una hora no entraba en 320 px
+    el.innerHTML = '⏱ <span class="m-l">Tiempo muerto</span><span class="m-c">T. muerto</span> ' +
+      (m >= 60 ? Math.floor(m / 60) + ":" + p2(m % 60) + ":" + p2(s % 60) : m + ":" + p2(s % 60));
+    el.classList.toggle("corre", !!d);
   }
   setInterval(() => { const t = document.querySelector(".ab-tiempo"); if (t) t.textContent = transcurrido(t.dataset.desde, Number(t.dataset.pausa) || 0); }, 30000);
 
@@ -404,7 +423,7 @@
   // «Que uno ponga y le aparezca al otro como pregunta: Vas a hacer (tarea) con (persona) · Sí / No.»
   //  · El que empieza: después del código, «¿Con quién?» (los compañeros de la planta, o Solo). La apertura lleva
   //    detalle.pareja = «con <Nombre>» y la base deja la invitación (gt_pareja_invita). Él carga las cajas al terminar.
-  //  · El compañero: su celular pregunta cada 15 s si tiene invitaciones (gt_parejas_pendientes) y, en la botonera y fuera de
+  //  · El compañero: su celular pregunta cada 5 s (1.43, antes 15) si tiene invitaciones (gt_parejas_pendientes) y, en la botonera y fuera de
   //    una pausa, muestra «¿Vas a hacer Encolado · 173 … con Walter?». Sí → le abre el mismo código con detalle._invitado
   //    (la base la marca aceptada al llegar esa apertura). Si tenía su propia área abierta, primero pone lo que hizo.
   //    No → gt_pareja_responder(…, false) y no se abre nada.
@@ -1020,7 +1039,8 @@
   window.addEventListener("online", flush);
   window.addEventListener("resize", acomodar);
   setInterval(flush, 30000);
-  setInterval(revisarParejas, 15000);   // 1.39 (D45)
+  setInterval(revisarParejas, 5000);    // 1.39 (D45) · 1.43 (Elías: «que el revisar si llegó invitación sea cada 5 segundos»)
+  setInterval(pintarMuerto, 1000);      // 1.43
 
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 

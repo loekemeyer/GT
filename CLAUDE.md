@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos, con dos celulares) · `node tests/letras.cjs` (el código con la E al lado) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos, con dos celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -186,6 +186,25 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.43 — tiempo muerto abajo del nombre, invitación cada 5 s y las pantallas de carga entran en celulares chicos (Elías, 02/10/2026)
+
+- **Tiempo muerto** (*«agregale un contador de tiempo muerto abajo del nombre. Se reinicia a 0 cuando empiezan una tarea y
+  vuelve a contar cuando le dan a Cambiar de área / no sigo, y también si desde el panel hace Baño o Movimiento (cuando
+  termina regresan al panel)»*): abajo del nombre, «⏱ Tiempo muerto m:ss» (h:mm:ss pasada la hora; «T. muerto» en
+  pantallas de 360 px o menos). Corre, en naranja, mientras **no hay nada abierto**: desde el último cierre o, al empezar
+  el día, desde el ingreso con el código. Con un área, una pausa o el almuerzo abiertos queda en 0:00 gris. Un baño o
+  movimiento hecho desde el panel lo pone en 0 y, al terminarlo, vuelve a contar desde 0. Se deduce de los eventos del día
+  (`desdeMuerto()` en `app.js`): sobrevive a recargar y no graba nada nuevo en la base.
+- **La invitación de pareja se revisa cada 5 s** (antes 15): *«que el revisar si llegó invitación sea cada 5 segundos»*.
+- **Pantallas de carga en celulares chicos** (*«¿en estas partes y otras de los botones también es responsive?»*). Medido en
+  los 16 tamaños de `nombres16.cjs`: el ancho, los textos y los botones ya se acomodaban; lo que no entraba era el **alto**
+  (Terminé pedía bajar 81 a 161 px en celulares chicos y la clave, el código y «¿Con quién?», con el celular acostado).
+  Con 620 px de alto o menos se compactan encabezado, tarjetas y campos (botones de 48 a 50 px); con 520 o menos, en
+  Terminé «Cambiar de área», «Almorzar» y «Terminé el día» van en una fila y la clave va sin el logo; acostado, Terminé
+  pone las dos tarjetas lado a lado y «¿Con quién?» va en 3 columnas. Ahora todo entra sin bajar en los 16 tamaños.
+- `tests/muerto.cjs` (ingreso, área, baño adentro, «no sigo», movimiento desde el panel, almuerzo, más de una hora,
+  320 px) y `tests/parejas.cjs` (la pregunta aparece sola en menos de 7 s).
+
 ### 1.42 — el código se tipea con teclado numérico y una E al lado (Elías, 02/10/2026)
 
 - Pedido: *«que todos los inputs para poner código sean numéricos y con un botón al lado para agregar a ese código o
@@ -232,7 +251,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   compañeros de su planta (el de la última vez, primero) y «🙋 Solo, sin compañero»; ‹ vuelve al código. La apertura lleva
   `detalle.pareja = 'con <Nombre>'` y la base deja la invitación (trigger `gt_pareja_invita` → `gt.parejas`). Al terminar
   pone **las cajas de los dos**.
-- **El compañero**: su celular pregunta cada 15 s (`gt_parejas_pendientes`) y, en la botonera y fuera de Baño / Movimiento
+- **El compañero**: su celular pregunta cada 5 s (`gt_parejas_pendientes`; 15 s hasta la 1.42) y, en la botonera y fuera de Baño / Movimiento
   / Almuerzo, muestra *«¿Vas a hacer Encolado · 173 Cuadro Mold 03 Grafic Work 10*30 con Walter Saucedo?»* Sí / No.
   **Sí**: si tenía su propia área abierta, primero pone lo que hizo («Terminar e ir con tu compañero»); si estaba de
   invitado en otro código, ése se cierra solo. Se le abre el mismo código con `detalle._invitado` y la base marca la

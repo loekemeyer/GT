@@ -43,6 +43,13 @@ button:active{transform:scale(.97);}
   border-radius:50%;box-shadow:var(--sombra);display:flex;align-items:center;justify-content:center;padding:0 2px 4px 0;}
 .top-esp{width:44px;flex:0 0 44px;}
 .op-name{flex:1;text-align:center;font-size:18px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* 1.43: el tiempo muerto, abajo del nombre */
+.op-cab{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;line-height:1.2;}
+.op-cab .op-name{flex:none;max-width:100%;}
+.muerto{font-size:13px;font-weight:600;color:var(--mut);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.muerto.corre{color:var(--warn);}
+.muerto .m-c{display:none;}
+@media (max-width:360px){.muerto .m-l{display:none;}.muerto .m-c{display:inline;}}
 .sync{flex:0 0 auto;font-size:12px;font-weight:600;padding:5px 9px;border-radius:999px;background:var(--acc-bg);color:var(--ok);}
 .sync.pend{background:var(--warn-bg);color:var(--warn);}
 
@@ -194,4 +201,54 @@ body.sin-scroll{overflow:hidden;}
   #optionsScreen .top-bar{padding-top:calc(4px + env(safe-area-inset-top));padding-bottom:4px;margin-bottom:4px;}
   #optionsScreen .row{margin-top:6px;}
   #optionsScreen .pie{margin-top:6px;}
+}
+
+/* 1.43 (Elías: «¿en estas partes y otras de los botones también es responsive?»). Medido en los 16 tamaños: el ancho, los
+   textos y los botones ya se acomodaban; lo que no entraba era el ALTO (Terminé pedía bajar 81 a 161 px en celulares chicos;
+   el código, «¿Con quién?» y la clave, en el celular acostado). Con 620 px de alto o menos, las pantallas de carga se
+   compactan: encabezado, tarjetas y campos más bajos, botones de 48 a 50 px */
+@media (max-height:620px){
+  .pantalla:not(#optionsScreen):not(#nombreScreen) .top-bar{padding-top:calc(4px + env(safe-area-inset-top));padding-bottom:4px;margin-bottom:6px;}
+  .pantalla:not(#optionsScreen) .tarjeta{padding:10px 12px;margin-top:6px;}
+  .label{font-size:17px;}
+  .text-input{height:52px;font-size:28px;margin-top:8px;}
+  .cod-fila{margin-top:8px;}
+  .suf-btn{height:52px;}
+  .cod-hint,.error{margin-top:4px;}
+  .acciones{margin-top:10px;gap:8px;}
+  .primary-btn{min-height:50px;}
+  .sec-btn{min-height:48px;}
+  .cod-opts{margin-top:10px;gap:8px;}
+  .cod-opts button{min-height:60px;}
+  .marca{margin:3vh 0 6px;}
+  .marca-logo{width:48px;height:48px;margin-bottom:6px;font-size:20px;border-radius:14px;}
+  .marca h1{font-size:22px;}
+  .input-clave{height:60px;margin-top:8px;}
+}
+/* con 520 px o menos: en Terminé, «Cambiar de área», «Almorzar» y «Terminé el día» en una sola fila; en la clave, sin el logo */
+@media (max-height:520px){
+  #cantScreen .acciones{flex-direction:row;flex-wrap:wrap;}
+  #cantScreen #cantBtn{flex:1 1 100%;}
+  #cantScreen #salidaBox{display:contents;}
+  #cantScreen #cambioBtn,#cantScreen #salidaBox .sec-btn{flex:1 1 0;min-width:0;margin:0;padding:2px 4px;font-size:14px;line-height:1.15;}
+  .marca-logo,.marca p{display:none;}
+  .marca{margin:2vh 0 4px;}
+}
+@media (max-height:520px){
+  .pantalla:not(#optionsScreen) .tarjeta{padding:8px 10px;}
+  .text-input{height:48px;font-size:26px;}
+  .suf-btn{height:48px;}
+}
+/* acostado (bajo y ancho): Terminé con las dos tarjetas lado a lado y los botones en una fila; «¿Con quién?» en 3 columnas */
+@media (max-height:520px) and (min-width:560px){
+  #cantScreen{max-width:900px;flex-direction:row;flex-wrap:wrap;align-content:flex-start;column-gap:10px;}
+  #cantScreen>.top-bar,#cantScreen>.cant-sub,#cantScreen>.acciones{flex:1 1 100%;}
+  #cantScreen>.tarjeta{flex:1 1 0;min-width:0;}
+  #cantScreen .acciones{flex-wrap:nowrap;}
+  #cantScreen #cantBtn{flex:1.4 1 0;}
+  .cod-opts.muchas{grid-template-columns:repeat(3,1fr);}
+  .cod-opts.muchas button:last-child:nth-child(odd){grid-column:auto;}
+}
+@media (max-height:400px){
+  .termine-btn{min-height:72px;font-size:22px;}
 }
