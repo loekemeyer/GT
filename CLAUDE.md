@@ -774,22 +774,26 @@ pushear):
 
 ```sql
 -- 1) ¿hay alguien más adentro? Cero filas = vía libre.
-select * from planify.planify_proyecto_via_libre(<tu_employee_id>, <repo_id>);
+select * from planify.planify_proyecto_via_libre(<tu_employee_id>, '<owner/repo>');
 
--- 2) registrarse (idempotente: llamarla de nuevo sólo renueva el latido)
+-- 2) registrarse (idempotente: llamarla de nuevo sólo renueva el latido). Un repo nuevo se da de alta solo.
 select planify.planify_proyecto_sesion_abrir(
-  <tu_employee_id>, <repo_id>, '<url de esta sesión>', '<qué vas a tocar>', '<branch>');
+  <tu_employee_id>, '<owner/repo>', '<url de esta sesión>', '<qué vas a tocar>', '<branch>');
 
 -- 3) antes de pushear, marcar el estado
 select planify.planify_proyecto_sesion_abrir(
-  <tu_employee_id>, <repo_id>, '<url de esta sesión>', null, null, 'pusheando');
+  <tu_employee_id>, '<owner/repo>', '<url de esta sesión>', null, null, 'pusheando');
 
 -- 4) al terminar
 select planify.planify_proyecto_sesion_cerrar(<tu_employee_id>, <sesion_id>);
 ```
 
-El `repo_id` sale de `github_repo_problemas.repos` (`select id, full_name from
-github_repo_problemas.repos where activo`).
+**El repo va por nombre** (`'loekemeyer/gt'`; mayúsculas, la URL de GitHub o el `.git` dan igual), **no hace falta
+darlo de alta antes** (Elías, 02/10/2026: *«no deberías tener que hacer un SQL por cada nuevo repo»*). Hasta ese día
+las dos funciones pedían el `repo_id` de `github_repo_problemas.repos`, y un repo que nunca había registrado un problema
+—GT— no estaba ahí: el semáforo no se podía usar sin un `insert` a mano. Ahora `sesion_abrir` lo da de alta (después de
+chequear el permiso) y `via_libre` sólo lo busca: sin alta, nadie adentro. Las versiones con `repo_id` siguen andando
+igual (la página de Planify las llama así). `sql/planify_semaforo_repo_por_nombre.sql`.
 
 **Estas cuatro escrituras van AUTOMÁTICAS, sin pedir el "sí"** — misma excepción que crear y
 cerrar tareas de Planify. Son telemetría de quién está trabajando dónde, no tocan ningún dato
