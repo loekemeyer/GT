@@ -139,7 +139,7 @@
     <div id="pedLista"></div>
   </section>
 
-  <script src="config.js?v=1.45"></script>
+  <script src="config.js?v=1.46"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -353,7 +353,7 @@
     // las unidades. Verde = 20 % más rápido que el Prom., rojo = 20 % más lento. 1.38 (Elías: «¿qué es prom?»): con menos
     // de 15 min de datos el número sale igual, en gris y sin color (antes salía el tiempo acumulado, «0:04», y parecían
     // segundos); el tiempo y las unidades van en el globito.
-    const REND = [["CORTE", "Corte", "Moldura", "pieza"], ["GRAMP", "Grampeado", "Aro", "aro"], ["ENCOL", "Encolado", "Medida", "unidad"],
+    const REND = [["CORTE", "Corte", "Moldura · largo", "pieza"], ["GRAMP", "Grampeado", "Aro", "aro"], ["ENCOL", "Encolado", "Medida", "unidad"],
       ["MONT", "Montaje", "Familia", "unidad"], ["GANCHO", "Gancho", "Familia", "unidad"], ["EMBL", "Emblistado", "Familia", "unidad"],
       ["CONTR", "Contraído", "Familia", "unidad"]];
     const DE_A_DOS = ["ENCOL", "CONTR"];   // D45 · gt_v153: la pareja se reparte las unidades según el tiempo neto de cada uno

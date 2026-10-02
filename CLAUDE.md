@@ -319,6 +319,9 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   pintar cada celda. Con menos de 15 min de datos la celda mostraba el tiempo acumulado («0:04» = 4 min) y bajo el título
   «segundos por pieza» parecían segundos: ahora sale siempre el número de segundos por unidad, en gris y sin color
   cuando hay menos de 15 min (el tiempo y las unidades, en el globito).
+- **1.46 / gt_v156 (Elías: «el corte es por moldura y por corte (cm)»):** la fila de **Corte** pasa a ser moldura + largo
+  de la pieza («Mold 03 · 25 cm», «Mold 3P 3/4 · 30 cm»; coma decimal), sin el color; la columna se llama «Moldura ·
+  largo». `sql/gt_v156_rendimiento_corte_moldura_y_largo.sql`.
 - **D46 y D47 confirmados por Elías (02/10):** las filas quedan como están, y la pareja figura con los segundos por
   unidad **de la pareja** (no al doble en mano de obra). Las parejas de Encolado y Contraído (D45) cuentan desde 1.39.
   ⚠ **D47 quedó sin efecto en 1.41**: la pareja se reparte las unidades según el tiempo de cada uno (s/u por persona).

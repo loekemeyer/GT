@@ -73,7 +73,7 @@ const srv = http.createServer((req, res) => {
         { empleado: "Prueba", legajo: "t1", area: "Montaje", rubro: "MONT", grupo: "Mold 03 · 30*40", codigos: "183", unidad: "unidades", hecho: 240, horas: 1, por_hora: 240, prom_grupo: 400, tramos: 1 }] : [];
       // 1.37: rendimiento (json en una fila). Fila 10*30: promedio 2.200 s / 700 u = 3,14 → Prueba 2,5 (rápido), Otro 4,0 (lento)
       else if (fn === "gt_admin_rendimiento") out = b.p_pass === CLAVE_MON ? { desde: b.p_desde, hasta: b.p_hasta, filas: [
-          { area: "Corte", rubro: "CORTE", orden: 1, variable: "Mold 03", empleado: "Otro", legajo: "t2", unidades: 100, segundos: 3600, tramos: 2 },
+          { area: "Corte", rubro: "CORTE", orden: 1, variable: "Mold 03 · 25 cm", empleado: "Otro", legajo: "t2", unidades: 100, segundos: 3600, tramos: 2 },
           { area: "Encolado", rubro: "ENCOL", orden: 3, variable: "10*30", empleado: "Prueba", legajo: "t1", unidades: 400, segundos: 1000, tramos: 3 },
           { area: "Encolado", rubro: "ENCOL", orden: 3, variable: "10*30", empleado: "Otro", legajo: "t2", unidades: 300, segundos: 1200, tramos: 2 },
           { area: "Encolado", rubro: "ENCOL", orden: 3, variable: "30*40", empleado: "Prueba", legajo: "t1", unidades: 12, segundos: 187, tramos: 1 }] } : null;
@@ -464,6 +464,7 @@ srv.listen(0, async () => {
         "con menos de 15 min el número sale igual (15,6 s por unidad), en gris, no el tiempo acumulado (1.38)");
     chk(/Sin tramos de 2 min.*Grampeado, Montaje, Gancho, Emblistado, Contraído/.test(rend) && (await ad.$$("#rendTablas .bloque")).length === 2,
         "las áreas sin datos van juntas en una línea, sin bloques vacíos (Corte y Encolado tienen tabla)");
+    chk(rend.includes("Moldura · largo") && rend.includes("Mold 03 · 25 cm"), "Corte: la fila es moldura + largo de la pieza («Mold 03 · 25 cm», gt_v156)");
     chk(rend.includes("las unidades se reparten según el tiempo de cada uno") && !rend.includes("cada uno con lo suyo"),
         "Encolado de a dos: dice que la pareja se reparte las unidades según el tiempo de cada uno (gt_v153)");
     if (process.env.FOTO) await ad.screenshot({ path: process.env.FOTO, fullPage: true });
