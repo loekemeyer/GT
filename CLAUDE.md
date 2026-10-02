@@ -62,6 +62,7 @@ al terminar pregunta el siguiente código. Va en `gt.tareas` (por rubro); el reg
   `gt_codigos`, `gt_clave_actual`, `gt_tareas()`, `gt_registros_hoy(text)`).
 - **Un código que no está en la lista se pregunta** («¿Lo registro igual?») y, con el segundo toque,
   se registra. Para identificarlos después: `select * from gt.codigos_no_identificados order by ultima desc;`
+  (01/10, D33: el **1000** en Corte de las 14:05 fue una prueba de Thomas, no se carga.)
 
 ### v9.0 — al terminar, «¿con qué seguís?» en la MISMA pantalla (Thomas, 01/10/2026)
 
@@ -415,6 +416,37 @@ excluidos y remaps de la propia página** (hoy 0 y 0). Parámetros en `app_setti
   «anilina Cedro» / «sin anilina» en la columna medida). Pintado: ver 1.25.
 - El admin muestra la anilina / el color en la descripción del tramo; el 012 de Moldurado no se cruza con el
   producto 012. `sql/gt_v124_esnaola_pasos.sql`.
+
+### gt_v140 — INSUMOS por producto: lámina, fondo, vidrio, gancho, blíster, grampas (Thomas, 01/10/2026: D34 «sí»)
+
+Hasta acá el despiece era sólo madera (moldura → piezas → aro → cuadro). Ahora cada producto puede llevar insumos, y
+cada «Terminé» con cantidad los descuenta en la etapa que los consume. **Las tablas están VACÍAS hasta que Thomas pase
+qué lleva cada grupo: sin filas, nada cambia** (la lámina genérica de Encolado sigue igual).
+
+| objeto | qué es |
+|---|---|
+| `gt.insumos` | el catálogo: código, nombre, unidad (`u` por defecto) |
+| `gt.insumo_receta` | qué lleva cada cosa: `nivel` **producto** (cantidad por unidad: un cuadro, un set) · **grupo** (lo mismo para todo el grupo de fabricación, `gt.grupo_codigo` = moldura + medida: 68 grupos para 317 activos, 93 van sueltos) · **aro** (cantidad por aro, se descuenta al grampear) + `etapa` donde se consume |
+| `gt.producto_insumo` | la receta resuelta por producto: **la fila del producto manda sobre la de su grupo, ETAPA por etapa** |
+| `gt.movimientos` | 3 cambios «D34»: − insumos del producto en su etapa (`deposito = 'insumo'`), − insumos del aro al grampear, y la lámina genérica sólo para el producto sin receta en ENCOL |
+| `gt.demanda_insumos` | qué comprar = `a_fabricar` × UxB × receta (+ grampas × aros a grampear) − lo que hay en el depósito `insumo` (conteo: `gt.stock_inicial` con `deposito = 'insumo'`) |
+
+- **Etapas por defecto** (si Thomas no dice otra): lámina → Encolado · fondo / vidrio → Montaje · gancho → Gancho ·
+  blíster → Emblistado · film → Contraído · grampas → Grampeado (por aro).
+- **Cargar es un `insert`**, con el «sí» ya dado en D34 (primero el insumo en el catálogo, después la receta):
+  ```sql
+  insert into gt.insumos (codigo, nombre, unidad) values ('LAM 30*40', 'Lámina 30×40', 'u') on conflict do nothing;
+  insert into gt.insumo_receta (nivel, codigo, insumo, cantidad, etapa, fuente)
+  values ('grupo', 'Mold 03 · 30*40', 'LAM 30*40', 1, 'ENCOL', 'Thomas 02/10') on conflict (nivel, codigo, insumo, etapa) do update
+     set cantidad = excluded.cantidad, activo = true, fuente = excluded.fuente;
+  ```
+  Sacar un insumo de una receta = `update … set activo = false` (el conector no deja `DELETE`).
+- Probado en transacción abortada (01/10 a la noche): grupo «Mold 03 · 30*40» con lámina ×1 en Encolado y gancho ×1,
+  el 183 con lámina ×2 propia y el aro 080 con 8 grampas → 134 encolado 2 cajas: `insumo LAM 30*40 −32` y **sin** la
+  lámina genérica · 183 1 caja: −32 (pisa al grupo) · 134 gancho 2 cajas: `GANCHO −32` · 541 (sin receta): lámina
+  genérica −8 como siempre · 080 grampeado ×10: `GRAMPA −80`. `gt.demanda_insumos` dio 5.776 láminas y 5.744 ganchos
+  para los 32 del grupo con demanda.
+- `sql/gt_v140_insumos.sql` (rollback en la cabecera: volver la vista con `sql/gt_movimientos_vivo.sql`).
 
 ### 1.23 — movimientos de stock por etapa, sólo internos (Thomas, 01/10/2026)
 
