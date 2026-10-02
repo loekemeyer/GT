@@ -86,6 +86,7 @@
     <button class="tab" data-tab="prod">📊 Producción</button>
     <button class="tab" data-tab="asis">⏰ Asistencia</button>
     <button class="tab" data-tab="ped">📦 Pedidos</button>
+    <button class="tab" data-tab="rend">📈 Rendimiento</button>
   </nav>
 
   <!-- CLAVE DEL MONITOR: la valida la base (gt_monitor_clave). Se recuerda en ESTA máquina hasta «Salir» o hasta el lunes 07:00 (v1.6). El ingreso tipeado va por gt_monitor_login. -->
@@ -125,12 +126,19 @@
 
   <!-- PEDIDOS (D29, Thomas 01/10: «por ahora solo desde el admin»): los de la página de TN entran solos (gt.sync_pedidos_tn);
        acá se marca qué se armó, se carga al camión, se entrega o se cancela. -->
+  <!-- RENDIMIENTO (1.37, Elías): una tabla por área; filas = la variable, columnas = los operarios, celda = segundos por unidad -->
+  <section id="rend" class="vista panel hidden">
+    <div class="barra"><input type="date" id="rendDesde" aria-label="Desde" /><input type="date" id="rendHasta" aria-label="Hasta" />
+      <button id="rendRef">↻ Actualizar</button><span class="info" id="rendInfo"></span></div>
+    <div id="rendTablas"></div>
+  </section>
+
   <section id="ped" class="vista panel hidden">
     <div class="barra"><button id="pedRef">↻ Actualizar</button><label class="info"><input type="checkbox" id="pedCerr" /> ver entregados y cancelados (30 días)</label><span class="info" id="pedInfo"></span></div>
     <div id="pedLista"></div>
   </section>
 
-  <script src="config.js?v=1.36"></script>
+  <script src="config.js?v=1.37"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -205,7 +213,7 @@
       tab = t;
       document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
       document.querySelectorAll(".vista").forEach((v) => v.classList.toggle("hidden", v.id !== t));
-      if (t === "monitor") pedir(primera); else if (t === "prod") cargarProd(); else if (t === "ped") cargarPed(); else cargarAsis();
+      if (t === "monitor") pedir(primera); else if (t === "prod") cargarProd(); else if (t === "ped") cargarPed(); else if (t === "rend") cargarRend(); else cargarAsis();
     }
     function sinPermiso() { olvidarPass(); verLogin("Clave incorrecta"); }
 
@@ -336,6 +344,54 @@
           : "Sin tramos con cantidad ese día.") + "</div>";
     }
 
+    /* ---------- RENDIMIENTO (1.37, Elías: «tablas por rendimiento… en una columna las variables y una columna por persona»
+       · «el rendimiento tiene que estar medido en cuántos segundos tardan por unidad») ---------- */
+    // Una tabla por área. Fila = la variable (Corte: moldura · Grampeado: moldura + medida del aro · el resto: la familia,
+    // gt.variable_rendimiento). Columna = cada operario que trabajó ahí + el promedio. Celda = SEGUNDOS POR UNIDAD: tiempo
+    // neto de pausas ÷ unidades (cajas × UxB en las áreas de producto). Verde = 20 % más rápido que el promedio de la fila,
+    // rojo = 20 % más lento. Con menos de 15 min en la celda no se informa (D35): sale sólo el tiempo, en gris.
+    const REND = [["CORTE", "Corte", "Moldura", "pieza"], ["GRAMP", "Grampeado", "Aro", "aro"], ["ENCOL", "Encolado", "Medida", "unidad"],
+      ["MONT", "Montaje", "Familia", "unidad"], ["GANCHO", "Gancho", "Familia", "unidad"], ["EMBL", "Emblistado", "Familia", "unidad"],
+      ["CONTR", "Contraído", "Familia", "unidad"]];
+    const DE_A_DOS = ["ENCOL", "CONTR"];   // D45: hoy cada uno con lo suyo
+    async function cargarRend() {
+      if (!$("rendHasta").value) $("rendHasta").value = hoyAR();
+      if (!$("rendDesde").value) { const d = new Date($("rendHasta").value + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - 27); $("rendDesde").value = d.toISOString().slice(0, 10); }
+      $("rendInfo").textContent = "Cargando…";
+      let r;
+      try { r = await rpc("gt_admin_rendimiento", { p_pass: pass || "", p_desde: $("rendDesde").value, p_hasta: $("rendHasta").value }); }
+      catch (e) { $("rendInfo").textContent = "⚠ No pude leer el rendimiento (" + e.message + ")"; return; }
+      if (!r && !(await claveOk())) return;
+      const filas = (r && r.filas) || [], MIN = 15 * 60;
+      const s1 = (x) => x.toLocaleString("es-AR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+      const leg = (l) => { const m = String(l || "").match(/\d+/); return m ? Number(m[0]) : 1e9; };
+      $("rendInfo").textContent = filas.reduce((n, f) => n + f.tramos, 0) + " tramos · segundos por unidad, sin pausas · tramos de 2 min o más";
+      const sinDatos = REND.filter(([cod]) => !filas.some((f) => f.rubro === cod)).map(([, nom]) => nom);
+      $("rendTablas").innerHTML = REND.filter(([cod]) => filas.some((f) => f.rubro === cod)).map(([cod, nom, varNom, uni]) => {
+        const fa = filas.filter((f) => f.rubro === cod);
+        const tit = "<h2>" + nom + (DE_A_DOS.includes(cod) ? ' <span class="desc">de a dos (cada uno con lo suyo, D45)</span>' : "") +
+          ' <span class="desc">· segundos por ' + uni + "</span></h2>";
+        const emps = [...new Set(fa.slice().sort((a, b) => leg(a.legajo) - leg(b.legajo) || a.empleado.localeCompare(b.empleado)).map((f) => f.empleado))];
+        const vars = [...fa.reduce((m, f) => { const v = m.get(f.variable) || { v: f.variable, u: 0, s: 0 }; v.u += Number(f.unidades); v.s += Number(f.segundos); return m.set(f.variable, v); }, new Map()).values()]
+          .sort((a, b) => b.u - a.u);
+        const celda = (f, prom) => {
+          if (!f) return "<td>—</td>";
+          const t = Number(f.segundos), u = Number(f.unidades), x = t / u, txt = num(u) + " u en " + hm(Math.round(t / 60)) + " · " + f.tramos + " tramo" + (f.tramos > 1 ? "s" : "");
+          if (t < MIN) return '<td title="' + esc(txt) + '"><span class="desc">' + hm(Math.round(t / 60)) + "</span></td>";
+          const cl = prom == null ? "" : x <= prom * 0.8 ? "bueno" : x >= prom * 1.2 ? "malo" : "";
+          return '<td class="num ' + cl + '" title="' + esc(txt) + '">' + s1(x) + "</td>";
+        };
+        return '<div class="bloque">' + tit + "<table><tr><th>" + varNom + "</th>" + emps.map((e) => "<th>" + esc(e) + "</th>").join("") + "<th>Prom.</th></tr>" +
+          vars.map((v) => {
+            const prom = v.s >= MIN ? v.s / v.u : null;
+            return "<tr><td class=izq>" + esc(v.v) + "</td>" + emps.map((e) => celda(fa.find((f) => f.variable === v.v && f.empleado === e), prom)).join("") +
+              (prom == null ? '<td><span class="desc">' + hm(Math.round(v.s / 60)) + "</span></td>" : "<td class=num><b>" + s1(prom) + "</b></td>") + "</tr>";
+          }).join("") + "</table></div>";
+      }).join("") +
+      // las áreas sin datos van juntas en una línea (sin bloques vacíos)
+      (sinDatos.length ? '<div class="vacio">Sin tramos de 2 min o más con cantidad en el período: ' + esc(sinDatos.join(", ")) + ".</div>" : "");
+    }
+
     /* ---------- ASISTENCIA ---------- */
     async function cargarAsis() {
       const dia = $("asisDia").value || hoyAR();
@@ -460,6 +516,7 @@
     $("prodRef").onclick = cargarProd; $("asisRef").onclick = cargarAsis; $("pedRef").onclick = cargarPed; $("pedCerr").onchange = cargarPed;
     $("prodDia").onchange = cargarProd; $("asisDia").onchange = cargarAsis;
     ["fArea", "fOper", "fFam"].forEach((id) => { $(id).onchange = pintarProd; });
+    $("rendRef").onclick = cargarRend; $("rendDesde").onchange = cargarRend; $("rendHasta").onchange = cargarRend;
     setInterval(() => { if (document.hidden) return; if (tab === "prod" && $("prodDia").value === hoyAR()) cargarProd();
                         if (tab === "asis" && $("asisDia").value === hoyAR()) cargarAsis(); }, 60000);
     document.addEventListener("visibilitychange", () => { if (!document.hidden && tab === "monitor") pedir(); });

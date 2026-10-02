@@ -183,6 +183,24 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.37 — pestaña 📈 Rendimiento en el admin: segundos por unidad, por área, variable y operario (Elías, 02/10/2026)
+
+- Pedido: *«tablas por rendimiento… dentro de la tabla corte, en una columna las diferentes variables y una columna por
+  persona»* · *«el rendimiento en montaje, gancho, emblistado, contraído y encolado tiene que estar medido en cuántos
+  segundos tardan por unidad… ya te había pasado las unidades por caja»*.
+- Una tabla por área de la lista de Elías (Corte, Grampeado, Encolado, Montaje, Gancho, Emblistado, Contraído). **Fila** =
+  la variable (`gt.variable_rendimiento`): Corte → moldura de la pieza · Grampeado → moldura + medida del aro, sin color ·
+  Encolado → la medida · el resto → la familia (moldura + medida). Ordenadas por unidades, mayor → menor. **Columna** =
+  cada operario que trabajó ahí (por legajo) + Prom. **Celda** = segundos por unidad = tiempo neto de pausas ÷ unidades
+  (cajas × UxB; piezas y aros en Corte y Grampeado). Verde ≤ −20 % del promedio de la fila, rojo ≥ +20 %. Con menos de
+  15 min en la celda sólo sale el tiempo, en gris (D35). Tramos de 2 min o más con cantidad. Período desde / hasta (4
+  semanas por defecto). Las áreas sin datos van juntas en una línea.
+- **Lo de D46 (filas) y D47 (número de la pareja) está con lo propuesto, a confirmar**; las parejas de Encolado y
+  Contraído (D45) todavía no: cada uno figura con lo suyo.
+- `public.gt_admin_rendimiento(clave, desde, hasta)` devuelve json en una fila (el tope de 1.000 filas, 1.35).
+  `sql/gt_v150_rendimiento.sql`. Probado con la clave cambiada en una transacción abortada (Luis: Encolado 10*30 2,2 s/u,
+  30*40 15,6, 40*50 1,9; Walter: Emblistado Mold 03 · 30*40 3,5) y en `tests/smoke.cjs`.
+
 ### 1.36 — Baño también dentro de un Movimiento (Elías, 02/10/2026)
 
 - Elías: *«y dentro de movimiento también puede ir al baño»*. Con un Movimiento abierto (desde la botonera o dentro de un
@@ -349,6 +367,7 @@ repo) y tiene cuatro pestañas:
 | Monitor | `gt_monitor_clave` | el código de ingreso |
 | Producción | `gt_admin_produccion(pass, día)` | total por área (cantidad y unidades = cajas × UxB) y cada tramo por operario, con lo en curso |
 | Asistencia | `gt_admin_asistencia(pass, día)` | entrada, almuerzo y salida contra lo previsto, con chips (llegó tarde, tolerancia, no vino, sin almuerzo, no terminó el día…) |
+| Rendimiento (1.37) | `gt_admin_rendimiento(pass, desde, hasta)` | por área, una tabla: variable × operario, segundos por unidad sin pausas |
 | Pedidos (1.27, D29) | `gt_admin_pedidos(pass, cerrados)` · `gt_admin_pedido_armar(pass, id, items, estado, nota)` | los pedidos de la página de TN (NP, cliente, días, vence, VENCIDO, cajas armadas / pedidas) con sus renglones; se escribe cuántas cajas se armaron por renglón y se marca cargado, entregado o cancelado |
 
 Las dos RPC exigen la clave (`gt.pass_ok`): con clave mala devuelven 0 filas. Se elige el día; hoy se

@@ -71,6 +71,12 @@ const srv = http.createServer((req, res) => {
         { empleado: "Otro", area: "Gancho", rubro: "GANCHO", codigo: "080", descripcion: null, desde: "2026-10-01T15:00:00Z", hasta: "2026-10-01T20:30:00Z", cantidad: null, unidad: "cajas", uxb: 24, unidades: null, auto: true }] : [];
       else if (fn === "gt_admin_ritmo2") out = b.p_pass === CLAVE_MON ? [
         { empleado: "Prueba", legajo: "t1", area: "Montaje", rubro: "MONT", grupo: "Mold 03 · 30*40", codigos: "183", unidad: "unidades", hecho: 240, horas: 1, por_hora: 240, prom_grupo: 400, tramos: 1 }] : [];
+      // 1.37: rendimiento (json en una fila). Fila 10*30: promedio 2.200 s / 700 u = 3,14 → Prueba 2,5 (rápido), Otro 4,0 (lento)
+      else if (fn === "gt_admin_rendimiento") out = b.p_pass === CLAVE_MON ? { desde: b.p_desde, hasta: b.p_hasta, filas: [
+          { area: "Corte", rubro: "CORTE", orden: 1, variable: "Mold 03", empleado: "Otro", legajo: "t2", unidades: 100, segundos: 3600, tramos: 2 },
+          { area: "Encolado", rubro: "ENCOL", orden: 3, variable: "10*30", empleado: "Prueba", legajo: "t1", unidades: 400, segundos: 1000, tramos: 3 },
+          { area: "Encolado", rubro: "ENCOL", orden: 3, variable: "10*30", empleado: "Otro", legajo: "t2", unidades: 300, segundos: 1200, tramos: 2 },
+          { area: "Encolado", rubro: "ENCOL", orden: 3, variable: "30*40", empleado: "Prueba", legajo: "t1", unidades: 12, segundos: 187, tramos: 1 }] } : null;
       else if (fn === "gt_admin_asistencia2") out = b.p_pass === CLAVE_MON ? [
         { empleado: "Prueba", legajo: "t1", entrada: "2026-10-01T08:12:00", entrada_prevista: "2026-10-01T08:00:00", almuerzo_sale: null, almuerzo_vuelve: null,
           almuerzo_desde: "2026-10-01T12:00:00", almuerzo_hasta: "2026-10-01T13:00:00", flexible: false, fin: null, salida_prevista: "2026-10-01T17:30:00",
@@ -447,6 +453,17 @@ srv.listen(0, async () => {
         "Asistencia: llegó tarde, no vino, sin almuerzo y no terminó el día");
     chk(asis.includes("Arrancó 30 min tarde") && asis.includes("Sin trabajo productivo") && asis.includes("07:42"),
         "Asistencia (1.33): ingreso y 1.er trabajo por separado · arrancó 30 min tarde · ingresó a las 07:42 (desayuno) y no trabajó");
+    // 1.37 (Elías): Rendimiento — una tabla por área, filas = variable, columnas = operarios, celda = segundos por unidad
+    await ad.click(".tab[data-tab=rend]"); await ad.waitForSelector("#rendTablas table");
+    const rend = await ad.textContent("#rendTablas");
+    chk(rend.includes("Encolado") && rend.includes("10*30") && rend.includes("2,5") && rend.includes("4,0") && rend.includes("36,0"),
+        "Rendimiento: Encolado 10*30 (Prueba 2,5 · Otro 4,0 s por unidad) y Corte Mold 03 (36,0 s por pieza)");
+    chk((await ad.textContent("#rendTablas td.bueno")) === "2,5" && (await ad.textContent("#rendTablas td.malo")) === "4,0",
+        "más rápido que el promedio de la fila en verde, más lento en rojo (± 20 %)");
+    chk(rend.includes("0:03") && !rend.includes("15,6"), "con menos de 15 min en la celda sólo se ve el tiempo (0:03), no el número");
+    chk(/Sin tramos de 2 min.*Grampeado, Montaje, Gancho, Emblistado, Contraído/.test(rend) && (await ad.$$("#rendTablas .bloque")).length === 2,
+        "las áreas sin datos van juntas en una línea, sin bloques vacíos (Corte y Encolado tienen tabla)");
+    if (process.env.FOTO) await ad.screenshot({ path: process.env.FOTO, fullPage: true });
     // D29: Pedidos, por ahora sólo desde el admin
     await ad.click(".tab[data-tab=ped]"); await ad.waitForSelector("#pedLista .bloque");
     chk((await ad.$$("#pedLista .bloque")).length === 2 && (await ad.textContent("#pedLista")).includes("VENCIDO") && (await ad.textContent("#pedInfo")).includes("1 por armar"),
