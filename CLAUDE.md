@@ -85,7 +85,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 | Grampeado | sí | 130 propios (234 a 240 entraron con D22 y D26) |
 | Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos (13 discontinuos: 6 desde D22 y los 7 G y W desde el 02/10, no se listan) |
 | Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`). Acepta **cualquier** producto, pero si no salió de Contraído **avisa y pide confirmar** (v11.0, D17) |
-| Deco | sí | 71 de operación (tablero «08. Sector Deco» completo) |
+| Deco | sí | 58 de operación activos (tablero «08. Sector Deco»: 71; los 13 de artículos discontinuados salieron con D64) |
 | Pedidos | no | — (y no pide cantidad) |
 | Almuerzo (`ALMU`) | no | botón aparte, no tarjeta; sin cantidad |
 | Recibir mercadería | **no** (1.12, D29) | — ; al terminar no pide cantidad (1.13, D30) |
@@ -186,6 +186,15 @@ insert into gt.rubros (codigo, nombre, unidad, orden) values ('<COD>', '<Área>'
 insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_texto, fila, orden)
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
+
+### D64 y D65 — Deco: operaciones de artículos discontinuados y Cajas de Té (Thomas, 02/10/2026)
+
+- **D64 («todos discontinuos»):** 13 operaciones de Deco nombraban artículos que no están en `gt.codigos` (302, 563J, 564J,
+  570, 581, 582, 589 a 594 y 897). Salieron de la lista del celular con `gt.codigos_rubro.activo = false`: Deco pasa de
+  **71 a 58** códigos. Tipeado igual, entra como código fuera de la lista.
+- **D65 («sí se fabrican»):** las **Cajas de Té 661, 662 y 663** se arman en Deco (panal + bastidor + tapa, divisores):
+  `gt.codigos.fabrica = true`. Deja sin efecto, para ellas, lo de D37 (reventa). Entran a la demanda por consumo:
+  3 + 4 + 4 = 11 cajas sin conteo (total 1.641 → 1.652). No llevan aro. `sql/gt_d64_d65_deco.sql`.
 
 ### 02/10/2026 — todo lo cargado hasta el lunes 05/10 fue PRUEBA (Thomas, D62: «sí»)
 
@@ -863,7 +872,7 @@ qué lleva cada grupo: sin filas, nada cambia** (la lámina genérica de Encolad
   **Demanda de insumos al 01/10, sin conteo:** 178.657 grampas · 21.618 ganchos · 19.122 film · 6.990 láminas y 6.990
   chapadur 30×40 · 5.794 blíster 30×40 (`select * from gt.demanda_insumos`). ⚠ `gt.demanda_producto` incluye **13
   productos que GT no fabrica** (3 cajas, 6 cestos, 2 estantes, jabonera, set 900: 22 cajas) porque tienen consumo en
-  TN. **D37 (Thomas, 01/10: «sí») → `gt.codigos.fabrica`** (gt_v144): false = reventa / importado, no entra a
+  TN. **D37 (Thomas, 01/10: «sí») → `gt.codigos.fabrica`** (gt_v144; ⚠ las cajas 661 a 663 volvieron a «se fabrica» con D65): false = reventa / importado, no entra a
   `gt.demanda_producto` ni a lo que cuelga de ella. En false: los 14 que nombró Thomas (cajas 661 a 663, cestos 619 a
   626, estantes 898 y 899, jabonera 920, set 900) y [Probable] 24 hermanos de reventa sin demanda ese día (jarrones,
   libros, frascos, individuales, macetas, canasto 901, set 902). Todo lo que lleva «Mold», los sets de bandejas (518,
