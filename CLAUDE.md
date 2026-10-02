@@ -202,9 +202,13 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 - **Al terminar, el invitado no carga cajas** («la cantidad la carga Walter») ni se le pregunta con qué sigue: el cierre va
   sin cantidad (no mueve stock ni cuenta doble). En **Rendimiento** el tramo de quien invitó cuenta también para el que
   aceptó, con el mismo número (lo que tarda la pareja por unidad; D47).
-- La lista de compañeros sale de «¿Quién sos?» y se guarda en el celular (`gt_empleados_v1`): **quien ya estaba adentro
-  antes de la 1.39 tiene que salir con ‹ y volver a entrar con el código** para que aparezca «¿Con quién?» (sin lista,
-  arranca solo, como antes). `gt.detalle_txt` y el celular no muestran las claves con «_».
+- **1.40 (Elías: «entró directo sin preguntar por acompañante»):** en la 1.39 la lista de compañeros sólo se guardaba al
+  poner el código y elegir el nombre; un celular con la sesión del día abierta antes (Ximena, 12:25: Encolado · 223 sin
+  pregunta y sin Ingreso) no la tenía y arrancaba **solo, sin avisar**. Ahora cada vez que abre la app la trae de la base
+  (`public.gt_companeros(empleado)`, gt_v152: los activos menos él, con sus plantas; vacía para un id que no es de un
+  empleado activo) y la guarda en el celular (`gt_empleados_v1`) para cuando no hay red. `tests/parejas.cjs` lo prueba
+  borrando la lista y recargando: con la 1.39 falla, con la 1.40 pasa. `gt.detalle_txt` y el celular no muestran las
+  claves con «_».
 - `sql/gt_v151_parejas.sql` (probado en transacción abortada: invitación pendiente → Walter la ve → su apertura la acepta,
   sin invitación de vuelta · rendimiento 144 u en 900 s para los dos · «No» la saca de pendientes) y `tests/parejas.cjs`
   (dos celulares: invitar, Sí con Corte abierto, el baño no interrumpe, seguir con otro código, No, Solo).

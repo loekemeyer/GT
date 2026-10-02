@@ -857,6 +857,11 @@
     }
     try { st.pasos = await rpc("gt_pasos", {}); lsSet(LS_PASOS, st.pasos); }
     catch { st.pasos = lsGet(LS_PASOS, []); }
+    // 1.40 (Elías: «entró directo sin preguntar por acompañante»): la lista de compañeros sale de la base en cada entrada,
+    // también al volver con la sesión del día. Hasta la 1.39 sólo se guardaba al poner el código, y una sesión abierta
+    // antes arrancaba Encolado / Contraído solo, sin preguntar
+    try { const c = await rpc("gt_companeros", { p_empleado: st.emp }); if (Array.isArray(c) && c.length) lsSet(LS_EMPS, c); }
+    catch { /* sin red: la que quedó guardada */ }
   }
   async function cargarHoy() {
     // 1.24: gt_registros_hoy3 trae el detalle (anilina, color); si no está, gt_registros_hoy2

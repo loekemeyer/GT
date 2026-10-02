@@ -137,3 +137,19 @@ returns json language sql stable security definer set search_path to '' as $func
       'filas', coalesce((select json_agg(ag order by ag.orden, ag.variable, gt.legajo_num(ag.legajo) nulls last, ag.empleado) from ag), '[]'::json))
   end
 $function$;
+
+-- gt_v152 (1.40, Elías: «entró directo sin preguntar por acompañante»): la lista de compañeros sale de la base en cada
+-- entrada, no sólo al poner el código (una sesión del día abierta antes de la 1.39 no la tenía y arrancaba solo).
+create or replace function public.gt_companeros(p_empleado bigint) returns json
+language sql stable security definer set search_path to '' as $function$
+  select case when exists (select 1 from gt.empleados x where x.id = p_empleado and x.activo) then
+    coalesce((select json_agg(json_build_object('id', e.id, 'nombre', e.nombre,
+              'plantas', coalesce((select json_agg(ep.planta order by ep.planta) from gt.empleado_planta ep
+                                    join gt.plantas p on p.codigo = ep.planta and p.activo where ep.empleado_id = e.id),
+                                  json_build_array(gt.planta_principal())))
+              order by gt.legajo_num(e.legajo) nulls last, e.nombre)
+       from gt.empleados e where e.activo and e.id <> p_empleado), '[]'::json)
+  else '[]'::json end
+$function$;
+revoke all on function public.gt_companeros(bigint) from public;
+grant execute on function public.gt_companeros(bigint) to anon, authenticated, service_role;

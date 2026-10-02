@@ -24,6 +24,7 @@ const srv = http.createServer((req, res) => {
       if (fn === "gt_clave_validar") out = { ok: true, principal: "PELL", empleados: EMPS };
       else if (fn.startsWith("gt_botones")) out = AREAS;
       else if (fn === "gt_codigos_area2") out = CODS;
+      else if (fn === "gt_companeros") out = EMPS.filter((e) => e.id !== b.p_empleado).map((e) => ({ id: e.id, nombre: e.nombre, plantas: e.plantas.map((p) => p.codigo) }));
       else if (fn.startsWith("gt_registros_hoy")) out = base.registros.filter((r) => r.empleado_id === b.p_empleado);
       else if (fn === "gt_registrar") {
         (b.p_filas || []).forEach((f) => {
@@ -164,6 +165,16 @@ srv.listen(0, async () => {
     await xi.waitForSelector("#pasoScreen:not(.hidden)"); await xi.click("#pasoOpts button[data-val='🙋 Solo, sin compañero']");
     await xi.waitForSelector(".termine-btn[data-cod=ENCOL]"); await enviar(xi);
     chk(!ultima(7).detalle && base.parejas.length === 3, "Solo: sin pareja y sin invitación");
+    // 1.40 (Elías: «entró directo sin preguntar por acompañante»): un celular con la sesión del día de antes de la 1.39
+    // no tenía la lista de compañeros y arrancaba solo. Ahora la trae de la base al volver a abrir la app
+    await xi.click(".termine-btn[data-cod=ENCOL]"); await xi.waitForSelector("#cantScreen:not(.hidden)");
+    await xi.fill("#cantInput", "1"); await xi.click("#cambioBtn"); await xi.waitForSelector(".box[data-cod=ENCOL]");
+    await xi.evaluate(() => localStorage.removeItem("gt_empleados_v1"));   // como la sesión abierta con la 1.38
+    await xi.reload(); await xi.waitForSelector(".box[data-cod=ENCOL]");
+    await xi.click(".box[data-cod=ENCOL]"); await xi.fill("#codInput", "173"); await xi.click("#codBtn");
+    const pregunto = await xi.waitForSelector("#pasoScreen:not(.hidden)", { timeout: 3000 }).then(() => true, () => false);
+    chk(pregunto && (await opciones(xi)).includes("Walter Saucedo"), "sesión del día sin la lista guardada: igual pregunta «¿Con quién?» (la trae de la base)");
+    if (pregunto) { await xi.click("#pasoOpts button[data-val='Walter Saucedo']"); await xi.waitForSelector(".termine-btn[data-cod=ENCOL]"); }
     // 8) Corte no pregunta «¿Con quién?»
     await wa.click(".box[data-cod=CORTE]"); await wa.waitForSelector(".termine-btn[data-cod=CORTE]");
     chk(true, "Corte arranca directo, sin «¿Con quién?»");
