@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos y «Me fui», con tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -64,7 +64,8 @@ al terminar pregunta el siguiente código. Va en `gt.tareas` (por rubro); el reg
   se registra. **D48 (Elías, 02/10): sigue así, no se rechaza.** El aviso a «GT Avisos» sale sólo si se confirma
   (sin el segundo toque no se graba nada), uno por área + código + día y entre 07:00 y 21:00. Medido el 02/10: los 2
   códigos fuera de lista de esos días (1000 en Corte, 999 en Gancho) salieron y Telegram los aceptó (mensaje 248).
-  El grupo tiene **3 miembros** (el creador, el bot y una persona más): quien no está en el grupo no los ve. Para identificarlos después: `select * from gt.codigos_no_identificados order by ultima desc;`
+  El grupo tiene **3 miembros** (el creador, el bot y una persona más): quien no está en el grupo no los ve. **D50 (Elías,
+  02/10: «no»):** no se lo suma al grupo. Para identificarlos después: `select * from gt.codigos_no_identificados order by ultima desc;`
   (01/10, D33: el **1000** en Corte de las 14:05 fue una prueba de Thomas, no se carga.)
 
 ### v9.0 — al terminar, «¿con qué seguís?» en la MISMA pantalla (Thomas, 01/10/2026)
@@ -186,6 +187,29 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.48 — cuando uno de la pareja se va, se le avisa al otro y el tramo se vuelve a ofrecer (Elías, 02/10/2026: D58 «sí»)
+
+- **Se va el que se sumó** («🚪 Me fui», ahora **en un toque**: ya no hace falta confirmar porque se puede volver a sumar):
+  al que empezó le sale «🚪 Walter Saucedo se fue de tu Encolado · 173 · Estuvo de 10:25 a 10:35 · 📝 **Al terminar, las
+  cajas encoladas las cargás vos: todas las del tramo**, también las que hicieron juntos. Si viene otro compañero, se puede
+  sumar.» Su área dice «Walter Saucedo se fue 10:35 · las cajas encoladas las cargás vos: todas las del tramo».
+- **El tramo se vuelve a ofrecer**: otro compañero (o el mismo) se puede sumar, **uno por vez**. La apertura del que empezó
+  dice «con Walter Saucedo y Luis Luna» y al terminar le pide «¿Cuántas cajas encoladas del 173 hicieron entre vos, Walter
+  Saucedo y Luis Luna?» (las de todos).
+- **Termina el que empezó**: al que estaba sumado su parte **se le cierra sola a la hora en que terminó el otro** (sin
+  cajas) y le sale «🏁 Ximena Ortiz terminó el Encolado · 173 · a las 11:40 · cargó 12 cajas encoladas · Tu parte quedó
+  cerrada». Si ella arrancó otro tramo en la misma área, el botón **«🤝 Seguir con Ximena Ortiz en el 185»** lo suma en un
+  toque. Si el que vuelve a sumarse es el mismo compañero del tramo anterior (menos de 15 min), al que empezó le sale un
+  aviso corto («🤝 Luis Luna sigue con vos en el 185») en lugar de la ventana. Todo espera si está en Baño / Movimiento.
+- **Base (gt_v157):** `gt.parejas` ya no tiene la restricción única de `client_id` (una fila cada vez que alguien se suma);
+  `gt.pareja_adentro(id)`; `gt.trg_pareja_une` (uno por vez, no a un tramo ya terminado); `gt_pareja_abiertos` (vuelve a
+  ofrecer el tramo); **`gt_pareja_avisos2(empleado)`** (lo que revisa el celular cada 5 s, en una llamada: `sumados` con
+  `se_fue` y `terminados` con `fin`, `cantidad` y `sigue`; si no está, cae a `gt_pareja_avisos`); y `gt_admin_rendimiento`
+  reparte entre los tres según el tiempo de cada uno (antes, con dos compañeros, el que empezó salía dos veces).
+- Probado en transacción abortada (Ximena 30 min con 10 cajas del 173, uxb 16: Walter 5 → 15, David no puede sumarse con
+  Walter adentro, Luis 20 → 30 → Ximena 96 u en 1.800 s, Walter 32 en 600, Luis 32 en 600; Luis recibe que terminó con 10 y
+  que sigue en el 185) y en `tests/parejas.cjs` (36 controles, tres celulares). `sql/gt_v157_pareja_se_va.sql`.
+
 ### 1.47 — los avisos de la pareja en una ventana y «🚪 Me fui» para el que se sumó (Elías, 02/10/2026)
 
 - Pedido: *«mejorá los mensajes de se unió y de las unidades las carga, y para el que acompaña al que empezó la actividad no
@@ -200,9 +224,8 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 - **En la botonera**, abajo del área: «📝 las cajas encoladas las carga Ximena Ortiz» (el que se sumó) o «📝 las cajas
   encoladas las cargás vos: las de los dos» (el que empezó). Al terminar, al que empezó: «¿Cuántas cajas encoladas del 173
   hicieron entre vos y Walter Saucedo?».
-- **El que se sumó tiene «🚪 Me fui»** (azul) en lugar de «✅ Terminé», con Baño y Movimientos igual. Pide confirmar («¿Te vas
-  del Encolado · 173?» · «🚪 Sí, me fui» / «Sigo con Ximena Ortiz»), porque después **no puede volver a sumarse a ese mismo
-  tramo** (uno solo por tramo, `gt.parejas`). Cierra sin cantidad, sin la pantalla de Terminé ni «¿con qué seguís?», y
+- **El que se sumó tiene «🚪 Me fui»** (azul) en lugar de «✅ Terminé», con Baño y Movimientos igual. En la 1.47 pedía
+  confirmar porque no se podía volver a sumar al mismo tramo; **desde la 1.48 va en un toque** (se puede volver). Cierra sin cantidad, sin la pantalla de Terminé ni «¿con qué seguís?», y
   vuelve la botonera (de ahí, Almuerzo o Terminar día). Desde un Movimiento: «No, me fui de Contraído».
 - Sin cambios en la base. `tests/parejas.cjs` (las dos ventanas, «Sigo con…» que no cierra, «Sí, me fui», tocar afuera,
   desde el Movimiento) y probado a ojo en 320×480, 320×568, 390×664, 568×320 y 667×375 (acostado, los dos botones en fila).
@@ -281,7 +304,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 
 ### 1.41 — Rendimiento de la pareja: las unidades se reparten según el TIEMPO de cada uno (02/10/2026)
 
-- Pedido (desde la cuenta de Thomas): *«si uno se va al baño, el otro en ese tiempo está haciendo el trabajo de los 2»* ·
+- Pedido (desde la cuenta de Thomas; **D54: el «sí» fue de Elías**): *«si uno se va al baño, el otro en ese tiempo está haciendo el trabajo de los 2»* ·
   *«le tiene que contar a los 2, como pareja, pero en proporción a lo que hicieron… es utilizar el tiempo»*.
 - **Lo que pasaba (gt_v151):** el tramo de quien invitó, con las cajas de los dos, se le copiaba entero al que aceptó. El
   tiempo era sólo el de quien invitó, menos **sus** pausas. Con un baño de 10 min en un tramo de 30 (5 u/min cada uno):
@@ -294,6 +317,8 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   **Deja sin efecto D47** («la pareja con los segundos de la pareja, no al doble»). El mínimo de 2 min (D35) se mide
   sobre el tramo de quien invitó, antes de repartir. Las unidades salen con un decimal.
 - No se puede saber cuántas cajas hizo cada uno (carga uno solo): el reparto por tiempo es la medida.
+- **D53:** el error de la 1.39 quedó en la auditoría como corregido con f112bd6 («Rendimiento de la pareja: el baño de uno
+  movía el número un 20 % según quién fuera»).
 - `gt.pausas_seg(empleado, desde, hasta)`: las pausas de un operario dentro de un rango, sin contar dos veces una dentro
   de otra (la misma cuenta que estaba escrita adentro de la función). `sql/gt_v153_rendimiento_pareja_por_tiempo.sql`.
 - Probado en transacción abortada: con los datos reales todo sale igual salvo la pareja Ximena + Luis del 223 (12 u:

@@ -436,16 +436,32 @@
   //  · El que se sumó no tiene «Terminé» sino «🚪 Me fui» (1.47): cierra sin cajas (las carga Ximena) y vuelve la botonera.
   const DE_A_DOS = ["ENCOL", "CONTR"];
   const LS_AVISOS = "gt_parejas_avisos_v1";   // avisos de «se sumó» ya mostrados en este celular (del día)
+  const LS_SOCIO = "gt_pareja_socio_v1";      // 1.48: con quién terminó su último tramo de a dos (para no repetir la ventana)
   function esInvitado(r) { return !!(r && r.detalle && (r.detalle._invitado || r.detalle._une)); }
   function companero(r) { return String((r && r.detalle && r.detalle.pareja) || "").replace(/^con\s+/, ""); }
   // «las cajas encoladas», «los metros»: la unidad del área con su artículo
   function lasUnidades(a) { return a && a.pide_cantidad !== false ? (cuantas(a.unidad) === "¿Cuántos " ? "los " : "las ") + (a.unidad || "cantidades") : ""; }
   // 1.47: en la botonera, quién carga las cantidades de un tramo de a dos
+  // 1.48 (D58): si los que se sumaron ya se fueron todos, «todas las del tramo» y quién se fue a qué hora
   function quienCarga(ab) {
     if (!ab || !companero(ab)) return "";
     const u = lasUnidades(areaDe(ab.rubro));
     if (esInvitado(ab)) return (u ? u + " las carga " : "lo que haya que cargar lo carga ") + companero(ab);
-    return u ? u + " las cargás vos: las de los dos" : "lo que haya que cargar lo cargás vos";
+    const idos = seFueron(ab);
+    if (idos) return idos + " · " + (u ? u + " las cargás vos: todas las del tramo" : "lo que haya que cargar lo cargás vos");
+    return u ? u + " las cargás vos: las de " + (companero(ab).includes(" y ") ? "todos" : "los dos") : "lo que haya que cargar lo cargás vos";
+  }
+  // «Walter Saucedo se fue 10:35» si ninguno de los que se sumaron sigue adentro (st.parejas, de gt_pareja_avisos2)
+  function seFueron(ab) {
+    const l = (st.parejas || {})[ab.client_id] || [];
+    if (!l.length || l.some((x) => !x.se_fue)) return "";
+    const x = l[l.length - 1];
+    return x.quien + " se fue " + hhmm(x.se_fue);
+  }
+  // «entre vos y Walter Saucedo», «entre vos, Walter Saucedo y Luis Luna»
+  function entreVos(ab) {
+    const n = companero(ab).split(" y ");
+    return "entre vos" + (n.length > 1 ? ", " + n.slice(0, -1).join(", ") : "") + " y " + n[n.length - 1];
   }
   // «Cuadro Mold 03 Grafic Work · 10*30» de un código del área
   function descCod(rubro, texto) {
@@ -503,39 +519,84 @@
   }
   function cap(t) { return t ? t[0].toUpperCase() + t.slice(1) : t; }
   // 1.47: «🚪 Me fui» del que se sumó: cierra su tramo sin cantidad (las carga el que empezó) y vuelve a la botonera.
-  // Se confirma: después no se puede volver a sumar a ese mismo tramo (uno solo por tramo, gt.parejas)
-  function meFui(ab) {
-    const a = areaDe(ab.rubro) || { nombre: ab.rubro }, d = descCod(ab.rubro, ab.texto);
-    aviso({ ico: "🚪", tit: "¿Te vas del " + a.nombre + (ab.texto ? " · " + ab.texto : "") + "?",
-      txt: (d ? esc(d) + "<br>" : "") + "Con " + esc(companero(ab)) + " desde las " + hhmm(ab.ts_cliente),
-      nota: "📝 <b>" + esc(cap(quienCarga(ab))) + "</b>: vos no cargás nada.",
-      botones: [{ t: "🚪 Sí, me fui", fn: () => irse(ab) }, { t: "Sigo con " + companero(ab), sec: true }] });
-  }
-  function irse(ab) {
+  // 1.48 (D58): sin confirmar. Ya no hace falta: si se fue sin querer, se vuelve a sumar (el tramo se vuelve a ofrecer) y
+  // al que empezó se le avisa que se fue
+  function meFui(ab) { irse(ab); }
+  function irse(ab, hasta) {
     const a = areaDe(ab.rubro) || { codigo: ab.rubro, nombre: ab.rubro };
-    registrar(a, { ts_inicio: ab.ts_cliente, texto: ab.texto || "", medida: ab.medida || "", detalle: ab.detalle || null }); flush();
-    toast("🚪 Te fuiste del " + a.nombre + (ab.texto ? " · " + ab.texto : "") + " · " + quienCarga(ab));
+    registrar(a, Object.assign({ ts_inicio: ab.ts_cliente, texto: ab.texto || "", medida: ab.medida || "", detalle: ab.detalle || null },
+      hasta ? { ts_cliente: hasta } : {})); flush();
+    if (!hasta) toast("🚪 Te fuiste del " + a.nombre + (ab.texto ? " · " + ab.texto : "") + " · " + quienCarga(ab));
     show("optionsScreen"); renderBotonera();
   }
   // al que empezó: quién se le sumó (y su área pasa a decir «con …»)
   function avisados() { const r = lsGet(LS_AVISOS, null); return r && r.dia === hoyAR() ? r.ids : []; }
   let revisando = false;
+  // 1.48 (D58, Elías: «sí»): gt_pareja_avisos2 trae las dos puntas en una llamada. «sumados»: al que empezó, quién se le sumó
+  // y si ya se fue. «terminados»: al que se sumó, que el que empezó ya terminó. Sin la función nueva, gt_pareja_avisos (1.47)
   async function revisarParejas() {
     if (!st.emp || revisando || document.hidden) return;
     revisando = true;
-    let l = [];
-    try { l = await rpc("gt_pareja_avisos", { p_empleado: st.emp }); } catch { l = []; } finally { revisando = false; }
-    l = Array.isArray(l) ? l : [];
+    let r = null;
+    try { r = await rpc("gt_pareja_avisos2", { p_empleado: st.emp }); }
+    catch { try { r = { sumados: await rpc("gt_pareja_avisos", { p_empleado: st.emp }), terminados: [] }; } catch { r = null; } }
+    finally { revisando = false; }
+    if (!r || typeof r !== "object") return;
+    const l = Array.isArray(r.sumados) ? r.sumados : [], t = Array.isArray(r.terminados) ? r.terminados : [];
+    // su tramo dice «con Walter Saucedo» (o «con Walter Saucedo y Luis Luna» si pasaron dos, como la base)
+    const por = {};
+    l.forEach((x) => (por[x.client_id] = por[x.client_id] || []).push(x));
+    st.parejas = por;
     let cambio = false;
-    l.forEach((x) => st.server.filter((r) => r.client_id === x.client_id).forEach((r) => {
-      const p = "con " + x.quien;
+    Object.keys(por).forEach((cid) => st.server.filter((r) => r.client_id === cid).forEach((r) => {
+      const p = "con " + por[cid].map((x) => x.quien).filter((q, i, a) => a.indexOf(q) === i).join(" y ");
       if (!r.detalle || r.detalle.pareja !== p) { r.detalle = Object.assign({}, r.detalle || {}, { pareja: p }); cambio = true; }
     }));
-    if (cambio && !$("optionsScreen").classList.contains("hidden")) renderBotonera();
-    const ya = avisados(), nuevo = l.find((x) => !ya.includes(x.id));
+    const firma = JSON.stringify(l.map((x) => [x.id, x.se_fue]));
+    if ((cambio || firma !== st.parejasFirma) && !$("optionsScreen").classList.contains("hidden") && !st.aviso) renderBotonera();
+    st.parejasFirma = firma;
     // se avisa en la botonera, y no en el medio de una pausa (Baño, Movimiento, Almuerzo): espera a que vuelva
-    if (!nuevo || $("optionsScreen").classList.contains("hidden") || st.paso || st.aviso || (abierta() && PAUSAS.includes(abierta().rubro))) return;
-    lsSet(LS_AVISOS, { dia: hoyAR(), ids: ya.concat([nuevo.id]).slice(-100) });
+    if ($("optionsScreen").classList.contains("hidden") || st.paso || st.aviso || (abierta() && PAUSAS.includes(abierta().rubro))) return;
+    const ya = avisados(), marcar = (...k) => lsSet(LS_AVISOS, { dia: hoyAR(), ids: ya.concat(k).slice(-100) });
+    // al que se sumó: el que empezó terminó → su parte se cierra a esa hora y se le ofrece seguir con él si arrancó otro
+    const ab = abierta();
+    const fin = ab && esInvitado(ab) && t.find((x) => !ya.includes("t" + x.id) && (x.mio === ab.client_id || x.une === ab.detalle._une));
+    if (fin) {
+      marcar("t" + fin.id);
+      const hasta = new Date(Math.max(Date.parse(fin.fin), Date.parse(ab.ts_cliente) + 1)).toISOString();
+      irse(ab, hasta);
+      const a = st.areas.find((x) => x.codigo === fin.rubro && deLaPlanta(x)) || areaDe(fin.rubro), u = lasUnidades({ unidad: fin.unidad, pide_cantidad: fin.pide_cantidad });
+      const s = fin.sigue, d = descCod(fin.rubro, fin.texto);
+      aviso({ ico: "🏁", tit: fin.de + " terminó el " + fin.area + (fin.texto ? " · " + fin.texto : ""),
+        txt: (d ? esc(d) + "<br>" : "") + "a las " + hhmm(fin.fin) +
+          (u && fin.cantidad != null ? " · cargó <b>" + num(fin.cantidad) + " " + esc(fin.unidad) + "</b>" : ""),
+        nota: "📝 Tu parte quedó cerrada a las " + hhmm(hasta) + ": vos no cargás nada." +
+          (s ? "<br>Sigue con el <b>" + esc(s.texto || "") + "</b>" + (s.descripcion ? " · " + esc(s.descripcion) : "") + "." : ""),
+        botones: s && a ? [{ t: "🤝 Seguir con " + fin.de + " en el " + (s.texto || a.nombre), fn: () => unirse(a, s) }, { t: "Volver a las áreas", sec: true }]
+          : [{ t: "Entendido" }] });
+      return;
+    }
+    // al que empezó: se fue el que se había sumado (si se fue antes de que viera «se sumó», sale sólo «se fue»)
+    const ido = l.find((x) => x.se_fue && !ya.includes("f" + x.id));
+    if (ido) {
+      marcar("f" + ido.id, ido.id);
+      const u = lasUnidades({ unidad: ido.unidad, pide_cantidad: ido.pide_cantidad }), d = descCod(ido.rubro, ido.texto);
+      aviso({ ico: "🚪", tit: ido.quien + " se fue de tu " + ido.area,
+        txt: (ido.texto ? "<b>" + esc(ido.texto) + "</b>" + (d ? " · " + esc(d) : "") + "<br>" : "") +
+          "Estuvo " + (ido.desde ? "de " + hhmm(ido.desde) + " " : "") + "a " + hhmm(ido.se_fue),
+        nota: "📝 <b>Al terminar, " + esc(u ? u + " las cargás vos: todas las del tramo" : "lo que haya que cargar lo cargás vos") + "</b>, " +
+          "también las que hicieron juntos.<br>Si viene otro compañero, se puede sumar.",
+        botones: [{ t: "Entendido", fn: () => renderBotonera() }] });
+      return;
+    }
+    const nuevo = l.find((x) => !ya.includes(x.id));
+    if (!nuevo) return;
+    marcar(nuevo.id);
+    // el mismo compañero que estaba en su tramo anterior (siguen juntos con otro código): un aviso corto, sin ventana
+    const so = lsGet(LS_SOCIO, null);
+    if (so && so.dia === hoyAR() && (so.nombres || []).includes(nuevo.quien) && Date.now() - so.ts < 15 * 60000) {
+      toast("🤝 " + nuevo.quien + " sigue con vos" + (nuevo.texto ? " en el " + nuevo.texto : "")); return;
+    }
     const u = lasUnidades({ unidad: nuevo.unidad, pide_cantidad: nuevo.pide_cantidad }), d = descCod(nuevo.rubro, nuevo.texto);
     aviso({ ico: "🤝", tit: nuevo.quien + " se sumó a tu " + nuevo.area,
       txt: nuevo.texto ? "<b>" + esc(nuevo.texto) + "</b>" + (d ? " · " + esc(d) : "") : "",
@@ -584,12 +645,12 @@
     const conSigue = modo !== "fin" && sigue && !almorzar && !(sigue.codigo === "RECIB" && cierra.codigo === "RECIB");
     $("cantTitulo").textContent = (cierra.codigo === "ALMU" ? "Volví de almorzar" : "Terminé " + cierra.nombre) + (etq(ab) ? " · " + etq(ab) : "");
     // 1.47: de a dos, el que empezó pone las de los dos y se le dice con el nombre del compañero
-    const dos = !invitado && pideCant && companero(ab);
+    const dos = !invitado && pideCant && companero(ab), idos = dos && seFueron(ab);
     $("cantSub").textContent = "desde " + hhmm(ab.ts_cliente) + (invitado ? " · " + quienCarga(ab) + ": vos no cargás nada" : "") +
-      (dos ? " · 🤝 las de los dos, no sólo las tuyas" : "");
+      (idos ? " · 🤝 todas las del tramo (" + idos + ")" : dos ? " · 🤝 las de " + (companero(ab).includes(" y ") ? "todos" : "los dos") + ", no sólo las tuyas" : "");
     $("cantBox").classList.toggle("hidden", !pideCant);
     $("cantLabel").textContent = cuantas(cierra.unidad) + cierra.unidad + (ab.texto ? (esMoldura(cierra) ? " de moldura " : " del ") + ab.texto : "") +
-      (dos ? " hicieron entre vos y " + companero(ab) : "") + "?";
+      (dos ? " hicieron " + entreVos(ab) : "") + "?";
     $("cantInput").value = ""; $("cantError").textContent = "";
     if (!conSigue && !almorzar) st.pend.sigue = null;   // «Listo» cierra y no abre nada
     $("sigueBox").classList.toggle("hidden", !conSigue);
@@ -633,6 +694,7 @@
     }
     const finX = extraDe(p.fin || {});
     const det = Object.assign({}, p.ab.detalle || {}, finX.detalle || {});
+    if (companero(p.ab) && !esInvitado(p.ab)) lsSet(LS_SOCIO, { dia: hoyAR(), nombres: companero(p.ab).split(" y "), ts: Date.now() });
     registrar(p.cierra, { ts_inicio: p.ab.ts_cliente, cantidad: cant, texto: p.ab.texto || finX.texto || "", medida: p.ab.medida || "",
                           detalle: Object.keys(det).length ? det : null });
     // 1.24: si sigue en un área con preguntas (Esnaola), primero cierra y después pregunta moldura / anilina / color
