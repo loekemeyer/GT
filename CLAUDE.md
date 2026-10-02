@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos, con dos celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse y el aviso, con tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -186,6 +186,26 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.45 — de a dos: uno empieza y el otro SE SUMA desde Encolado / Contraído (Elías, 02/10/2026)
+
+- Pedido: *«vamos a cambiar cómo se hacen las tareas de a 2. Uno inicia la tarea y al otro, al entrar en Encolado, ya le
+  aparece la que inició el compañero y se une. Las unidades las pone el que empezó la tarea y se le notifica que él tiene que
+  poner las unidades (o lo que corresponda de esa tarea)»*. **Reemplaza el «¿Con quién?» y la invitación Sí / No de la 1.39**
+  (y la lista de compañeros de la 1.40, que quedó sin uso).
+- **El que empieza** pone el código y arranca, sin preguntas.
+- **El otro**, al tocar Encolado o Contraído, ve arriba del código «Tocá para sumarte a un compañero» con lo que están
+  haciendo sus compañeros de la planta (`gt_pareja_abiertos`: aperturas de hoy sin cierre, que no son de alguien que se sumó
+  y que todavía no tienen compañero; una pausa del que empezó no lo saca). Al tocar «🤝 Ximena Ortiz · 173» se le abre ese
+  mismo código con `detalle.pareja = 'con Ximena Ortiz'` y `_une` = la apertura de ella. El trigger `gt_pareja_une` deja la
+  pareja aceptada en `gt.parejas`, le pone `_invitado` a esa apertura (lo que lee el Rendimiento repartido por tiempo,
+  gt_v153, que no cambia) y a la de ella «con Walter Saucedo». **Uno solo por tramo**: a un tercero ya no le aparece.
+- **Al que empezó** el celular le avisa (`gt_pareja_avisos`, cada 5 s, una vez, en la botonera y no en medio de una pausa):
+  *«Walter Saucedo se sumó a tu Encolado · 173. Al terminar, las cajas encoladas las ponés vos: las de los dos.»* (en un área
+  sin cantidad, «lo que corresponda lo ponés vos»). Su área pasa a decir «con Walter Saucedo» y al terminar le pide las de
+  los dos. **El que se sumó** no carga cajas («la cantidad la carga Ximena Ortiz») ni se le pregunta con qué sigue.
+- `sql/gt_v155_pareja_unirse.sql` (probado en transacción abortada) · `tests/parejas.cjs` reescrito (tres celulares: empezar
+  sin preguntas, sumarse, el aviso, el tercero que no ve nada, terminar cada uno, Contraído, el aviso que espera al baño).
+
 ### 1.43 — tiempo muerto abajo del nombre, invitación cada 5 s y las pantallas de carga entran en celulares chicos (Elías, 02/10/2026)
 
 - **Tiempo muerto** (*«agregale un contador de tiempo muerto abajo del nombre. Se reinicia a 0 cuando empiezan una tarea y
@@ -256,7 +276,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   baño: quien invitó va al baño → 100 u en 1.200 s y 150 u en 1.800 s; va el invitado → al revés. 12 s/u en los 4.
   En el admin, el título de Encolado / Contraído dice «las unidades se reparten según el tiempo de cada uno».
 
-### 1.39 — Encolado y Contraído DE A DOS: uno invita y al otro le aparece la pregunta (Elías, 02/10/2026: D45)
+### 1.39 — Encolado y Contraído DE A DOS: uno invita y al otro le aparece la pregunta (Elías, 02/10/2026: D45) · ⚠ reemplazado en 1.45
 
 - Elías: *«se puede hacer que uno ponga y le aparezca al otro como pregunta: Vas a hacer (tarea) con (persona) · Sí / No»*.
 - **El que empieza**: en Encolado y Contraído (`DE_A_DOS` en `app.js`), después del código, **«¿Con quién lo hacés?»**: los

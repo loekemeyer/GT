@@ -52,8 +52,6 @@
   const LS_CODS = "gt_codigos_v6";
   const LS_PASOS = "gt_pasos_v1";
   const LS_DISP = "gt_dispositivo";
-  const LS_EMPS = "gt_empleados_v1";        // 1.39: la lista de «¿Quién sos?», para elegir compañero
-  const LS_PARES = "gt_parejas_resp_v1";    // 1.39: invitaciones ya contestadas en este celular (del día)
   const TIMEOUT_MS = 15000;
 
   const $ = (id) => document.getElementById(id);
@@ -419,72 +417,67 @@
     sigPaso();
   }
 
-  /* ---------- 1.39 (Elías, D45): Encolado y Contraído se hacen DE A DOS ---------- */
-  // «Que uno ponga y le aparezca al otro como pregunta: Vas a hacer (tarea) con (persona) · Sí / No.»
-  //  · El que empieza: después del código, «¿Con quién?» (los compañeros de la planta, o Solo). La apertura lleva
-  //    detalle.pareja = «con <Nombre>» y la base deja la invitación (gt_pareja_invita). Él carga las cajas al terminar.
-  //  · El compañero: su celular pregunta cada 5 s (1.43, antes 15) si tiene invitaciones (gt_parejas_pendientes) y, en la botonera y fuera de
-  //    una pausa, muestra «¿Vas a hacer Encolado · 173 … con Walter?». Sí → le abre el mismo código con detalle._invitado
-  //    (la base la marca aceptada al llegar esa apertura). Si tenía su propia área abierta, primero pone lo que hizo.
-  //    No → gt_pareja_responder(…, false) y no se abre nada.
-  //  · Al terminar, el compañero no carga cajas («la cantidad la carga Walter»): el rendimiento le cuenta el tramo de quien
-  //    invitó (gt_admin_rendimiento).
+  /* ---------- de a dos: Encolado y Contraído (1.39, D45 · desde 1.45 el compañero se suma) ---------- */
+  // 1.45 (Elías: «uno inicia la tarea y al otro, al entrar en Encolado, ya le aparece la que inició el compañero y se une.
+  // Las unidades las pone el que empezó la tarea y se le notifica que él tiene que poner las unidades»). Reemplaza el
+  // «¿Con quién?» y el Sí / No de la 1.39:
+  //  · El que empieza: pone el código y arranca, sin preguntar con quién.
+  //  · El otro: al tocar Encolado (o Contraído), arriba del código le aparece lo que están haciendo sus compañeros de la
+  //    planta (gt_pareja_abiertos): «🤝 Ximena Ortiz · 173». Al tocarlo se le abre ese mismo código con detalle.pareja =
+  //    «con Ximena» y _une = la apertura de ella. La base deja la pareja (gt_pareja_une), le pone _invitado (lo que lee el
+  //    Rendimiento, repartido por tiempo: gt_v153) y a la apertura de ella «con Walter». Uno solo por tramo.
+  //  · Al que empezó, el celular le avisa (gt_pareja_avisos, cada 5 s) «Walter se sumó a tu Encolado · 173. Al terminar,
+  //    las cajas encoladas las ponés vos: las de los dos», y su área pasa a decir «con Walter».
+  //  · Al terminar, el que se sumó no carga cajas («la cantidad la carga Ximena») ni se le pregunta con qué sigue.
   const DE_A_DOS = ["ENCOL", "CONTR"];
-  function esInvitado(r) { return !!(r && r.detalle && r.detalle._invitado); }
-  function companeros() {
+  const LS_AVISOS = "gt_parejas_avisos_v1";   // avisos de «se sumó» ya mostrados en este celular (del día)
+  function esInvitado(r) { return !!(r && r.detalle && (r.detalle._invitado || r.detalle._une)); }
+  // en la pantalla del código: lo que están haciendo los compañeros, para sumarse
+  async function paraUnirse(a) {
+    const box = $("codJunta");
+    box.classList.add("hidden"); box.innerHTML = ""; st.unirse = [];
+    if (!DE_A_DOS.includes(a.codigo)) return;
+    let l = [];
+    try { l = await rpc("gt_pareja_abiertos", { p_empleado: st.emp, p_rubro: a.codigo }); } catch { return; }   // sin red: arranca solo
+    if (!st.codPara || st.codPara.codigo !== a.codigo) return;   // ya salió de la pantalla
     const pl = st.planta || st.principal;
-    return lsGet(LS_EMPS, []).filter((e) => Number(e.id) !== st.emp && (!pl || !(e.plantas || []).length || e.plantas.includes(pl)));
+    l = (Array.isArray(l) ? l : []).filter((x) => !pl || !x.planta || x.planta === pl);
+    if (!l.length) return;
+    st.unirse = l;
+    box.innerHTML = '<div class="cod-pend-t">Tocá para sumarte a un compañero</div>' + l.map((x, i) =>
+      '<button data-i="' + i + '">🤝 ' + esc(x.de) + (x.texto ? " · " + esc(x.texto) : "") + "<small>" +
+      esc([x.descripcion, x.medida || x.medida_cod].filter(Boolean).join(" · ")) + "</small></button>").join("");
+    box.classList.remove("hidden");
   }
-  // el compañero de la última vez hoy va primero
-  function conQuien(a, codigo, onFin, onCancel) {
-    const l = companeros();
-    if (!DE_A_DOS.includes(a.codigo) || !l.length) { onFin(null); return; }
-    const ult = eventosHoy().filter((r) => r.detalle && r.detalle.pareja && !esInvitado(r)).pop();
-    const antes = ult ? String(ult.detalle.pareja).replace(/^con\s+/, "") : null;
-    const nombres = l.map((e) => e.nombre).sort((x, y) => (y === antes) - (x === antes));
-    const SOLO = "🙋 Solo, sin compañero";
-    preguntar(a.nombre + " · " + codigo, "¿Con quién lo hacés?", nombres.concat([SOLO]),
-      (v) => onFin(v === SOLO ? null : { pareja: "con " + v }), onCancel);
+  function unirse(a, x) {
+    if (!a || !x) return;
+    st.codPara = null;
+    registrar(a, { texto: x.texto || "", medida: x.medida || "", detalle: { pareja: "con " + x.de, _une: x.client_id } }, 1); flush();
+    toast("🤝 Te sumaste a " + x.de + " · " + a.nombre + (x.texto ? " " + x.texto : "") + ". Las cantidades las pone " + x.de);
+    show("optionsScreen"); renderBotonera();
   }
-  function respondidas() { const r = lsGet(LS_PARES, null); return r && r.dia === hoyAR() ? r.ids : []; }
-  function marcarRespondida(id) { lsSet(LS_PARES, { dia: hoyAR(), ids: respondidas().concat([id]).slice(-100) }); }
+  // al que empezó: quién se le sumó (y su área pasa a decir «con …»)
+  function avisados() { const r = lsGet(LS_AVISOS, null); return r && r.dia === hoyAR() ? r.ids : []; }
   let revisando = false;
   async function revisarParejas() {
     if (!st.emp || revisando || document.hidden) return;
-    const libre = () => !$("optionsScreen").classList.contains("hidden") && !st.paso &&
-      !(abierta() && PAUSAS.includes(abierta().rubro));    // en el baño, un movimiento o el almuerzo espera a que vuelva
-    if (!libre()) return;
     revisando = true;
     let l = [];
-    try { l = await rpc("gt_parejas_pendientes", { p_empleado: st.emp }); } catch { l = []; } finally { revisando = false; }
-    const ya = respondidas();
-    const inv = (Array.isArray(l) ? l : []).find((x) => !ya.includes(x.id));
-    if (!inv || !libre()) return;
-    const a = areaDe(inv.rubro) || { codigo: inv.rubro, nombre: inv.area || inv.rubro, unidad: "cajas", pide_cantidad: true };
-    const que = [inv.texto, inv.descripcion, inv.medida || inv.medida_cod].filter(Boolean).join(" ");
-    const si = "Sí, voy con " + inv.de, no = "No";
-    preguntar(inv.de + " te suma", "¿Vas a hacer " + a.nombre + (que ? " · " + que : "") + " con " + inv.de + "?", [si, no], (v) => {
-      marcarRespondida(inv.id);
-      if (v === si) { aceptarPareja(inv, a); return; }
-      rpc("gt_pareja_responder", { p_id: inv.id, p_empleado: st.emp, p_si: false }).catch(() => { /* sin red: vence sola a los 20 min */ });
-      toast("Listo: no vas con " + inv.de); show("optionsScreen"); renderBotonera();
-    });
-  }
-  function aceptarPareja(inv, a) {
-    const abrir = () => {
-      registrar(a, { texto: inv.texto || "", medida: inv.medida || "", detalle: { pareja: "con " + inv.de, _invitado: inv.id } }, 1);
-      flush(); toast("✓ Empezaste " + a.nombre + (inv.texto ? " · " + inv.texto : "") + " con " + inv.de);
-      show("optionsScreen"); renderBotonera();
-    };
-    const ab = abierta();
-    if (!ab) { abrir(); return; }
-    const cierra = areaDe(ab.rubro) || { codigo: ab.rubro, nombre: ab.rubro, unidad: "cantidad" };
-    // un tramo de invitado (o un área que no pide cantidad) se cierra solo; el área propia, primero lo que hizo
-    if (esInvitado(ab) || (cierra.pide_cantidad === false && !pasosDe(cierra, "terminar").length)) {
-      registrar(cierra, { ts_inicio: ab.ts_cliente, texto: ab.texto || "", medida: ab.medida || "", detalle: ab.detalle || null });
-      abrir(); return;
-    }
-    abrirTermine(ab, cierra, null, "pareja", abrir);
+    try { l = await rpc("gt_pareja_avisos", { p_empleado: st.emp }); } catch { l = []; } finally { revisando = false; }
+    l = Array.isArray(l) ? l : [];
+    let cambio = false;
+    l.forEach((x) => st.server.filter((r) => r.client_id === x.client_id).forEach((r) => {
+      const p = "con " + x.quien;
+      if (!r.detalle || r.detalle.pareja !== p) { r.detalle = Object.assign({}, r.detalle || {}, { pareja: p }); cambio = true; }
+    }));
+    if (cambio && !$("optionsScreen").classList.contains("hidden")) renderBotonera();
+    const ya = avisados(), nuevo = l.find((x) => !ya.includes(x.id));
+    // se avisa en la botonera, y no en el medio de una pausa (Baño, Movimiento, Almuerzo): espera a que vuelva
+    if (!nuevo || $("optionsScreen").classList.contains("hidden") || st.paso || (abierta() && PAUSAS.includes(abierta().rubro))) return;
+    lsSet(LS_AVISOS, { dia: hoyAR(), ids: ya.concat([nuevo.id]).slice(-100) });
+    const que = nuevo.pide_cantidad === false ? "lo que corresponda lo ponés vos" : "las " + (nuevo.unidad || "cantidades") + " las ponés vos: las de los dos";
+    preguntar("🤝 " + nuevo.quien + " se sumó", nuevo.quien + " se sumó a tu " + nuevo.area + (nuevo.texto ? " · " + nuevo.texto : "") +
+      ". Al terminar, " + que + ".", ["Entendido"], () => { show("optionsScreen"); renderBotonera(); });
   }
 
   // v1.3: «🏁 Terminar día». Si hay algo abierto, lo cierra (con su cantidad) y marca el fin del día.
@@ -511,26 +504,24 @@
   }
 
   // 1.24: si el área tiene preguntas para el momento de terminar, van antes de la cantidad
-  // despues (1.39): lo que se hace al cerrar en vez de «¿con qué seguís?» (ir con el compañero que invitó)
-  function abrirTermine(ab, cierra, sigue, modo, despues) {
-    if (!pasosDe(cierra, "terminar").length) { pintarTermine(ab, cierra, sigue, modo, null, despues); return; }
+  function abrirTermine(ab, cierra, sigue, modo) {
+    if (!pasosDe(cierra, "terminar").length) { pintarTermine(ab, cierra, sigue, modo, null); return; }
     iniciarPasos(cierra, "terminar", "Terminé " + cierra.nombre + (etq(ab) ? " · " + etq(ab) : ""),
-      (resp) => pintarTermine(ab, cierra, sigue, modo, resp, despues), () => { show("optionsScreen"); renderBotonera(); });
+      (resp) => pintarTermine(ab, cierra, sigue, modo, resp), () => { show("optionsScreen"); renderBotonera(); });
   }
-  function pintarTermine(ab, cierra, sigue, modo, fin, despues) {
+  function pintarTermine(ab, cierra, sigue, modo, fin) {
     // 1.39 (D45): el compañero invitado no carga cajas (las carga quien lo invitó) y al terminar vuelve la botonera
     const invitado = esInvitado(ab);
     if (invitado && modo === "normal") sigue = null;
     const pideCant = cierra.pide_cantidad !== false && !invitado;
-    st.pend = { ab, cierra, sigue, modo, fin, despues, pideCant };
+    st.pend = { ab, cierra, sigue, modo, fin, pideCant };
     const almorzar = sigue && sigue.codigo === "ALMU";
     // v1.11 (D29): Recibir mercadería pregunta qué se recibe al EMPEZAR, pero al terminar no pregunta con qué sigue
     const conSigue = modo !== "fin" && sigue && !almorzar && !(sigue.codigo === "RECIB" && cierra.codigo === "RECIB");
     $("cantTitulo").textContent = (cierra.codigo === "ALMU" ? "Volví de almorzar" : "Terminé " + cierra.nombre) + (etq(ab) ? " · " + etq(ab) : "");
     $("cantSub").textContent = "desde " + hhmm(ab.ts_cliente) +
       (invitado ? " · la cantidad la carga " + String(ab.detalle.pareja || "").replace(/^con\s+/, "") : "") +
-      (!invitado && ab.detalle && ab.detalle.pareja && pideCant ? " · poné las de los dos (" + ab.detalle.pareja + ")" : "") +
-      (modo === "pareja" ? " · antes de ir con tu compañero" : "");
+      (!invitado && ab.detalle && ab.detalle.pareja && pideCant ? " · poné las de los dos (" + ab.detalle.pareja + ")" : "");
     $("cantBox").classList.toggle("hidden", !pideCant);
     $("cantLabel").textContent = cuantas(cierra.unidad) + cierra.unidad + (ab.texto ? (esMoldura(cierra) ? " de moldura " : " del ") + ab.texto : "") + "?";
     $("cantInput").value = ""; $("cantError").textContent = "";
@@ -547,11 +538,10 @@
     }
     restaurarBtn("cantBtn");
     $("cantBtn").textContent = modo === "fin" ? "🏁 Terminar el día" : almorzar ? "🍽️ Terminar e ir a almorzar" :
-      modo === "pareja" ? "Terminar e ir con tu compañero" :
       conSigue ? (cierra.codigo === "ALMU" ? "Volver y seguir en " : "Terminar y seguir en ") + sigue.nombre : "Listo";
     $("cambioBtn").classList.toggle("hidden", !conSigue);
     $("cambioBtn").textContent = cierra.codigo === "ALMU" ? "Volví · elegir otra área" : "Cambiar de área / no sigo";
-    $("salidaBox").classList.toggle("hidden", modo === "fin" || modo === "pareja" || almorzar || cierra.codigo === "ALMU");
+    $("salidaBox").classList.toggle("hidden", modo === "fin" || almorzar || cierra.codigo === "ALMU");
     $("cantAlmuBtn").classList.toggle("hidden", !areaDe("ALMU"));
     show("cantScreen");
     if (pideCant) $("cantInput").focus(); else if (conSigue && sigue.pide_codigo) $("sigueInput").focus();
@@ -579,8 +569,6 @@
     const det = Object.assign({}, p.ab.detalle || {}, finX.detalle || {});
     registrar(p.cierra, { ts_inicio: p.ab.ts_cliente, cantidad: cant, texto: p.ab.texto || finX.texto || "", medida: p.ab.medida || "",
                           detalle: Object.keys(det).length ? det : null });
-    // 1.39: cerró lo suyo para ir con el compañero que lo invitó
-    if (p.despues && p.modo === "pareja") { st.pend = null; restaurarBtn("cantBtn"); p.despues(); return; }
     // 1.24: si sigue en un área con preguntas (Esnaola), primero cierra y después pregunta moldura / anilina / color
     if (sigue && p.modo !== "fin" && pasosDe(sigue, "empezar").length) {
       flush(); st.pend = null; restaurarBtn("cantBtn");
@@ -592,13 +580,6 @@
     if (sigue && nuevo && piezasSet(sigue, nuevo.cod)) {
       flush(); const s2 = sigue, n2 = nuevo; st.pend = null; restaurarBtn("cantBtn");
       pedirMedida(s2, n2.guardo, piezasSet(s2, n2.cod)); return;
-    }
-    // 1.39 (D45): sigue en Encolado / Contraído → primero cierra y después «¿Con quién?»
-    if (sigue && nuevo && DE_A_DOS.includes(sigue.codigo) && companeros().length) {
-      flush(); const s2 = sigue, n2 = nuevo; st.pend = null; restaurarBtn("cantBtn");
-      toast("✓ Terminaste " + p.cierra.nombre + (cant != null ? " · " + num(cant) + " " + p.cierra.unidad : ""));
-      conQuien(s2, n2.guardo, (det) => abrirCon(s2, n2, det));
-      return;
     }
     if (sigue) registrar(sigue, nuevo ? { texto: nuevo.guardo } : null, 1);
     if (p.modo === "fin") registrarFin();
@@ -711,6 +692,7 @@
     prepararInput("codInput", "codHint", a); $("codError").textContent = ""; restaurarBtn("codBtn");
     $("codPend").classList.add("hidden"); $("codPend").innerHTML = "";
     if (a.codigo === "GUARD") pendientesContraido("codPend", () => st.codPara && st.codPara.codigo === "GUARD");
+    paraUnirse(a);   // 1.45: Encolado / Contraído, lo que están haciendo los compañeros
     show("codScreen"); $("codInput").focus();
   }
   // v8.0: lo que salió de Contraído y falta guardar, como botones (en «Empecé» o en «¿con qué seguís?»)
@@ -748,14 +730,9 @@
     const piezas = piezasSet(a, r.cod);
     if (piezas) { st.codPara = null; pedirMedida(a, r.guardo, piezas); return; }
     st.codPara = null;
-    // 1.39 (D45): en Encolado y Contraído, «¿Con quién?»; ‹ vuelve al código
-    conQuien(a, r.guardo, (det) => abrirCon(a, r, det), () => { empezar(a); $("codInput").value = r.guardo; mostrarHint($("codInput")); });
-  }
-  function abrirCon(a, r, det) {
-    registrar(a, Object.assign({ texto: r.guardo }, det ? { detalle: det } : {}), 1); flush();
+    registrar(a, { texto: r.guardo }, 1); flush();
     const c = r.cod;
-    toast("✓ Empezaste " + a.nombre + " · " + r.guardo + (c && c.descripcion ? " " + c.descripcion + (c.medida ? " " + c.medida : "") : "") +
-          (det ? " · " + det.pareja : ""));
+    toast("✓ Empezaste " + a.nombre + " · " + r.guardo + (c && c.descripcion ? " " + c.descripcion + (c.medida ? " " + c.medida : "") : ""));
     show("optionsScreen"); renderBotonera();
   }
   // 1.17 (Thomas): un SET DE 3 en Montaje o Gancho se trabaja por medida: se pregunta cuál va a hacer.
@@ -888,7 +865,6 @@
     const emps = r.empleados || [];
     st.principal = r.principal || null;
     st.empsPlantas = {}; emps.forEach((e) => { st.empsPlantas[e.id] = e.plantas || []; });
-    lsSet(LS_EMPS, emps.map((e) => ({ id: e.id, nombre: e.nombre, plantas: (e.plantas || []).map((p) => p.codigo) })));
     $("nombreLista").innerHTML = emps.length ? emps.map((e) =>
       '<button data-id="' + e.id + '" data-nombre="' + esc(e.nombre) + '" data-ini="' +
         esc(e.nombre.split(/\s+/).map((x) => x[0] || "").join("").slice(0, 2).toUpperCase()) + '"><span>' + esc(e.nombre) + "</span></button>").join("") :
@@ -913,11 +889,6 @@
     }
     try { st.pasos = await rpc("gt_pasos", {}); lsSet(LS_PASOS, st.pasos); }
     catch { st.pasos = lsGet(LS_PASOS, []); }
-    // 1.40 (Elías: «entró directo sin preguntar por acompañante»): la lista de compañeros sale de la base en cada entrada,
-    // también al volver con la sesión del día. Hasta la 1.39 sólo se guardaba al poner el código, y una sesión abierta
-    // antes arrancaba Encolado / Contraído solo, sin preguntar
-    try { const c = await rpc("gt_companeros", { p_empleado: st.emp }); if (Array.isArray(c) && c.length) lsSet(LS_EMPS, c); }
-    catch { /* sin red: la que quedó guardada */ }
   }
   async function cargarHoy() {
     // 1.24: gt_registros_hoy3 trae el detalle (anilina, color); si no está, gt_registros_hoy2
@@ -1033,6 +1004,7 @@
     $(sid).addEventListener("mousedown", (e) => { if (e.target.closest(".suf-btn")) e.preventDefault(); });   // no le saca el foco al campo
     $(sid).addEventListener("click", (e) => { const b = e.target.closest(".suf-btn"); if (b) ponerLetra(iid, b.dataset.l); });
   });
+  $("codJunta").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b && st.codPara) unirse(st.codPara, (st.unirse || [])[Number(b.dataset.i)]); });
   $("codPend").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("codInput").value = b.dataset.cod; confirmarCod(); } });
   $("histBtn").onclick = () => { renderHist(); $("histPop").classList.remove("hidden"); document.body.classList.add("sin-scroll"); };
   const cerrarHist = () => { $("histPop").classList.add("hidden"); document.body.classList.remove("sin-scroll"); };
@@ -1042,7 +1014,7 @@
   window.addEventListener("online", flush);
   window.addEventListener("resize", acomodar);
   setInterval(flush, 30000);
-  setInterval(revisarParejas, 5000);    // 1.39 (D45) · 1.43 (Elías: «que el revisar si llegó invitación sea cada 5 segundos»)
+  setInterval(revisarParejas, 5000);    // 1.43 (Elías: «cada 5 segundos») · 1.45: el aviso «se sumó» al que empezó
   setInterval(pintarMuerto, 1000);      // 1.43
 
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

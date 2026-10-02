@@ -12,7 +12,7 @@
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=1.44" />
+  <link rel="stylesheet" href="styles.css?v=1.45" />
 </head>
 <body>
   <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
@@ -124,6 +124,8 @@
     <div class="tarjeta">
       <label class="label" id="codLabel" for="codInput"></label>
       <div id="codOpts" class="cod-opts hidden"></div>
+      <!-- 1.45: en Encolado / Contraído, lo que están haciendo los compañeros (tocar = sumarse) -->
+      <div id="codJunta" class="cod-pend junta hidden"></div>
       <div id="codPend" class="cod-pend hidden"></div>
       <div class="cod-fila"><input id="codInput" class="text-input" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="characters" placeholder="Código" /><div id="codSuf" class="sufijos"></div></div>
       <div id="codHint" class="cod-hint"></div>
@@ -142,7 +144,7 @@
       <div id="hist" class="pop-cuerpo"></div>
     </div>
   </div>
-  <script src="config.js?v=1.44"></script>
-  <script src="app.js?v=1.44"></script>
+  <script src="config.js?v=1.45"></script>
+  <script src="app.js?v=1.45"></script>
 </body>
 </html>
