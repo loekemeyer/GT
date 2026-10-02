@@ -220,7 +220,12 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   02/10 (*«los G y W son discontinuos»*): `gt.codigos.activo = false` con `discontinuado_nota`; tenían 0 registros, 0
   pedidos y 3 cajas en la demanda (514G, 515G y 517G, 1 cada uno), que salieron. Si un código activo termina en otra letra,
   su botón aparece solo al lado de la E (sale de la lista del área, no del código).
-- `tests/letras.cjs` (320 y 390 px: la E en Corte y Emblistado, poner y sacar, 781 sin la E, el foco, «¿con qué seguís?»).
+- **1.44 (Elías: «en el módulo de encolado no va la posibilidad de que pongan la E»):** en **Encolado** no hay botón de letra
+  (tampoco en «¿Con qué código seguís en Encolado?») ni aviso de «sin la E no está»: el 781 y el 781E (Porta Mold 03,
+  13*18) se encolan igual, la caja exhibidora va después. `SIN_LETRA = ["ENCOL"]` en `app.js`; otra área sin la E es
+  sumarla ahí.
+- `tests/letras.cjs` (320 y 390 px: la E en Corte y Emblistado, sin la E en Encolado, poner y sacar, 781 sin la E, el foco,
+  «¿con qué seguís?»).
 
 ### 1.41 — Rendimiento de la pareja: las unidades se reparten según el TIEMPO de cada uno (02/10/2026)
 

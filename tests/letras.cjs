@@ -6,12 +6,14 @@ const path = require("path"), http = require("http"), fs = require("fs");
 let pw; try { pw = require("playwright"); } catch { pw = require(require("child_process").execSync("npm root -g").toString().trim() + "/playwright"); }
 const ROOT = path.join(__dirname, "..");
 const A = (codigo, nombre, orden, x) => Object.assign({ codigo, nombre, unidad: "cajas", orden, planta: "PELL", pide_codigo: true, pide_cantidad: true }, x || {});
-const AREAS = [A("CORTE", "Corte", 1, { unidad: "unidades cortadas" }), A("MONT", "Montaje", 4), A("EMBL", "Emblistado", 6)];
+const AREAS = [A("CORTE", "Corte", 1, { unidad: "unidades cortadas" }), A("ENCOL", "Encolado", 3), A("MONT", "Montaje", 4), A("EMBL", "Emblistado", 6)];
 const PROD = [["183", "Cuadro Mold 03 Botanica", "30*40"], ["781E", "Porta Mold 03 Caja Exhibidora", "13*18"], ["782E", "Porta Mold 03 Caja Exhibidora", "15*21"]];
 const CODS = PROD.map(([codigo, descripcion, medida]) => ({ rubro: "EMBL", codigo, descripcion, medida }))
   .concat([{ rubro: "CORTE", codigo: "025", descripcion: "03 Bco", medida: "25 cm" },
            { rubro: "MONT", codigo: "781E", descripcion: "Porta Mold 03 Caja Exhibidora", medida: "13*18" },
-           { rubro: "MONT", codigo: "999X", descripcion: "Inventado con otra letra", medida: "10*10" }]);
+           { rubro: "MONT", codigo: "999X", descripcion: "Inventado con otra letra", medida: "10*10" },
+           { rubro: "ENCOL", codigo: "781", descripcion: "Porta Mold 03", medida: "13*18" },
+           { rubro: "ENCOL", codigo: "781E", descripcion: "Porta Mold 03 Caja Exhibidora", medida: "13*18" }]);
 const filas = [];
 const srv = http.createServer((req, res) => {
   if (req.url.startsWith("/rest/v1/rpc/")) {
@@ -45,6 +47,14 @@ srv.listen(0, async () => {
       // Corte: sólo números en la lista → teclado numérico y la E sola
       await pg.click(".box[data-cod=CORTE]"); await pg.waitForSelector("#codScreen:not(.hidden)");
       chk((await pg.getAttribute("#codInput", "inputmode")) === "numeric" && (await letras("codSuf")) === "E", w + " px · Corte: teclado numérico y la E al lado");
+      await pg.click("#codVolver"); await pg.waitForSelector("#optionsScreen:not(.hidden)");
+      // 1.44 (Elías: «en el módulo de encolado no va la posibilidad de que pongan la E»)
+      await pg.click(".box[data-cod=ENCOL]"); await pg.waitForSelector("#codScreen:not(.hidden)");
+      const encAncho = await pg.evaluate(() => Math.round(document.getElementById("codInput").getBoundingClientRect().width));
+      chk((await letras("codSuf")) === "" && !(await pg.isVisible("#codSuf")) && (await pg.getAttribute("#codInput", "inputmode")) === "numeric",
+          w + " px · Encolado: teclado numérico y sin la E (el campo ocupa todo el ancho: " + encAncho + " px)");
+      await pg.fill("#codInput", "781");
+      chk((await pg.textContent("#codHint")).trim() === "Porta Mold 03 · 13*18", w + " px · Encolado: 781 es el Porta Mold 03, sin sugerir la E");
       await pg.click("#codVolver"); await pg.waitForSelector("#optionsScreen:not(.hidden)");
       // Montaje con un código inventado que termina en X: aparece también la X, y la X reemplaza a la E
       await pg.click(".box[data-cod=MONT]"); await pg.waitForSelector("#codScreen:not(.hidden)");
@@ -81,6 +91,13 @@ srv.listen(0, async () => {
       await pg.fill("#cantInput", "2"); await pg.fill("#sigueInput", "782"); await pg.click("#sigueSuf .suf-btn[data-l=E]"); await pg.click("#cantBtn");
       await pg.waitForSelector(".termine-btn[data-cod=EMBL]"); await pg.evaluate(() => window.__gt.flush()); await pg.waitForTimeout(150);
       chk(filas.some((f) => f.texto === "782E" && !f.ts_inicio), w + " px · Terminar y seguir con 782 + E abre el 782E");
+      // 1.44: Encolado también sin la E en «¿Con qué código seguís en Encolado?»
+      await pg.click(".termine-btn[data-cod=EMBL]"); await pg.waitForSelector("#cantScreen:not(.hidden)");
+      await pg.fill("#cantInput", "1"); await pg.click("#cambioBtn"); await pg.waitForSelector(".box[data-cod=ENCOL]");
+      await pg.click(".box[data-cod=ENCOL]"); await pg.fill("#codInput", "781"); await pg.click("#codBtn");
+      await pg.waitForSelector(".termine-btn[data-cod=ENCOL]"); await pg.click(".termine-btn[data-cod=ENCOL]"); await pg.waitForSelector("#cantScreen:not(.hidden)");
+      chk((await pg.textContent("#sigueLabel")).includes("Encolado") && !(await pg.isVisible("#sigueSuf")) && (await letras("sigueSuf")) === "",
+          w + " px · «¿Con qué código seguís en Encolado?»: sin la E");
       await pg.close(); filas.length = 0;
     }
   } catch (e) { fallas.push(String(e)); console.log("✗ " + e); }

@@ -619,6 +619,7 @@
   }
   // input de código: teclado numérico si todos los códigos del área son números; abajo, qué es lo tipeado
   const OPCIONES_MAX = 6;
+  const SIN_LETRA = ["ENCOL"];   // 1.44: áreas sin el botón de la E
   // opciones = pocas y con nombre (INSUMO, MOLDURA); una lista de números siempre se tipea
   function esOpciones(a) { const l = codigosDe(a); return l.length > 0 && l.length <= OPCIONES_MAX && l.every((c) => /^[A-ZÁÉÍÓÚÑ ]+$/i.test(c.codigo)); }
   function prepararInput(inputId, hintId, a) {
@@ -634,12 +635,14 @@
     // sacarle (en caso de doble tap) una E»): teclado numérico siempre (inputmode en index.html) y, al lado, la E. Si la
     // lista del área tiene códigos que terminan en otra letra (514G a 519G, 535W), también esa: con teclado numérico no
     // se podrían tipear
-    const suf = $(inputId === "codInput" ? "codSuf" : "sigueSuf");
+    // 1.44 (Elías: «en el módulo de encolado no va la posibilidad de que pongan la E»): en Encolado el 781 y el 781E son lo
+    // mismo (la caja exhibidora va después), así que ahí no hay letras
+    const suf = $(inputId === "codInput" ? "codSuf" : "sigueSuf"), sinLetra = conOpc || SIN_LETRA.includes(a.codigo);
     const otras = [...new Set(lista.map((c) => (String(c.codigo).toUpperCase().match(/^\d+([A-Z])$/) || [])[1]).filter(Boolean))]
       .filter((l) => l !== "E").sort();
-    suf.innerHTML = conOpc ? "" : ["E"].concat(otras).map((l) => '<button type="button" class="suf-btn" data-l="' + l +
+    suf.innerHTML = sinLetra ? "" : ["E"].concat(otras).map((l) => '<button type="button" class="suf-btn" data-l="' + l +
       '" aria-label="Agregar o sacar la ' + l + '">' + l + "</button>").join("");
-    suf.classList.toggle("hidden", conOpc);
+    suf.classList.toggle("hidden", sinLetra);
     $(hintId).textContent = ""; $(hintId).classList.remove("nuevo");
     st.nuevoOk = null;
   }
@@ -663,7 +666,7 @@
   // una letra al final (781 → 781E) lo dice abajo del campo y marca esa letra
   function conLetra(a, raw) {
     const v = String(raw || "").trim().toUpperCase(), sin0 = (x) => String(x).toUpperCase().replace(/^0+(?=\d)/, "");
-    if (!/^\d+$/.test(v)) return null;
+    if (!/^\d+$/.test(v) || SIN_LETRA.includes(a.codigo)) return null;
     return codigosDe(a).find((c) => /^\d+[A-Z]$/i.test(c.codigo) && sin0(c.codigo).slice(0, -1) === sin0(v)) || null;
   }
   function avisoLetra(a, raw) {
