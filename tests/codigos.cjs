@@ -48,7 +48,7 @@ const chk = (c, m) => { if (!c) fallas.push(m); console.log((c ? "✓ " : "✗ "
 async function entrar(br, url) {
   const pg = await br.newPage({ viewport: { width: 390, height: 664 } });
   await pg.goto(url); await pg.fill("#claveInput", "1234"); await pg.click("#claveBtn");
-  await pg.click("#nombreLista button[data-id='7']"); await pg.waitForSelector(".box[data-cod=GUARD]"); await pg.waitForTimeout(100);
+  await pg.click("#nombreLista button[data-id='7']"); await pg.waitForSelector("#avisoPop:not(.hidden)"); await pg.waitForTimeout(450); await pg.click("#avisoBtns button[data-i='0']"); await pg.waitForSelector(".box[data-cod=GUARD]"); await pg.waitForTimeout(100);   // 1.49: «¿Sos …?» Sí
   return pg;
 }
 async function pista(pg, area, cod) {

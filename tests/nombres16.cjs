@@ -1,4 +1,5 @@
 // 1.29: «¿Quién sos?» con 16 operarios entra entera, sin scroll, en cualquier pantalla (celular parado y acostado, tablet, PC).
+// 1.49: y la pregunta «¿Sos …?» que sale al tocar un nombre, también.
 // Uso: node tests/nombres16.cjs [carpeta]   (necesita playwright; con carpeta, guarda una captura por tamaño)
 const path = require("path"), http = require("http"), fs = require("fs");
 let pw; try { pw = require("playwright"); } catch { pw = require(require("child_process").execSync("npm root -g").toString().trim() + "/playwright"); }
@@ -58,6 +59,19 @@ srv.listen(0, async () => {
         `${nom} ${w}×${h}${enPantalla ? "" : " [se sale]"}${m.lista > 1 ? " [scroll]" : ""}${m.r.every((b) => b.texto) ? "" : " [nombre afuera]"}: 16 a la vista, sin scroll, botón ≥ 48 px y el nombre adentro (${m.cols} col · fila ${m.alto} · letra ${m.letra}` +
         ` · botón ${Math.round(m.r[0].w)}×${Math.round(m.r[0].h)})`);
       if (FOTOS) await pg.screenshot({ path: path.join(FOTOS, `${w}x${h}.png`) });
+      // 1.49: «¿Sos …?» con el nombre más largo entra entera: la ventana, el título y los dos botones a la vista, sin scroll
+      await pg.click("#nombreLista button[data-id='10']"); await pg.waitForSelector("#avisoPop:not(.hidden)");
+      const c = await pg.evaluate(() => {
+        const caja = document.querySelector("#avisoPop .pop-caja"), k = caja.getBoundingClientRect();
+        const bs = [...document.querySelectorAll("#avisoBtns button")].map((b) => { const x = b.getBoundingClientRect();
+          return { top: x.top, bottom: x.bottom, h: x.height, entra: b.scrollWidth <= b.clientWidth + 1 }; });
+        return { k: { top: k.top, bottom: k.bottom, left: k.left, right: k.right }, scroll: caja.scrollHeight - caja.clientHeight, bs,
+          tit: document.getElementById("avisoTit").textContent, iw: innerWidth, ih: innerHeight };
+      });
+      chk(c.tit === "¿Sos Maximiliano Bustamante?" && c.k.top >= 0 && c.k.left >= 0 && c.k.bottom <= c.ih + 0.5 && c.k.right <= c.iw + 0.5 &&
+          c.scroll <= 1 && c.bs.length === 2 && c.bs.every((b) => b.h >= 47.5 && b.bottom <= c.ih + 0.5 && b.entra),
+        `${nom}: «¿Sos Maximiliano Bustamante?» entera, sin scroll, los dos botones ≥ 48 px a la vista (caja ${Math.round(c.k.bottom - c.k.top)} px de alto)`);
+      if (FOTOS) await pg.screenshot({ path: path.join(FOTOS, `${w}x${h}-sos.png`) });
       await pg.close();
     }
     // girar el celular con la pantalla abierta: se vuelve a acomodar

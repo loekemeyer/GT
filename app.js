@@ -474,7 +474,7 @@
   // código y, resaltado, quién carga las cantidades. o = { ico, tit, txt, nota, botones: [{ t, sec, fn }], fuera }:
   // tocar afuera, ✕ o Esc = el botón «fuera» (por defecto, el último)
   function aviso(o) {
-    st.aviso = o;
+    st.aviso = o; o.desde = Date.now();
     $("avisoIco").textContent = o.ico || "🤝";
     $("avisoTit").textContent = o.tit;
     $("avisoTxt").innerHTML = o.txt || ""; $("avisoTxt").classList.toggle("hidden", !o.txt);
@@ -1026,6 +1026,14 @@
     if (r) st.server = r.map((x) => Object.assign({ empleado_id: st.emp }, x));
   }
 
+  // 1.49 (02/10: «tocó el nombre de Walter y le puso el nombre de Luis… quiero que confirmen que la persona es tal persona»):
+  // tocar un nombre no entra: pregunta «¿Sos Walter Saucedo?». Sí → entra (o «¿En qué planta?»); No, tocar afuera o Esc →
+  // sigue la lista. Un segundo toque en menos de NOMBRE_ESPERA ms no cuenta (el doble toque no confirma solo).
+  const NOMBRE_ESPERA = 400;
+  function confirmarNombre(id, nombre) {
+    aviso({ ico: "🙋", tit: "¿Sos " + nombre + "?", txt: "Lo que cargues queda a nombre de <b>" + esc(nombre) + "</b>.", espera: NOMBRE_ESPERA,
+      botones: [{ t: "✅ Sí, soy " + nombre, fn: () => elegirEmpleado(id, nombre) }, { t: "No, elegir otro nombre", sec: true }] });
+  }
   // 2) entra con el empleado elegido (o con la sesión del día, sin pedir código)
   // 1.22: después del nombre, si trabaja en más de una planta, «¿En qué planta trabajás hoy?»
   // 1.31 (Elías): sin «Cambiar de planta» en la botonera: para cambiar, ‹ y volver a entrar con el código del monitor
@@ -1090,7 +1098,7 @@
   $("verBadge").textContent = "v" + CFG.APP_VERSION;
   $("claveBtn").onclick = validarClave;
   $("claveInput").addEventListener("keydown", (e) => { if (e.key === "Enter") validarClave(); });
-  $("nombreLista").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) elegirEmpleado(b.dataset.id, b.dataset.nombre); });
+  $("nombreLista").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) confirmarNombre(b.dataset.id, b.dataset.nombre); });
   $("plantaOpts").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) elegirPlanta(b.dataset.planta); });
   $("plantaVolver").onclick = () => { st.elige = null; show("nombreScreen"); };
   $("nombreVolver").onclick = () => show("claveScreen");
@@ -1140,6 +1148,7 @@
   $("histPop").addEventListener("click", (e) => { if (e.target === $("histPop")) cerrarHist(); });
   // 1.47: la ventana de avisos de la pareja (tocar afuera o Esc = el botón de salida)
   $("avisoPop").addEventListener("click", (e) => {
+    if (st.aviso && st.aviso.espera && Date.now() - st.aviso.desde < st.aviso.espera) return;   // 1.49: el doble toque no confirma
     if (e.target === $("avisoPop")) { cerrarAviso(); return; }
     const b = e.target.closest("#avisoBtns button"); if (b) cerrarAviso(Number(b.dataset.i));
   });

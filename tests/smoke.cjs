@@ -134,7 +134,22 @@ srv.listen(0, async () => {
     await pg.fill("#claveInput", "1234"); await pg.click("#claveBtn");
     await pg.waitForSelector("#nombreLista button");
     chk((await pg.$$("#nombreLista button")).length === 3, "con el código bueno aparece la lista de nombres");
-    await pg.click("#nombreLista button[data-id='7']");
+    // 1.49 (02/10: «quiero que confirmen que la persona es tal persona»): tocar el nombre pregunta «¿Sos …?»
+    const sinIngreso = () => pg.evaluate(() => !JSON.parse(localStorage.getItem("gt_queue_v3") || "[]").some((x) => x.opcion === "INGRESO") && !localStorage.getItem("gt_sesion_v2"));
+    await pg.click("#nombreLista button[data-id='7']"); await pg.waitForSelector("#avisoPop:not(.hidden)");
+    chk((await pg.textContent("#avisoTit")) === "¿Sos Prueba?" && (await pg.textContent("#avisoBtns")).includes("Sí, soy Prueba"),
+        "1.49: tocar el nombre no entra: pregunta «¿Sos Prueba?» con «Sí, soy Prueba»");
+    await pg.click("#avisoBtns button[data-i='0']");   // enseguida, como el segundo toque de un doble toque
+    await pg.waitForTimeout(100);
+    chk(await pg.isVisible("#avisoPop") && await pg.isVisible("#nombreScreen") && await sinIngreso(), "1.49: un doble toque sobre el nombre no confirma solo");
+    await pg.waitForTimeout(450); await pg.click("#avisoBtns button[data-i='1']");
+    chk(!(await pg.isVisible("#avisoPop")) && await pg.isVisible("#nombreScreen") && await sinIngreso(),
+        "1.49: «No, elegir otro nombre» vuelve a la lista sin entrar ni grabar el ingreso");
+    await pg.click("#nombreLista button[data-id='7']"); await pg.waitForSelector("#avisoPop:not(.hidden)"); await pg.waitForTimeout(450);
+    await pg.mouse.click(195, 20);
+    chk(!(await pg.isVisible("#avisoPop")) && await pg.isVisible("#nombreScreen") && await sinIngreso(), "1.49: tocar afuera es «No»");
+    await pg.click("#nombreLista button[data-id='7']"); await pg.waitForSelector("#avisoPop:not(.hidden)"); await pg.waitForTimeout(450);
+    await pg.click("#avisoBtns button[data-i='0']");
     await pg.waitForSelector(".box[data-cod=CORTE]");
     chk((await pg.textContent("#opName")) === "Prueba", "entra con el nombre elegido");
     chk((await pg.$$(".box")).length === 9, "botonera = las áreas de Pellegrini (7 + Movimientos + Baño): las de Esnaola no aparecen");
@@ -275,7 +290,7 @@ srv.listen(0, async () => {
     await pg.waitForSelector("#claveScreen:not(.hidden)");
     chk(!(await pg.evaluate(() => localStorage.getItem("gt_sesion_v2"))), "al terminar el día vuelve a la pantalla del código de la TV (sin sesión)");
     await pg.fill("#claveInput", "1234"); await pg.click("#claveBtn");
-    await pg.waitForSelector("#nombreLista button[data-id='7']"); await pg.click("#nombreLista button[data-id='7']");
+    await pg.waitForSelector("#nombreLista button[data-id='7']"); await pg.click("#nombreLista button[data-id='7']"); await pg.waitForSelector("#avisoPop:not(.hidden)"); await pg.waitForTimeout(450); await pg.click("#avisoBtns button[data-i='0']");   // 1.49: «¿Sos …?» Sí
     await pg.waitForSelector("#optionsScreen:not(.hidden)");
     const vioFin = await pg.waitForFunction(() => document.getElementById("abiertaBox").textContent.includes("Día terminado"), null, { timeout: 5000 }).then(() => true, () => false);
     chk(vioFin, "si vuelve a entrar, la botonera muestra «Día terminado»");
@@ -310,7 +325,7 @@ srv.listen(0, async () => {
     // 1.22: Darío trabaja en dos plantas → al entrar elige; en Esnaola la botonera es Moldurado / Lijado / Pintado
     const ctx2 = await br.newContext({ viewport: { width: 390, height: 800 } }); const p2 = await ctx2.newPage();
     await p2.goto(url); await p2.fill("#claveInput", "1234"); await p2.click("#claveBtn");
-    await p2.waitForSelector("#nombreLista button[data-id='6']"); await p2.click("#nombreLista button[data-id='6']");
+    await p2.waitForSelector("#nombreLista button[data-id='6']"); await p2.click("#nombreLista button[data-id='6']"); await p2.waitForSelector("#avisoPop:not(.hidden)"); await p2.waitForTimeout(450); await p2.click("#avisoBtns button[data-i='0']");   // 1.49: «¿Sos …?» Sí
     await p2.waitForSelector("#plantaScreen:not(.hidden)");
     chk((await p2.$$("#plantaOpts button")).length === 2 && (await p2.textContent("#plantaScreen")).includes("¿En qué planta trabajás hoy?"),
         "Darío (dos plantas): lo primero que pregunta es en qué planta trabaja (Pellegrini o Esnaola)");
@@ -382,7 +397,7 @@ srv.listen(0, async () => {
     // 1.31: sin «Cambiar de planta», se cambia saliendo (‹) y volviendo a entrar con el código
     await p2.click("#salirBtn"); await p2.waitForSelector("#claveScreen:not(.hidden)");
     await p2.fill("#claveInput", "1234"); await p2.click("#claveBtn");
-    await p2.waitForSelector("#nombreLista button[data-id='6']"); await p2.click("#nombreLista button[data-id='6']");
+    await p2.waitForSelector("#nombreLista button[data-id='6']"); await p2.click("#nombreLista button[data-id='6']"); await p2.waitForSelector("#avisoPop:not(.hidden)"); await p2.waitForTimeout(450); await p2.click("#avisoBtns button[data-i='0']");   // 1.49: «¿Sos …?» Sí
     await p2.click("#plantaOpts button[data-planta='PELL']"); await p2.waitForSelector(".box[data-cod=CORTE]");
     chk((await p2.$$("#botonera .box")).length === 9 && (await p2.textContent("#opName")) === "Dario Mendez · Pellegrini",
         "saliendo y volviendo a entrar pasa a Pellegrini con su botonera");

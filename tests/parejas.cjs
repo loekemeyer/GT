@@ -98,7 +98,7 @@ srv.listen(0, async () => {
     const ctx = await br.newContext({ viewport: { width: 390, height: 664 } });
     const p = await ctx.newPage();
     await p.goto(url); await p.fill("#claveInput", "1234"); await p.click("#claveBtn");
-    await p.click("#nombreLista button[data-id='" + id + "']");
+    await p.click("#nombreLista button[data-id='" + id + "']"); await p.waitForSelector("#avisoPop:not(.hidden)"); await p.waitForTimeout(450); await p.click("#avisoBtns button[data-i='0']");   // 1.49: «¿Sos …?» Sí
     if (id === 9) { await p.waitForSelector("#plantaScreen:not(.hidden)"); await p.click("#plantaOpts button[data-planta=PELL]"); }   // Luis: dos plantas
     await p.waitForSelector(".box[data-cod=ENCOL]");
     return p;

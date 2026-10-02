@@ -13,14 +13,14 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
 1. El **monitor** (`admin.html`) muestra el **código de ingreso**: 4 dígitos que **cambian cada
    minuto** (`public.gt_clave_actual`). Vale también el del minuto anterior.
 2. En el celular el operario escribe el código → `public.gt_clave_validar` devuelve la lista de
-   empleados activos → **elige su nombre**.
+   empleados activos → **elige su nombre** y **confirma «¿Sos Walter Saucedo?»** (1.49).
 3. La sesión dura **el día**: al recargar no se vuelve a pedir el código.
 
 ⚠ **No es un candado**: el monitor lee el código con la clave pública. Sirve para que se entre
@@ -186,6 +186,23 @@ insert into gt.rubros (codigo, nombre, unidad, orden) values ('<COD>', '<Área>'
 insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_texto, fila, orden)
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
+
+### 1.49 — al tocar un nombre, «¿Sos …?» antes de entrar (02/10/2026)
+
+- Pedido: *«un empleado tocó el nombre de Walter y le puso el nombre de Luis… ¿le erró en la mano o tenés un error?…
+  quiero que confirmen que la persona es tal persona cuando está tocando el botón del nombre»*.
+- **Lo que pasó (medido en `gt.registros`):** el botón no cruza nombres (el id y el nombre salen de la misma fila) y la base
+  grabó el ingreso de **Walter** desde ese celular (`2267823b`, 17:15:06), ningún evento de Luis después de las 13:56. Walter
+  tenía abierto desde las 12:41 un **Encolado · 184 «con Luis Luna»** (abierto desde `025869b6`, el celular de las pruebas
+  con su nombre; Luis se había sumado de 12:42 a 12:45). Al entrar en un celular nuevo, la app mostró ese tramo y la
+  ventana «🚪 Luis Luna se fue de tu Encolado · 184»: el nombre de Luis que se vio. El tramo se cerró a las 17:20:26 desde
+  `025869b6`, con 1 caja.
+- **Ahora:** tocar un nombre abre la ventana de avisos (`aviso()`) con «🙋 ¿Sos Walter Saucedo? · Lo que cargues queda a nombre
+  de Walter Saucedo» · **«✅ Sí, soy Walter Saucedo»** (entra, o pregunta la planta) · «No, elegir otro nombre» (tocar afuera
+  o Esc también es No). Sin el Sí no se graba el `INGRESO` ni la sesión. Un segundo toque en menos de 400 ms
+  (`NOMBRE_ESPERA`) no cuenta: un doble toque sobre el nombre no confirma solo.
+- `tests/smoke.cjs` (pregunta, doble toque, No, tocar afuera, Sí) y `tests/nombres16.cjs` (la ventana con «Maximiliano
+  Bustamante» entera, sin scroll y los dos botones ≥ 48 px en los 16 tamaños). Las otras pruebas contestan Sí.
 
 ### 1.48 — cuando uno de la pareja se va, se le avisa al otro y el tramo se vuelve a ofrecer (Elías, 02/10/2026: D58 «sí»)
 

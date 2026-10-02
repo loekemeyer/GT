@@ -40,7 +40,7 @@ srv.listen(0, async () => {
       localStorage.setItem("gt_queue_v3", JSON.stringify(q));
     }, evs);
     await pg.goto(url); await pg.fill("#claveInput", "1234"); await pg.click("#claveBtn");
-    await pg.click("#nombreLista button[data-id='7']"); await pg.waitForSelector(".box[data-cod=CORTE]");
+    await pg.click("#nombreLista button[data-id='7']"); await pg.waitForSelector("#avisoPop:not(.hidden)"); await pg.waitForTimeout(450); await pg.click("#avisoBtns button[data-i='0']"); await pg.waitForSelector(".box[data-cod=CORTE]");   // 1.49: «¿Sos …?» Sí
     let r = await reloj();
     chk(/^⏱ Tiempo muerto 0:0\d$/.test(r.txt) && r.corre, "recién ingresado con el código: corre desde el ingreso (" + r.txt + ")");
     // ingresó hace 5 min y no empezó nada

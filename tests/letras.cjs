@@ -42,7 +42,7 @@ srv.listen(0, async () => {
     for (const [w, h] of [[320, 568], [390, 664]]) {
       const pg = await br.newPage({ viewport: { width: w, height: h } });
       await pg.goto(url); await pg.fill("#claveInput", "1234"); await pg.click("#claveBtn");
-      await pg.click("#nombreLista button[data-id='7']"); await pg.waitForSelector(".box[data-cod=EMBL]");
+      await pg.click("#nombreLista button[data-id='7']"); await pg.waitForSelector("#avisoPop:not(.hidden)"); await pg.waitForTimeout(450); await pg.click("#avisoBtns button[data-i='0']"); await pg.waitForSelector(".box[data-cod=EMBL]");   // 1.49: «¿Sos …?» Sí
       const letras = (id) => pg.$$eval("#" + id + " .suf-btn", (bs) => bs.map((b) => b.dataset.l + (b.classList.contains("activo") ? "*" : "")).join(","));
       // Corte: sólo números en la lista → teclado numérico y la E sola
       await pg.click(".box[data-cod=CORTE]"); await pg.waitForSelector("#codScreen:not(.hidden)");

@@ -40,7 +40,7 @@ const fallas = [];
 const chk = (c, m) => { if (!c) fallas.push(m); console.log((c ? "✓ " : "✗ ") + m); };
 async function entrar(pg, url, emp) {
   await pg.goto(url); await pg.fill("#claveInput", "1234"); await pg.click("#claveBtn");
-  await pg.click(`#nombreLista button[data-id='${emp}']`);
+  await pg.click(`#nombreLista button[data-id='${emp}']`); await pg.waitForSelector("#avisoPop:not(.hidden)"); await pg.waitForTimeout(450); await pg.click("#avisoBtns button[data-i='0']");   // 1.49: «¿Sos …?» Sí
   if (emp === 6) await pg.click("#plantaOpts button[data-planta='PELL']");
   await pg.waitForSelector("#botonera .box"); await pg.waitForTimeout(50);
 }

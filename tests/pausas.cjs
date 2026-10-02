@@ -31,7 +31,7 @@ srv.listen(0, async () => {
   try {
     const pg = await br.newPage({ viewport: { width: 390, height: 664 } });
     await pg.goto(url); await pg.fill("#claveInput", "1234"); await pg.click("#claveBtn");
-    await pg.click("#nombreLista button[data-id='7']"); await pg.waitForSelector(".box[data-cod=ENCOL]");
+    await pg.click("#nombreLista button[data-id='7']"); await pg.waitForSelector("#avisoPop:not(.hidden)"); await pg.waitForTimeout(450); await pg.click("#avisoBtns button[data-i='0']"); await pg.waitForSelector(".box[data-cod=ENCOL]");   // 1.49: «¿Sos …?» Sí
     // el caso de Elías: encolando desde hace 9 min, con 6 min de baño adentro (de -7 a -1)
     await pg.evaluate(() => {
       const ya = Date.now(), t = (min) => new Date(ya - min * 60000).toISOString();
@@ -58,7 +58,7 @@ srv.listen(0, async () => {
     const entrar = async () => {
       const p = await br.newPage({ viewport: { width: 390, height: 664 } });
       await p.goto(url); await p.fill("#claveInput", "1234"); await p.click("#claveBtn");
-      await p.click("#nombreLista button[data-id='7']"); await p.waitForSelector(".box[data-cod=ENCOL]");
+      await p.click("#nombreLista button[data-id='7']"); await p.waitForSelector("#avisoPop:not(.hidden)"); await p.waitForTimeout(450); await p.click("#avisoBtns button[data-i='0']"); await p.waitForSelector(".box[data-cod=ENCOL]");   // 1.49: «¿Sos …?» Sí
       return p;
     };
     // a) Movimiento desde la botonera → Baño → vuelve al Movimiento → Terminé → botonera
