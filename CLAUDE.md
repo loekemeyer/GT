@@ -61,7 +61,10 @@ al terminar pregunta el siguiente código. Va en `gt.tareas` (por rubro); el reg
 - **D7 hecho (01/10):** ya no existen `gt.*_v1` ni las funciones viejas (`gt_login`, `gt_areas`, `gt_botonera`,
   `gt_codigos`, `gt_clave_actual`, `gt_tareas()`, `gt_registros_hoy(text)`).
 - **Un código que no está en la lista se pregunta** («¿Lo registro igual?») y, con el segundo toque,
-  se registra. Para identificarlos después: `select * from gt.codigos_no_identificados order by ultima desc;`
+  se registra. **D48 (Elías, 02/10): sigue así, no se rechaza.** El aviso a «GT Avisos» sale sólo si se confirma
+  (sin el segundo toque no se graba nada), uno por área + código + día y entre 07:00 y 21:00. Medido el 02/10: los 2
+  códigos fuera de lista de esos días (1000 en Corte, 999 en Gancho) salieron y Telegram los aceptó (mensaje 248).
+  El grupo tiene **3 miembros** (el creador, el bot y una persona más): quien no está en el grupo no los ve. Para identificarlos después: `select * from gt.codigos_no_identificados order by ultima desc;`
   (01/10, D33: el **1000** en Corte de las 14:05 fue una prueba de Thomas, no se carga.)
 
 ### v9.0 — al terminar, «¿con qué seguís?» en la MISMA pantalla (Thomas, 01/10/2026)
@@ -222,8 +225,8 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   pintar cada celda. Con menos de 15 min de datos la celda mostraba el tiempo acumulado («0:04» = 4 min) y bajo el título
   «segundos por pieza» parecían segundos: ahora sale siempre el número de segundos por unidad, en gris y sin color
   cuando hay menos de 15 min (el tiempo y las unidades, en el globito).
-- **Lo de D46 (filas) y D47 (número de la pareja) está con lo propuesto, a confirmar**; las parejas de Encolado y
-  Contraído (D45) cuentan desde 1.39 (ver arriba).
+- **D46 y D47 confirmados por Elías (02/10):** las filas quedan como están, y la pareja figura con los segundos por
+  unidad **de la pareja** (no al doble en mano de obra). Las parejas de Encolado y Contraído (D45) cuentan desde 1.39.
 - `public.gt_admin_rendimiento(clave, desde, hasta)` devuelve json en una fila (el tope de 1.000 filas, 1.35).
   `sql/gt_v150_rendimiento.sql`. Probado con la clave cambiada en una transacción abortada (Luis: Encolado 10*30 2,2 s/u,
   30*40 15,6, 40*50 1,9; Walter: Emblistado Mold 03 · 30*40 3,5) y en `tests/smoke.cjs`.
