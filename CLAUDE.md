@@ -280,9 +280,9 @@ excluidos y remaps de la propia página** (hoy 0 y 0). Parámetros en `app_setti
 
 | paso | quién | qué |
 |---|---|---|
-| 1 | Thomas, SQL Editor de TN | `sql/gt_tn_consumo_1_lado_tierra_nativa.sql`: `gt_proy_cfg`, `gt_proy_window`, vista **`gt_proyeccion`** (cod · cajas/mes · uxb · fuente), con SELECT para `gt_reader` |
+| 1 | Thomas, SQL Editor de TN (✅ corrido el 01/10, `codigos_con_proyeccion: 314`) | `sql/gt_tn_consumo_1_lado_tierra_nativa.sql`: `gt_proy_cfg`, `gt_proy_window`, vista **`gt_proyeccion`** (cod · cajas/mes · uxb · fuente), con SELECT para `gt_reader` |
 | 2 | Claude, Gestión (✅ aplicado, `gt_v138_consumo_tn`) | **`gt.consumo_tn`** (copia local, una fila por código), **`gt.sync_consumo_tn()`**, y `gt.demanda_producto` lee el consumo |
-| 3 | Claude, Gestión (cuando 1 esté) | `sql/gt_tn_consumo_3_lado_gestion_despues.sql`: import de `gt_proyeccion` a `gt_tn`, primera corrida, cron **`gt-sync-consumo-tn`** diario 06:35 ART |
+| 3 | Claude, Gestión (✅ hecho el 01/10 22:19 ART) | `sql/gt_tn_consumo_3_lado_gestion_despues.sql`: import de `gt_proyeccion` a `gt_tn`, primera corrida (**314 códigos · 206 en GT · 0 en cero**), cron **`gt-sync-consumo-tn`** diario 06:35 ART (jobid 127) |
 
 - **Máximo por consumo = proyección mensual × `gt.config.consumo_meses_cobertura`** (1,5 por defecto, el índice de las
   OCs de Virgilio; D19 fija el real). Un `maximo_consumo_cajas` a mano en `gt.producto_max` gana (`maximo_rige =
@@ -293,6 +293,11 @@ excluidos y remaps de la propia página** (hoy 0 y 0). Parámetros en `app_setti
   ventana 6, 66 ventana 12, 81 reincorporados. Los 108 que no son de GT son Loeke/otros que TN también vende (582E,
   583E, 590E…) y la demanda los ignora. Cálculo: 677 ms sobre 40 mil líneas. Probado el máximo: 134 vende 55,83
   cajas/mes → máximo 84.
+- **Lo que da la demanda con el consumo vivo (01/10, 22:20):** 210 productos — 203 rigen por consumo (`maximo_rige =
+  'consumo'`) y 7 sólo por pedidos (082, 088, 132, 449, 538, 565, 745: no vendieron en la ventana de TN). Los 3
+  discontinuos con venta (604, 640, 642) quedan afuera. **1.665 cajas a fabricar → 77 aros / 22.332 a grampear → 99
+  piezas / 85.166 a cortar.** ⚠ Ese número está INFLADO a propósito hasta que entre el conteo inicial (D19): sin
+  conteo la góndola vale 0 y `a_fabricar` = el máximo entero. Lo real es máximo − lo que hay en góndola.
 - ⚠ **La última venta cargada en TN es del 13/08/2026**: la Est. Madre vale lo que valga la carga de ventas de TN.
   Si nadie sube las ventas, la proyección envejece sin avisar (mismo pozo que `watchdog_frescura_datos` en Virgilio).
 - ⚠ `fetch_size` del servidor `tn_db` subido a **10.000** (default 100): con el default, 40 mil filas eran 400 viajes
