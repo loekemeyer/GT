@@ -10,6 +10,8 @@
 -- · gt.movimientos: Montaje descuenta «encolado» sólo de lo que está en la lista activa de Encolado (un porta que no se
 --   encola no deja el depósito interno en negativo). Probado en transacción abortada: Montaje de 781 y de 183, 1 caja cada
 --   uno → antes 2 movimientos de encolado, después 1 (el del 183).
+-- · D56 (Elías, 02/10: «diplomas sí se encola»): después volvieron el 192 y el 214 → 200
+--   update gt.codigo_area set activo = true where rubro = 'ENCOL' and codigo in ('192','214') and not activo
 -- ROLLBACK: update gt.codigo_area set activo = true where rubro = 'ENCOL' · y el bloque de la vista al revés (sacar el AND).
 -- ⚠ sql/gt_movimientos_vivo.sql es la vista de la 1.25 (no tiene gt_v140 a gt_v142 ni esto): la vigente es
 --   select pg_get_viewdef('gt.movimientos'::regclass, true).

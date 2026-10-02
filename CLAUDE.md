@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse y el aviso, con tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos y «Me fui», con tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -186,6 +186,27 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.47 — los avisos de la pareja en una ventana y «🚪 Me fui» para el que se sumó (Elías, 02/10/2026)
+
+- Pedido: *«mejorá los mensajes de se unió y de las unidades las carga, y para el que acompaña al que empezó la actividad no
+  tiene botón de Terminé, tiene botón de Me fui»*.
+- **Los avisos van en una ventana** (`#avisoPop`, `aviso()` en `app.js`) encima de la botonera: quién, qué código con su
+  descripción y, resaltado, quién carga. Antes el del que se sumaba era un toast de 2,5 s y el del que empezó, la pantalla
+  de preguntas.
+  - Al que se suma: «Te sumaste a Ximena Ortiz · Encolado · 173 · Cuadro Mold 03 Grafic Work · 10*30 · 📝 **Las cajas
+    encoladas las carga Ximena Ortiz**: vos no cargás nada. Cuando te vayas, tocá «🚪 Me fui».»
+  - Al que empezó: «Walter Saucedo se sumó a tu Encolado · 173 · … · 📝 **Al terminar, las cajas encoladas las cargás vos:
+    las de los dos.** Walter Saucedo no carga nada.» Sigue saliendo una vez y no en medio de una pausa.
+- **En la botonera**, abajo del área: «📝 las cajas encoladas las carga Ximena Ortiz» (el que se sumó) o «📝 las cajas
+  encoladas las cargás vos: las de los dos» (el que empezó). Al terminar, al que empezó: «¿Cuántas cajas encoladas del 173
+  hicieron entre vos y Walter Saucedo?».
+- **El que se sumó tiene «🚪 Me fui»** (azul) en lugar de «✅ Terminé», con Baño y Movimientos igual. Pide confirmar («¿Te vas
+  del Encolado · 173?» · «🚪 Sí, me fui» / «Sigo con Ximena Ortiz»), porque después **no puede volver a sumarse a ese mismo
+  tramo** (uno solo por tramo, `gt.parejas`). Cierra sin cantidad, sin la pantalla de Terminé ni «¿con qué seguís?», y
+  vuelve la botonera (de ahí, Almuerzo o Terminar día). Desde un Movimiento: «No, me fui de Contraído».
+- Sin cambios en la base. `tests/parejas.cjs` (las dos ventanas, «Sigo con…» que no cierra, «Sí, me fui», tocar afuera,
+  desde el Movimiento) y probado a ojo en 320×480, 320×568, 390×664, 568×320 y 667×375 (acostado, los dos botones en fila).
+
 ### 1.45 — de a dos: uno empieza y el otro SE SUMA desde Encolado / Contraído (Elías, 02/10/2026)
 
 - Pedido: *«vamos a cambiar cómo se hacen las tareas de a 2. Uno inicia la tarea y al otro, al entrar en Encolado, ya le
@@ -203,6 +224,9 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   *«Walter Saucedo se sumó a tu Encolado · 173. Al terminar, las cajas encoladas las ponés vos: las de los dos.»* (en un área
   sin cantidad, «lo que corresponda lo ponés vos»). Su área pasa a decir «con Walter Saucedo» y al terminar le pide las de
   los dos. **El que se sumó** no carga cajas («la cantidad la carga Ximena Ortiz») ni se le pregunta con qué sigue.
+  (Textos y botón «Me fui»: 1.47.)
+- **D55 (Elías: «no»):** si el segundo tipea el mismo código que tiene abierto un compañero, no se le pregunta «¿Te sumás?»:
+  se le abre uno aparte. Sumarse es sólo tocando el botón de arriba.
 - `sql/gt_v155_pareja_unirse.sql` (probado en transacción abortada) · `tests/parejas.cjs` reescrito (tres celulares: empezar
   sin preguntas, sumarse, el aviso, el tercero que no ve nada, terminar cada uno, Contraído, el aviso que espera al baño).
 
@@ -247,7 +271,8 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 - **gt_v154 — qué se encola** (Elías: *«lo único que se encola son los artículos de deco y los de cuadros, y los portarretratos
   del 220 al 224. Todo el resto de los portarretratos no se encolan»*): la lista de Encolado del celular pasó de 310 a
   **198** (146 cuadros, 47 de deco, portas 220 a 224). Salieron 58 portas, 10 espejos, 4 múltiples, 2 diplomas y 38 de
-  reventa. `gt.codigo_area.activo` (false = no se hace en esa área; el conector no deja `DELETE`); volver uno a la lista es
+  reventa. **D56 (Elías: «diplomas sí se encola»):** volvieron el **192** y el **214** → **200**; espejos y múltiples
+  siguen afuera. `gt.codigo_area.activo` (false = no se hace en esa área; el conector no deja `DELETE`); volver uno a la lista es
   `update gt.codigo_area set activo = true where rubro = 'ENCOL' and codigo = '…'`. Uno que no está, tipeado en Encolado,
   pregunta «¿Lo registro igual?» y avisa por Telegram como cualquier código fuera de la lista. En `gt.movimientos`, Montaje
   descuenta «encolado» sólo de lo que se encola. `sql/gt_v154_encolado_solo_cuadros_deco.sql`.
@@ -321,7 +346,8 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   cuando hay menos de 15 min (el tiempo y las unidades, en el globito).
 - **1.46 / gt_v156 (Elías: «el corte es por moldura y por corte (cm)»):** la fila de **Corte** pasa a ser moldura + largo
   de la pieza («Mold 03 · 25 cm», «Mold 3P 3/4 · 30 cm»; coma decimal), sin el color; la columna se llama «Moldura ·
-  largo». `sql/gt_v156_rendimiento_corte_moldura_y_largo.sql`.
+  largo». `sql/gt_v156_rendimiento_corte_moldura_y_largo.sql`. **D57 (Elías: «no»):** los tramos de Corte sin código
+  (hoy, uno de David del 01/10) siguen en Rendimiento.
 - **D46 y D47 confirmados por Elías (02/10):** las filas quedan como están, y la pareja figura con los segundos por
   unidad **de la pareja** (no al doble en mano de obra). Las parejas de Encolado y Contraído (D45) cuentan desde 1.39.
   ⚠ **D47 quedó sin efecto en 1.41**: la pareja se reparte las unidades según el tiempo de cada uno (s/u por persona).

@@ -12,7 +12,7 @@
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=1.46" />
+  <link rel="stylesheet" href="styles.css?v=1.47" />
 </head>
 <body>
   <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
@@ -144,7 +144,17 @@
       <div id="hist" class="pop-cuerpo"></div>
     </div>
   </div>
-  <script src="config.js?v=1.46"></script>
-  <script src="app.js?v=1.46"></script>
+  <!-- 1.47: avisos de la pareja (se sumó / te sumaste / me fui): quién, qué y quién carga las cantidades -->
+  <div id="avisoPop" class="pop aviso hidden" role="dialog" aria-modal="true" aria-labelledby="avisoTit">
+    <div class="pop-caja">
+      <div id="avisoIco" class="aviso-ico">🤝</div>
+      <h2 id="avisoTit"></h2>
+      <div id="avisoTxt" class="aviso-txt"></div>
+      <div id="avisoNota" class="aviso-nota"></div>
+      <div id="avisoBtns" class="aviso-btns"></div>
+    </div>
+  </div>
+  <script src="config.js?v=1.47"></script>
+  <script src="app.js?v=1.47"></script>
 </body>
 </html>

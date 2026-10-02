@@ -4,6 +4,8 @@
 // Tres celulares contra una base simulada que hace lo mismo que la real (gt_v155): gt_pareja_abiertos (lo que se está
 // haciendo y todavía no tiene compañero), el trigger gt_pareja_une (pareja aceptada, _invitado al que se suma, «con …» al
 // que empezó) y gt_pareja_avisos (al que empezó, mientras su tramo sigue abierto).
+// 1.47 (Elías: «mejorá los mensajes de se unió y de las unidades las carga, y el que acompaña no tiene botón de Terminé,
+// tiene botón de Me fui»): los avisos van en una ventana (#avisoPop) y el que se sumó se va con «🚪 Me fui».
 // Uso: node tests/parejas.cjs   (necesita playwright)
 const path = require("path"), http = require("http"), fs = require("fs");
 let pw; try { pw = require("playwright"); } catch { pw = require(require("child_process").execSync("npm root -g").toString().trim() + "/playwright"); }
@@ -83,6 +85,7 @@ srv.listen(0, async () => {
     return p;
   };
   const enviar = (p) => p.evaluate(() => window.__gt.flush());
+  const ventana = async (p) => (await p.textContent("#avisoPop .pop-caja")).replace(/\s+/g, " ").trim();
   const juntas = (p) => p.$$eval("#codJunta button", (bs) => bs.map((b) => b.textContent.replace(/\s+/g, " ").trim()));
   try {
     const xi = await entrar(7), wa = await entrar(8), lu = await entrar(9);
@@ -99,38 +102,60 @@ srv.listen(0, async () => {
     const ofrece = await juntas(wa);
     chk(ofrece.length === 1 && /Ximena Ortiz · 173/.test(ofrece[0]) && /Cuadro Mold 03 Grafic Work · 10\*30/.test(ofrece[0]),
         "Walter entra a Encolado y le aparece «" + (ofrece[0] || "nada") + "»");
-    await wa.click("#codJunta button"); await wa.waitForSelector(".termine-btn[data-cod=ENCOL]"); await enviar(wa);
+    await wa.click("#codJunta button"); await wa.waitForSelector("#avisoPop:not(.hidden)", { timeout: 3000 });
+    const sumo = await ventana(wa);
+    chk(sumo.includes("Te sumaste a Ximena Ortiz") && sumo.includes("Encolado · 173") && sumo.includes("Cuadro Mold 03 Grafic Work · 10*30") &&
+        sumo.includes("Las cajas encoladas las carga Ximena Ortiz: vos no cargás nada") && sumo.includes("tocá «🚪 Me fui»"),
+        "a Walter se le abre la ventana «" + sumo + "»");
+    await wa.click("#avisoBtns button"); await wa.waitForSelector("#avisoPop.hidden", { state: "attached" });
+    await wa.waitForSelector(".termine-btn[data-cod=ENCOL]"); await enviar(wa);
     const wAp = de(8).find((r) => r.rubro === "ENCOL" && !r.ts_inicio);
     chk(wAp && wAp.texto === "173" && wAp.detalle.pareja === "con Ximena Ortiz" && wAp.detalle._une && wAp.detalle._invitado === 1,
         "se sumó: el mismo 173, «con Ximena Ortiz», y la base le pone la marca de la pareja");
     const abW = (await wa.textContent("#abiertaBox")).replace(/\s+/g, " ");
-    chk(abW.includes("Encolado · 173 · con Ximena Ortiz") && !/_une|_invitado/.test(abW), "Walter ve «Encolado · 173 · con Ximena Ortiz»");
+    chk(abW.includes("Encolado · 173 · con Ximena Ortiz") && abW.includes("📝 las cajas encoladas las carga Ximena Ortiz") && !/_une|_invitado/.test(abW),
+        "Walter ve «" + abW.trim() + "»");
+    chk((await wa.textContent(".termine-btn[data-cod=ENCOL]")).trim() === "🚪 Me fui" && (await wa.isVisible(".pausa-btn[data-pausa=BANO]")),
+        "Walter no tiene «Terminé»: tiene «🚪 Me fui» (y Baño / Movimientos)");
 
     // 3) a Ximena le llega el aviso: las cajas las pone ella
-    await xi.waitForSelector("#pasoScreen:not(.hidden)", { timeout: 7000 });
-    const aviso = (await xi.textContent("#pasoLabel")).trim();
-    chk(aviso === "Walter Saucedo se sumó a tu Encolado · 173. Al terminar, las cajas encoladas las ponés vos: las de los dos.",
-        "a Ximena le avisa sola (cada 5 s): «" + aviso + "»");
-    await xi.click("#pasoOpts button[data-val='Entendido']"); await xi.waitForSelector(".termine-btn[data-cod=ENCOL]");
-    chk((await xi.textContent("#abiertaBox")).includes("173 · con Walter Saucedo"), "y su Encolado pasa a decir «con Walter Saucedo»");
+    await xi.waitForSelector("#avisoPop:not(.hidden)", { timeout: 7000 });
+    const aviso = await ventana(xi);
+    chk(aviso.includes("Walter Saucedo se sumó a tu Encolado") && aviso.includes("173 · Cuadro Mold 03 Grafic Work · 10*30") &&
+        aviso.includes("Al terminar, las cajas encoladas las cargás vos: las de los dos") && aviso.includes("Walter Saucedo no carga nada"),
+        "a Ximena le avisa sola (cada 5 s), en una ventana: «" + aviso + "»");
+    chk(await xi.isVisible("#optionsScreen"), "la ventana va encima de la botonera (no la saca de la pantalla)");
+    await xi.click("#avisoBtns button"); await xi.waitForSelector(".termine-btn[data-cod=ENCOL]");
+    const abX = (await xi.textContent("#abiertaBox")).replace(/\s+/g, " ");
+    chk(abX.includes("173 · con Walter Saucedo") && abX.includes("📝 las cajas encoladas las cargás vos: las de los dos") &&
+        (await xi.textContent(".termine-btn[data-cod=ENCOL]")).trim() === "✅ Terminé", "y su Encolado dice «" + abX.trim() + "», con «✅ Terminé»");
     await xi.evaluate(() => window.__gt.revisarParejas()); await xi.waitForTimeout(300);
-    chk(await xi.isVisible("#optionsScreen"), "el aviso sale una sola vez");
+    chk(!(await xi.isVisible("#avisoPop")), "el aviso sale una sola vez");
 
     // 4) Luis toca Encolado: lo de Ximena ya tiene compañero, no se lo ofrece
     await lu.click(".box[data-cod=ENCOL]"); await lu.waitForSelector("#codScreen:not(.hidden)"); await lu.waitForTimeout(300);
     chk(!(await lu.isVisible("#codJunta")), "a Luis no le aparece el 173: ya son dos");
     await lu.click("#codVolver"); await lu.waitForSelector("#optionsScreen:not(.hidden)");
 
-    // 5) Walter termina: sin cajas («la cantidad la carga Ximena») y sin «¿con qué seguís?»
-    await wa.click(".termine-btn[data-cod=ENCOL]"); await wa.waitForSelector("#cantScreen:not(.hidden)");
-    chk(!(await wa.isVisible("#cantBox")) && !(await wa.isVisible("#sigueBox")) && (await wa.textContent("#cantSub")).includes("la cantidad la carga Ximena Ortiz") &&
-        (await wa.textContent("#cantBtn")) === "Listo", "Terminé de Walter: «la cantidad la carga Ximena Ortiz», sin cajas, «Listo»");
-    await wa.click("#cantBtn"); await wa.waitForSelector(".box[data-cod=ENCOL]"); await enviar(wa);
-    chk(de(8).some((r) => r.rubro === "ENCOL" && r.ts_inicio && r.cantidad == null), "cierre de Walter sin cantidad");
+    // 5) Walter se va: «🚪 Me fui» pide confirmar; «Sigo con Ximena» no cierra nada; «Sí, me fui» cierra sin cajas
+    await wa.click(".termine-btn[data-cod=ENCOL]"); await wa.waitForSelector("#avisoPop:not(.hidden)");
+    const vaS = await ventana(wa);
+    chk(vaS.includes("¿Te vas del Encolado · 173?") && vaS.includes("Con Ximena Ortiz desde las") && vaS.includes("Las cajas encoladas las carga Ximena Ortiz: vos no cargás nada") &&
+        !(await wa.isVisible("#cantScreen")), "«🚪 Me fui»: «" + vaS + "» (sin la pantalla de cajas)");
+    await wa.click("#avisoBtns button:has-text('Sigo con Ximena Ortiz')"); await wa.waitForTimeout(150);
+    chk(!(await wa.isVisible("#avisoPop")) && (await wa.isVisible(".termine-btn[data-cod=ENCOL]")) && !de(8).some((r) => r.rubro === "ENCOL" && r.ts_inicio),
+        "«Sigo con Ximena Ortiz»: sigue en el Encolado, no se cerró nada");
+    await wa.click(".termine-btn[data-cod=ENCOL]"); await wa.click("#avisoBtns button:has-text('Sí, me fui')");
+    await wa.waitForSelector(".box[data-cod=ENCOL]"); await enviar(wa);
+    const wc = de(8).find((r) => r.rubro === "ENCOL" && r.ts_inicio);
+    chk(wc && wc.cantidad == null && wc.texto === "173" && wc.ts_inicio === wAp.ts_cliente && !(await wa.isVisible("#cantScreen")),
+        "«Sí, me fui»: cierre de Walter sin cantidad y vuelve la botonera, sin «¿con qué seguís?»");
 
     // 6) Ximena termina con las de los dos
     await xi.click(".termine-btn[data-cod=ENCOL]"); await xi.waitForSelector("#cantScreen:not(.hidden)");
-    chk((await xi.textContent("#cantSub")).includes("poné las de los dos (con Walter Saucedo)"), "a Ximena le pide las cajas de los dos");
+    const pide = (await xi.textContent("#cantLabel")).trim() + " / " + (await xi.textContent("#cantSub")).trim();
+    chk(pide.includes("¿Cuántas cajas encoladas del 173 hicieron entre vos y Walter Saucedo?") && pide.includes("las de los dos, no sólo las tuyas"),
+        "a Ximena le pide las cajas de los dos: «" + pide + "»");
     await xi.fill("#cantInput", "12"); await xi.click("#cambioBtn"); await xi.waitForSelector(".box[data-cod=ENCOL]"); await enviar(xi);
     const xc = de(7).find((r) => r.rubro === "ENCOL" && r.ts_inicio);
     chk(xc && xc.cantidad === 12 && xc.detalle && xc.detalle.pareja === "con Walter Saucedo", "su cierre lleva las 12 cajas y «con Walter Saucedo»");
@@ -142,14 +167,23 @@ srv.listen(0, async () => {
     chk(ofreceC.length === 1 && /Luis Luna · 185/.test(ofreceC[0]), "Contraído: a Walter le aparece «Luis Luna · 185»");
     // 8) Luis se va al baño y Walter se suma: el aviso espera a que Luis vuelva
     await lu.click(".pausa-btn[data-pausa=BANO]"); await lu.waitForSelector(".termine-btn[data-cod=BANO]");
-    await wa.click("#codJunta button"); await wa.waitForSelector(".termine-btn[data-cod=CONTR]"); await enviar(wa);
+    await wa.click("#codJunta button"); await wa.waitForSelector("#avisoPop:not(.hidden)"); await wa.click("#avisoBtns button");
+    await wa.waitForSelector(".termine-btn[data-cod=CONTR]"); await enviar(wa);
     await lu.evaluate(() => window.__gt.revisarParejas()); await lu.waitForTimeout(400);
-    chk(!(await lu.isVisible("#pasoScreen")) && (await lu.isVisible(".termine-btn[data-cod=BANO]")), "con Luis en el baño, el aviso espera (no le tapa la pausa)");
+    chk(!(await lu.isVisible("#avisoPop")) && (await lu.isVisible(".termine-btn[data-cod=BANO]")), "con Luis en el baño, el aviso espera (no le tapa la pausa)");
     await lu.click(".termine-btn[data-cod=BANO]"); await lu.waitForSelector(".termine-btn[data-cod=CONTR]");
-    await lu.evaluate(() => window.__gt.revisarParejas()); await lu.waitForSelector("#pasoScreen:not(.hidden)", { timeout: 3000 });
-    chk((await lu.textContent("#pasoLabel")).includes("Walter Saucedo se sumó a tu Contraído · 185. Al terminar, las cajas contraídas las ponés vos"),
-        "volvió del baño: «Walter Saucedo se sumó a tu Contraído · 185…»");
-    await lu.click("#pasoOpts button[data-val='Entendido']");
+    await lu.evaluate(() => window.__gt.revisarParejas()); await lu.waitForSelector("#avisoPop:not(.hidden)", { timeout: 3000 });
+    const avC = await ventana(lu);
+    chk(avC.includes("Walter Saucedo se sumó a tu Contraído") && avC.includes("185 · Cuadro Mold 03 Paisajes") && avC.includes("las cajas contraídas las cargás vos"),
+        "volvió del baño: «" + avC + "»");
+    await lu.click("#avisoPop", { position: { x: 5, y: 5 } });   // tocar afuera la cierra
+    chk(!(await lu.isVisible("#avisoPop")), "tocar afuera cierra la ventana");
+    // 8b) Walter, en Contraído con Luis, se va al movimiento y desde ahí dice que no sigue: se va sin la pantalla de cajas
+    await wa.click(".pausa-btn[data-pausa=MOVIM]"); await wa.waitForSelector(".termine-btn[data-cod=MOVIM]");
+    await wa.click(".termine-btn[data-cod=MOVIM]"); await wa.waitForSelector("#pasoScreen:not(.hidden)");
+    chk(await wa.isVisible("#pasoOpts button[data-val='No, me fui de Contraído']"), "desde un Movimiento: «No, me fui de Contraído» (no «terminé»)");
+    await wa.click("#pasoOpts button[data-val='No, me fui de Contraído']"); await wa.waitForSelector(".box[data-cod=CONTR]"); await enviar(wa);
+    chk(de(8).some((r) => r.rubro === "CONTR" && r.ts_inicio && r.cantidad == null) && !(await wa.isVisible("#cantScreen")), "y se cierra su Contraído sin cajas");
     // 9) en Corte no aparece nada de parejas
     await xi.click(".box[data-cod=CORTE]"); await xi.waitForSelector(".termine-btn[data-cod=CORTE]");
     chk(true, "Corte arranca directo, sin nada de parejas");
