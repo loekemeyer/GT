@@ -455,6 +455,32 @@ qué lleva cada grupo: sin filas, nada cambia** (la lámina genérica de Encolad
   transacción abortada: 134 encolado 2 cajas → `LAM 30*40 −32` y `CHAP 30*40 −32` · set 136, 1 caja → −8 de cada
   medida · demanda con 134 y 136 marcados: 1.600 chapadur 30×40, 1.664 láminas 30×40 (el 183 con receta propia ×2).
   `sql/gt_v141_lamina_chapadur.sql`.
+- **gt_v142 (Thomas, 01/10: «Hacé laburar todo lo de D35 dentro del schema GT»): los insumos se resuelven SOLOS, por
+  REGLAS que viven en la base.** `gt.insumo_regla` (ámbito producto / aro · etapa · patrón regex sobre la descripción ·
+  plantilla con `{medida}` · cantidad · `por_pieza`). Orden, **etapa por etapa**: receta del producto > receta de su
+  grupo > regla; para un aro: receta del aro > regla. Un insumo **`-`** en una receta = «en esta etapa no lleva nada»
+  (anula la regla y el respaldo de Encolado; la fila `-` del catálogo está inactiva a propósito). Las 9 reglas sembradas:
+
+  | etapa | a quién (descripción) | insumo | cant | fuente |
+  |---|---|---|---|---|
+  | Encolado | Cuadro / Cuadros, salvo MDF | `LAM {medida}` + `CHAP {medida}`, por pieza | 1 | Thomas |
+  | Gancho | cuadros, portas, espejos, diplomas, múltiples | `GANCHO`, por pieza | 1 | [Probable] |
+  | Emblistado | ídem | `BLIS {medida}` (un set entero en uno) | 1 | [Probable] |
+  | Contraído | ídem | `FILM` (cuenta unidades, no metros) | 1 | [Adivinando] |
+  | Montaje | «c/Vidrio», portas, múltiples | `VIDRIO {medida}` | 1 | [Probable] |
+  | Montaje | portas, múltiples, diplomas | `FONDO {medida}` | 1 | [Adivinando] |
+  | Montaje | espejos | `ESPEJO {medida}` | 1 | [Probable] |
+  | Grampeado | todo aro | `GRAMPA` | 8 | [Adivinando] |
+
+  Lo marcado [Probable] / [Adivinando] es lectura de Claude, no dato de Thomas: se corrige con un `update` a la regla
+  (D36). Probado en transacción abortada: 134 encolado 2 cajas → lámina y chapadur 30×40 −32 · gancho −32 · blíster
+  30×40 −32 · film −32 · set 136 encolado → −8 de cada medida y, con gancho en 30×40, un solo −8 · diploma 192 montaje →
+  vidrio y fondo 30×40 −16 · bandeja 541 encolada (sin regla) → el respaldo lámina + chapadur 25×35 · aro 080 ×10 →
+  grampas −80 · receta `-` en 134/Encolado → nada. `gt.codigos.lleva_lamina` queda **sin uso** (la regla lo reemplaza).
+  **Demanda de insumos al 01/10, sin conteo:** 178.657 grampas · 21.618 ganchos · 19.122 film · 6.990 láminas y 6.990
+  chapadur 30×40 · 5.794 blíster 30×40 (`select * from gt.demanda_insumos`). ⚠ `gt.demanda_producto` incluye **13
+  productos que GT no fabrica** (3 cajas, 6 cestos, 2 estantes, jabonera, set 900: 22 cajas) porque tienen consumo en
+  TN: D37. `sql/gt_v142_insumo_reglas.sql`.
 
 ### 1.23 — movimientos de stock por etapa, sólo internos (Thomas, 01/10/2026)
 
