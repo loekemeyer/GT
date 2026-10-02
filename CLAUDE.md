@@ -86,6 +86,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 | Almuerzo (`ALMU`) | no | botón aparte, no tarjeta; sin cantidad |
 | Recibir mercadería | **no** (1.12, D29) | — ; al terminar no pide cantidad (1.13, D30) |
 | Movimientos (`MOVIM`, 1.28, D31) | no | — ; sin cantidad. En **todas** las plantas. Es una pausa: al terminar propone volver al área productiva anterior |
+| Baño (`BANO`, 1.31, Elías) | no | igual que Movimientos |
 
 Avisos de llegada: van al grupo de Telegram **«GT Avisos»** (`gt.config.telegram_chat = -5397417174`,
 configurado y probado el 01/10/2026). El bot es `@Faltantes_Virgilio_bot`, el mismo que vacía
@@ -182,19 +183,35 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.31 — «Baño» como Movimientos y sin «Cambiar de planta» en la botonera (Elías, 02/10/2026)
+
+- Pedido: *«de la botonera sacá el botón de cambiar planta, y añadí Baño, funciona de igual forma que Movimientos»*.
+- **Baño** (`BANO`, 🚻): una fila en `gt.rubros` igual a la de Movimientos (sin código ni cantidad, `todas_plantas = true`,
+  orden 31) y `PAUSAS = ["ALMU", "MOVIM", "BANO"]` en `app.js`: al terminar propone volver al área productiva anterior.
+  En la base Movimientos no tenía ningún trato aparte (sólo `'ALMU'` se excluye en producción, ritmo y jornada), así que
+  Baño sale igual: aparece en Producción del admin con su tramo y cuenta como «llegó» en Asistencia.
+  ⚠ **Cambia lo que Thomas había dicho en D31** (*«una sola: Movimientos»*, y Baño no existía). Se saca con
+  `update gt.rubros set activo = false where codigo = 'BANO'`.
+- **Sin «🏭 Cambiar de planta»**: quien trabaja en dos plantas (Darío, Luis Luna) cambia saliendo con ‹ y volviendo a
+  entrar con el código del monitor; la pregunta «¿En qué planta trabajás hoy?» sigue al entrar.
+- Con 13 áreas en Pellegrini, en pantallas de hasta 500 px de alto el encabezado y los márgenes de la botonera se
+  achican, la tarjeta puede bajar a 48 px y, si es baja, el ícono va al costado del nombre (los dos centrados).
+  `tests/botonera.cjs` y `tests/smoke.cjs` (Baño en las dos plantas, «¿seguís en Guardado?» al terminarlo, cambio de
+  planta saliendo y entrando).
+
 ### 1.30 — la botonera de áreas entra entera en cualquier pantalla, con ícono y nombre centrados (Elías, 02/10/2026)
 
 - Pedido: *«ahora aplicá lo mismo a esta botonera, y centrá el texto y la imagen al botón»*. Antes: tarjetas de 104 px
   en 2 o 3 columnas fijas, con el ícono y el nombre a la izquierda; en un iPhone 13 había que bajar para ver las 12 de
   Pellegrini y los botones de abajo.
 - `acomodarAreas()` (`app.js`) usa la misma elección que «¿Quién sos?» (`elegirGrilla`): mide el lugar que dejan el
-  encabezado y los botones de abajo y elige columnas y alto. Tarjeta de 56 a 120 px de alto y 88 px de ancho o más, para
-  las áreas que haya (12 en Pellegrini, 4 en Esnaola). Queda 3 × 4 en el celular chico, 2 × 6 en el grande, 6 × 2
+  encabezado y los botones de abajo y elige columnas y alto. Tarjeta de 56 a 120 px de alto (48 desde 1.31) y 88 px de ancho o
+  más, para las áreas que haya (12 en Pellegrini y 4 en Esnaola; 13 y 5 con Baño, 1.31). Queda 3 × 4 en el celular chico, 2 × 6 en el grande, 6 × 2
   acostado, 3 × 4 o 4 × 3 en tablet y PC. Se rehace al girar o cambiar la ventana.
 - Ícono y nombre **centrados** en la tarjeta. La letra baja (de 19 a 12 px) hasta que el nombre entra sin partir
   palabras; si la tarjeta es baja (menos de 84 px), sin el «Empezar» (lo dicen todas).
-- Botones de abajo (`.pie`): con hasta 600 px de alto, de 48 px y «Resumen» al lado de «Cambiar de planta»; con el
-  celular acostado, los cuatro en una sola fila.
+- Botones de abajo (`.pie`): con hasta 600 px de alto, Almuerzo, Terminar día y Resumen en una sola fila de 48 px (1.31,
+  ya sin «Cambiar de planta»).
 - Con un área abierta no cambia nada: sigue sólo «✅ Terminé».
 - `tests/botonera.cjs`: los mismos 16 tamaños que `nombres16.cjs` con las 12 áreas reales, más Darío (dos plantas, un
   botón más) en los 4 más chicos y el giro del celular. Todo a la vista, sin scroll, centrado, el nombre entero.
@@ -221,7 +238,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   devuelva una vez por planta activa (misma firma: sin `DROP`), y el celular filtra por la planta elegida.
 - Al terminar Movimientos el celular propone **volver al área productiva anterior** (como al volver de almorzar):
   `PAUSAS = ["ALMU", "MOVIM"]` en `app.js`, y Recibir mercadería no cuenta como productiva. Baño, limpieza y demás no
-  existen: lo que no es un área queda sin registro, como hasta ahora.
+  existían (D31); desde 1.31 Baño sí, a pedido de Elías.
 - No mueve stock (`gt.movimientos` lo ignora), no entra al ritmo (sin cantidad) y cuenta como «llegó» en Asistencia.
 - `sql/gt_v143_movimientos_area.sql`, `tests/smoke.cjs` (Movimientos en Pellegrini y en Esnaola, y el «¿seguís en
   Guardado?» al terminar).
@@ -562,8 +579,8 @@ qué lleva cada grupo: sin filas, nada cambia** (la lámina genérica de Encolad
 - La botonera muestra sólo las áreas de esa planta: un área (`gt.rubros.planta`) **sin planta es de la principal**
   (la de menor `orden` en `gt.plantas`). En **Esnaola** se moldura, se lija y se pinta (las molduras que después
   se cortan en Pellegrini): áreas **Moldurado · Lijado · Pintado** (desde 1.24 preguntan moldura, anilina, color y metros: ver 1.24).
-- La planta queda en la sesión del día y viaja en cada evento (`gt.registros.planta`). «🏭 Cambiar de planta» sólo
-  con nada abierto.
+- La planta queda en la sesión del día y viaja en cada evento (`gt.registros.planta`). «🏭 Cambiar de planta» se sacó
+  en 1.31: se cambia saliendo con ‹ y volviendo a entrar.
 - Quién trabaja en qué planta = `gt.empleado_planta` (sin filas = sólo la principal). Agregar a alguien es un `insert`.
 - La app lee `gt_botones2()` (trae la planta); si falla, cae a `gt_botones()`. `sql/gt_v122_plantas.sql`.
 

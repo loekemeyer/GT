@@ -131,8 +131,8 @@
 
   // 1.30 (Elías, 02/10: «ahora aplicá lo mismo a esta botonera, y centrá el texto y la imagen al botón»): las áreas entran
   // enteras en el lugar que dejan el encabezado y los botones de abajo (Almuerzo, Terminar día, Resumen), con el ícono y el
-  // nombre centrados. Tarjeta de 56 a 120 px de alto y 88 px de ancho o más; con el celular acostado los botones de abajo
-  // van en una sola fila (styles.css) para dejarle el alto a las áreas.
+  // nombre centrados. Tarjeta de 48 a 120 px de alto y 88 px de ancho o más; en pantallas bajas los botones de abajo van en
+  // una sola fila y el encabezado se achica (styles.css) para dejarle el alto a las áreas.
   function acomodarAreas() {
     const B = $("botonera"), R = B.querySelector(".row");
     if (!R || $("optionsScreen").classList.contains("hidden")) return;
@@ -140,18 +140,20 @@
     const cs = getComputedStyle(R), gap = parseFloat(cs.rowGap) || 10;
     const W = R.clientWidth, H = B.clientHeight - parseFloat(cs.marginTop);
     B.classList.remove("midiendo");
-    const g = elegirGrilla(W, H, gap, R.children.length, { minH: 56, maxH: 120, minW: 88, k: 0.7 });
+    const g = elegirGrilla(W, H, gap, R.children.length, { minH: 48, maxH: 120, minW: 88, k: 0.7 });
     R.style.setProperty("--cols", g.c);
     R.style.setProperty("--alto", g.alto + "px");
     R.style.setProperty("--ico", Math.round(Math.max(20, Math.min(40, g.alto * 0.3))) + "px");
-    // la letra más grande con la que el nombre entra en la tarjeta sin partir palabras; si no entra, sin el «Empezar»
-    // (todas lo dicen); y si ni con 12 px entra, se parte la palabra
+    // la letra más grande con la que el nombre entra en la tarjeta sin partir palabras. Si no entra: sin el «Empezar» (todas
+    // lo dicen); después, con la tarjeta baja (celular acostado), el ícono al costado del nombre, los dos centrados; y si ni
+    // con 12 px entra, se parte la palabra
     const cajas = [...R.children];
     const entra = () => cajas.every((b) => b.scrollWidth <= b.clientWidth + 1 && b.scrollHeight <= b.clientHeight + 1);
     const tope = Math.round(Math.max(14, Math.min(19, g.alto * 0.2, g.w * 0.13)));
     R.classList.remove("parte");
-    for (const desc of g.alto >= 84 ? [true, false] : [false]) {
-      R.classList.toggle("sin-desc", !desc);
+    for (const forma of (g.alto >= 84 ? ["desc"] : []).concat(["", "fila"])) {
+      R.classList.toggle("sin-desc", forma !== "desc");
+      R.classList.toggle("fila", forma === "fila");
       for (let letra = tope; letra >= 12; letra--) {
         R.style.setProperty("--letra", letra + "px");
         if (entra()) return;
@@ -256,7 +258,7 @@
   /* ---------- botonera de áreas ---------- */
   // v1.1: ícono por área (se ve en la tarjeta); un área nueva sin ícono usa 🏷️
   const ICONO = { CORTE: "✂️", GRAMP: "📌", ENCOL: "🧴", MONT: "🛠️", GANCHO: "🪝", EMBL: "📦", CONTR: "🎞️",
-                  PED: "🧾", DECO: "🎨", GUARD: "🗄️", RECIB: "🚚", MOVIM: "🔄", ALMU: "🍽️", MOLDU: "🪚", LIJA: "🧽", PINT: "🖌️" };
+                  PED: "🧾", DECO: "🎨", GUARD: "🗄️", RECIB: "🚚", MOVIM: "🔄", BANO: "🚻", ALMU: "🍽️", MOLDU: "🪚", LIJA: "🧽", PINT: "🖌️" };
   // 1.22: un área es de la planta elegida; un área sin planta es de la principal
   function deLaPlanta(a) { return (a.planta || st.principal || null) === (st.planta || st.principal || null); }
   function transcurrido(iso) {
@@ -296,7 +298,6 @@
     const conSector = !!(ab && ab.rubro !== "ALMU");
     $("almuBtn").classList.toggle("hidden", !areaDe("ALMU") || conSector);
     $("finBtn").classList.toggle("hidden", !!ab);
-    $("plantaBtn").classList.toggle("hidden", !!ab || st.plantas.length < 2);
     $("almuBtn").textContent = ab && ab.rubro === "ALMU" ? "🍽️ Volví de almorzar" : "🍽️ Almuerzo";
     $("almuBtn").classList.toggle("activo", !!(ab && ab.rubro === "ALMU"));
     acomodarAreas();
@@ -328,7 +329,7 @@
     abrirTermine(ab, areaDe(ab.rubro) || { codigo: ab.rubro, nombre: ab.rubro, unidad: "cantidad" }, null, "fin");
   }
   // 1.28 (D31): Almuerzo y Movimientos son pausas del trabajo; al volver se propone el área productiva anterior (Recibir tampoco cuenta)
-  const PAUSAS = ["ALMU", "MOVIM"];
+  const PAUSAS = ["ALMU", "MOVIM", "BANO"];   // 1.31 (Elías): Baño, igual que Movimientos
   function areaAntesDelAlmuerzo(ab) {
     const prev = eventosHoy().filter((r) => r.opcion === "AREA" && !PAUSAS.includes(r.rubro) && r.rubro !== "RECIB" && r.ts_inicio && r.ts_cliente <= ab.ts_cliente);
     return prev.length ? areaDe(prev[prev.length - 1].rubro) : null;
@@ -675,10 +676,11 @@
 
   // 2) entra con el empleado elegido (o con la sesión del día, sin pedir código)
   // 1.22: después del nombre, si trabaja en más de una planta, «¿En qué planta trabajás hoy?»
+  // 1.31 (Elías): sin «Cambiar de planta» en la botonera: para cambiar, ‹ y volver a entrar con el código del monitor
   function elegirEmpleado(id, nombre) {
     const pl = (st.empsPlantas && st.empsPlantas[id]) || [];
     if (pl.length < 2) { entrar(id, nombre, pl[0] ? pl[0].codigo : null, pl, st.principal); return; }
-    st.elige = { id, nombre, plantas: pl, cambio: false };
+    st.elige = { id, nombre, plantas: pl };
     mostrarPlantas();
   }
   function mostrarPlantas() {
@@ -687,18 +689,9 @@
     $("plantaOpts").innerHTML = e.plantas.map((p) => '<button data-planta="' + esc(p.codigo) + '">' + esc(p.nombre) + "</button>").join("");
     show("plantaScreen");
   }
-  function cambiarPlanta() {
-    if (abierta() || st.plantas.length < 2) return;
-    st.elige = { id: st.emp, nombre: st.nombre, plantas: st.plantas, cambio: true };
-    mostrarPlantas();
-  }
   function elegirPlanta(cod) {
     const e = st.elige; if (!e) return;
     st.elige = null;
-    if (e.cambio) {
-      st.planta = cod; guardarSesion(); ponerNombre(); show("optionsScreen"); renderBotonera();
-      toast("🏭 Ahora en " + nombrePlanta(cod)); return;
-    }
     entrar(e.id, e.nombre, cod, e.plantas, st.principal);
   }
   function nombrePlanta(cod) { const p = st.plantas.find((x) => x.codigo === cod); return p ? p.nombre : cod || ""; }
@@ -739,8 +732,7 @@
   $("claveInput").addEventListener("keydown", (e) => { if (e.key === "Enter") validarClave(); });
   $("nombreLista").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) elegirEmpleado(b.dataset.id, b.dataset.nombre); });
   $("plantaOpts").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) elegirPlanta(b.dataset.planta); });
-  $("plantaVolver").onclick = () => { const c = st.elige && st.elige.cambio; st.elige = null; show(c ? "optionsScreen" : "nombreScreen"); };
-  $("plantaBtn").onclick = cambiarPlanta;
+  $("plantaVolver").onclick = () => { st.elige = null; show("nombreScreen"); };
   $("nombreVolver").onclick = () => show("claveScreen");
   $("botonera").addEventListener("click", (e) => { const b = e.target.closest(".box, .termine-btn"); if (b) tocar(b.dataset.cod); });
   $("salirBtn").onclick = salir;

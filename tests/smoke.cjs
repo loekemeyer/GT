@@ -21,7 +21,10 @@ const AREAS2 = AREAS.concat([
   { codigo: "PINT", nombre: "Pintado", unidad: "paquetes", orden: 23, pide_codigo: false, pide_cantidad: true, planta: "ESNA" },
   // 1.28 (D31): Movimientos está en TODAS las plantas: gt_botones2 lo devuelve una vez por planta
   { codigo: "MOVIM", nombre: "Movimientos", unidad: "—", orden: 30, pide_codigo: false, pide_cantidad: false, planta: "PELL" },
-  { codigo: "MOVIM", nombre: "Movimientos", unidad: "—", orden: 30, pide_codigo: false, pide_cantidad: false, planta: "ESNA" }]);
+  { codigo: "MOVIM", nombre: "Movimientos", unidad: "—", orden: 30, pide_codigo: false, pide_cantidad: false, planta: "ESNA" },
+  // 1.31 (Elías): Baño, igual que Movimientos
+  { codigo: "BANO", nombre: "Baño", unidad: "—", orden: 31, pide_codigo: false, pide_cantidad: false, planta: "PELL" },
+  { codigo: "BANO", nombre: "Baño", unidad: "—", orden: 31, pide_codigo: false, pide_cantidad: false, planta: "ESNA" }]);
 // 1.24: las preguntas de Esnaola (gt_pasos). El paso de PINT al TERMINAR es sólo del mock: prueba el momento 'terminar'.
 const MOLD = ["03", "05", "012"];
 const PASOS = [
@@ -106,8 +109,8 @@ srv.listen(0, async () => {
     await pg.click("#nombreLista button[data-id='7']");
     await pg.waitForSelector(".box[data-cod=CORTE]");
     chk((await pg.textContent("#opName")) === "Prueba", "entra con el nombre elegido");
-    chk((await pg.$$(".box")).length === 8, "botonera = las áreas de Pellegrini (7 + Movimientos): las de Esnaola no aparecen");
-    chk(!(await pg.isVisible("#plantaBtn")), "quien trabaja en una sola planta no ve «Cambiar de planta»");
+    chk((await pg.$$(".box")).length === 9, "botonera = las áreas de Pellegrini (7 + Movimientos + Baño): las de Esnaola no aparecen");
+    chk(!(await pg.$("#plantaBtn")), "la botonera no tiene «Cambiar de planta» (1.31)");
     const alDia = () => pg.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
     await pg.click(".box[data-cod=CORTE]"); await alDia();
     chk(db.length === 1 && db[0].opcion === "AREA" && db[0].rubro === "CORTE" && db[0].ts_inicio === null, "Empecé Corte: apertura con ts_inicio NULL");
@@ -122,7 +125,7 @@ srv.listen(0, async () => {
     await pg.fill("#cantInput", "abc"); await pg.click("#cambioBtn");
     chk((await pg.textContent("#cantError")).length > 0 && db.length === 1, "cantidad no numérica no se registra");
     await pg.fill("#cantInput", "120"); await pg.click("#cambioBtn"); await alDia();
-    chk((await pg.$$("#botonera .box")).length === 8, "cerrado el sector, vuelven todas las áreas");
+    chk((await pg.$$("#botonera .box")).length === 9, "cerrado el sector, vuelven todas las áreas");
     await pg.click(".box[data-cod=GRAMP]"); await pg.waitForSelector("#codScreen:not(.hidden)");
     await pg.fill("#codInput", "999"); await pg.click("#codBtn");
     chk((await pg.textContent("#codError")).includes("¿Lo registro igual?") && db.length === 2, "código que no está en la lista: pregunta antes de grabar");
@@ -184,6 +187,14 @@ srv.listen(0, async () => {
         "al terminar Movimientos no pide cantidad y propone volver a Guardado (la productiva anterior), no a Recibir ni a Movimientos");
     await pg.click("#cambioBtn"); await alDia();
     chk(db[db.length - 1].rubro === "MOVIM" && db[db.length - 1].ts_inicio && db[db.length - 1].cantidad == null, "Terminé Movimientos: cierre sin cantidad");
+    // 1.31 (Elías: «añadí Baño, funciona de igual forma que Movimientos»)
+    await pg.click(".box[data-cod=BANO]"); await alDia();
+    chk(db[db.length - 1].rubro === "BANO" && !db[db.length - 1].ts_inicio && !(await pg.isVisible("#codScreen")), "Baño empieza directo, sin código");
+    await termino("BANO");
+    chk(!(await pg.isVisible("#cantInput")) && await pg.isVisible("#sigueBox") && (await pg.textContent("#sigueLabel")).includes("Guardado"),
+        "al terminar Baño no pide cantidad y propone volver a Guardado (la productiva anterior), no a Movimientos ni a Baño");
+    await pg.click("#cambioBtn"); await alDia();
+    chk(db[db.length - 1].rubro === "BANO" && db[db.length - 1].ts_inicio && db[db.length - 1].cantidad == null, "Terminé Baño: cierre sin cantidad");
     chk(!(await pg.$(".box[data-cod=ALMU]")) && await pg.isVisible("#almuBtn") && await pg.isVisible("#finBtn"),
         "Almuerzo y Terminar día son botones aparte, no tarjetas de área");
     // almuerzo con un área abierta: cierra el área (cantidad) y empieza el almuerzo
@@ -218,7 +229,7 @@ srv.listen(0, async () => {
     const q = await pg.evaluate(() => [JSON.parse(localStorage.getItem("gt_queue_v3")).length, JSON.parse(localStorage.getItem("gt_rechazados_v3")).length]);
     chk(q[0] === 0 && q[1] === 1, "fila rechazada sale de la cola y queda anotada (no traba)");
     await pg.click("#histBtn");
-    const nh = (await pg.$$("#hist .hist-row")).length; chk(nh === 12, "resumen de hoy con 11 tramos (Movimientos incluido) + fin del día (" + nh + ")");
+    const nh = (await pg.$$("#hist .hist-row")).length; chk(nh === 13, "resumen de hoy con 12 tramos (Movimientos y Baño incluidos) + fin del día (" + nh + ")");
     chk(await pg.isVisible("#histPop") && await pg.evaluate(() => getComputedStyle(document.getElementById("histPop")).position === "fixed"),
         "el Resumen de hoy se abre como pop-up (no se despliega abajo)");
     await pg.click("#histCerrar"); chk(!(await pg.isVisible("#histPop")), "el ✕ cierra el pop-up");
@@ -247,7 +258,7 @@ srv.listen(0, async () => {
         "Darío (dos plantas): lo primero que pregunta es en qué planta trabaja (Pellegrini o Esnaola)");
     await p2.click("#plantaOpts button[data-planta='ESNA']"); await p2.waitForSelector(".box[data-cod=MOLDU]");
     const cods = await p2.$$eval("#botonera .box", (bs) => bs.map((b) => b.dataset.cod).join(","));
-    chk(cods === "MOLDU,LIJA,PINT,MOVIM" && (await p2.textContent("#opName")) === "Dario Mendez · Esnaola", "en Esnaola: Moldurado, Lijado, Pintado y Movimientos (D31, en todas las plantas), y nada de Pellegrini");
+    chk(cods === "MOLDU,LIJA,PINT,MOVIM,BANO" && (await p2.textContent("#opName")) === "Dario Mendez · Esnaola", "en Esnaola: Moldurado, Lijado, Pintado, Movimientos y Baño (en todas las plantas), y nada de Pellegrini");
     const n0 = db.length;
     const sync2 = () => p2.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
     const paso = async (val) => { await p2.waitForSelector("#pasoScreen:not(.hidden) #pasoOpts button[data-val='" + val + "']"); await p2.click("#pasoOpts button[data-val='" + val + "']"); };
@@ -262,7 +273,6 @@ srv.listen(0, async () => {
     chk(db.length === n0 + 1 && db[n0].rubro === "MOLDU" && db[n0].texto === "012" && db[n0].planta === "ESNA" && db[n0].empleado_id === 6 && !db[n0].detalle,
         "Empecé Moldurado 012: el evento lleva la moldura y la planta Esnaola");
     chk((await p2.textContent("#abiertaBox")).includes("012"), "el área abierta muestra la moldura");
-    chk(!(await p2.isVisible("#plantaBtn")), "con un área abierta no se puede cambiar de planta");
     await termino2("MOLDU");
     chk((await p2.textContent("#cantLabel")) === "¿Cuántos metros de moldura 012?" && (await p2.textContent("#sigueLabel")).includes("Moldurado"),
         "Terminé Moldurado: pide los metros de la moldura y propone seguir en Moldurado");
@@ -307,13 +317,16 @@ srv.listen(0, async () => {
         "cierre de Pintado con 4 paquetes; la pregunta del momento «terminar» se suma al detalle");
     await p2.click("#histBtn");
     chk((await p2.textContent("#hist")).includes("Lijado · 012 · anilina Cedro"), "el resumen del día muestra moldura y anilina");
-    await p2.click("#histCerrar"); await p2.waitForSelector("#plantaBtn:not(.hidden)");
+    await p2.click("#histCerrar");
     await p2.reload(); await p2.waitForSelector(".box[data-cod=LIJA]");
     chk(true, "al recargar sigue en Esnaola (la planta queda en la sesión del día)");
-    await p2.click("#plantaBtn"); await p2.waitForSelector("#plantaScreen:not(.hidden)");
+    // 1.31: sin «Cambiar de planta», se cambia saliendo (‹) y volviendo a entrar con el código
+    await p2.click("#salirBtn"); await p2.waitForSelector("#claveScreen:not(.hidden)");
+    await p2.fill("#claveInput", "1234"); await p2.click("#claveBtn");
+    await p2.waitForSelector("#nombreLista button[data-id='6']"); await p2.click("#nombreLista button[data-id='6']");
     await p2.click("#plantaOpts button[data-planta='PELL']"); await p2.waitForSelector(".box[data-cod=CORTE]");
-    chk((await p2.$$("#botonera .box")).length === 8 && (await p2.textContent("#opName")) === "Dario Mendez · Pellegrini",
-        "«Cambiar de planta» lo pasa a Pellegrini con su botonera");
+    chk((await p2.$$("#botonera .box")).length === 9 && (await p2.textContent("#opName")) === "Dario Mendez · Pellegrini",
+        "saliendo y volviendo a entrar pasa a Pellegrini con su botonera");
     // 1.26 (D15): Corte pregunta al terminar si se terminó el paquete de moldura (paso «terminar» de la base)
     PASOS.push({ rubro: "CORTE", orden: 1, campo: "paquete", pregunta: "¿Terminaste el paquete de moldura?", opciones: ["Sí", "No"], momento: "terminar" });
     await p2.reload(); await p2.waitForSelector(".box[data-cod=CORTE]");

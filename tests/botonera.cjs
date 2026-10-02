@@ -1,16 +1,16 @@
 // 1.30: la botonera de áreas entra entera, sin scroll, en cualquier pantalla, con el ícono y el nombre centrados en la
-// tarjeta, y los botones de abajo (Almuerzo, Terminar día, Resumen, Cambiar de planta) también a la vista.
+// tarjeta, y los botones de abajo (Almuerzo, Terminar día, Resumen) también a la vista.
 // Uso: node tests/botonera.cjs [carpeta]   (necesita playwright; con carpeta, guarda una captura por tamaño)
 const path = require("path"), http = require("http"), fs = require("fs");
 let pw; try { pw = require("playwright"); } catch { pw = require(require("child_process").execSync("npm root -g").toString().trim() + "/playwright"); }
 const ROOT = path.join(__dirname, ".."), FOTOS = process.argv[2];
-// las áreas reales de gt.rubros al 02/10/2026 (Pellegrini: 11 + Movimientos; Esnaola: 3 + Movimientos)
+// las áreas reales de gt.rubros al 02/10/2026 (Pellegrini: 11 + Movimientos + Baño; Esnaola: 3 + Movimientos + Baño)
 const A = (codigo, nombre, orden, planta) => ({ codigo, nombre, unidad: "u", orden, planta, pide_codigo: false, pide_cantidad: false });
 const AREAS = [A("CORTE", "Corte", 1, "PELL"), A("GRAMP", "Grampeado", 2, "PELL"), A("ENCOL", "Encolado", 3, "PELL"), A("MONT", "Montaje", 4, "PELL"),
   A("GANCHO", "Gancho", 5, "PELL"), A("EMBL", "Emblistado", 6, "PELL"), A("CONTR", "Contraído", 7, "PELL"), A("PED", "Pedidos", 8, "PELL"),
   A("DECO", "Deco", 9, "PELL"), A("GUARD", "Guardado a góndola", 10, "PELL"), A("RECIB", "Recibir mercadería", 11, "PELL"),
-  A("ALMU", "Almuerzo", 12, "PELL"), A("MOVIM", "Movimientos", 30, "PELL"),
-  A("MOLDU", "Moldurado", 21, "ESNA"), A("LIJA", "Lijado", 22, "ESNA"), A("PINT", "Pintado", 23, "ESNA"), A("MOVIM", "Movimientos", 30, "ESNA")];
+  A("ALMU", "Almuerzo", 12, "PELL"), A("MOVIM", "Movimientos", 30, "PELL"), A("BANO", "Baño", 31, "PELL"),
+  A("MOLDU", "Moldurado", 21, "ESNA"), A("LIJA", "Lijado", 22, "ESNA"), A("PINT", "Pintado", 23, "ESNA"), A("MOVIM", "Movimientos", 30, "ESNA"), A("BANO", "Baño", 31, "ESNA")];
 const PELL = { codigo: "PELL", nombre: "Pellegrini" }, ESNA = { codigo: "ESNA", nombre: "Esnaola" };
 const srv = http.createServer((req, res) => {
   if (req.url.startsWith("/rest/v1/rpc/")) {
@@ -50,25 +50,29 @@ async function medir(pg) {
     const cajas = [...R.querySelectorAll(".box")].map((b) => {
       const x = b.getBoundingClientRect(), ico = b.querySelector(".box-ico").getBoundingClientRect(), tit = b.querySelector(".box-title").getBoundingClientRect();
       const vis = [...b.querySelectorAll(".box-ico, .box-title, .box-desc")].filter((e) => e.offsetParent).map((e) => e.getBoundingClientRect());
-      const arriba = vis[0].top - x.top, abajo = x.bottom - vis[vis.length - 1].bottom, cx = x.left + x.width / 2;
-      return { x, adentro: b.scrollWidth <= b.clientWidth + 1 && b.scrollHeight <= b.clientHeight + 1,
-        centrada: Math.abs(ico.left + ico.width / 2 - cx) <= 1.5 && Math.abs(tit.left + tit.width / 2 - cx) <= 1.5 && Math.abs(arriba - abajo) <= 2 };
+      const arriba = vis[0].top - x.top, abajo = x.bottom - vis[vis.length - 1].bottom, cx = x.left + x.width / 2, cy = x.top + x.height / 2;
+      // ícono arriba del nombre: los dos en el centro horizontal y el bloque en el centro vertical; ícono al costado
+      // (tarjeta baja): el par en el centro horizontal y cada uno en el centro vertical
+      const centrada = R.classList.contains("fila")
+        ? Math.abs((ico.left - x.left) - (x.right - tit.right)) <= 2 && Math.abs(ico.top + ico.height / 2 - cy) <= 2 && Math.abs(tit.top + tit.height / 2 - cy) <= 2
+        : Math.abs(ico.left + ico.width / 2 - cx) <= 1.5 && Math.abs(tit.left + tit.width / 2 - cx) <= 1.5 && Math.abs(arriba - abajo) <= 2;
+      return { x, adentro: b.scrollWidth <= b.clientWidth + 1 && b.scrollHeight <= b.clientHeight + 1, centrada };
     });
-    const pie = ["almuBtn", "finBtn", "histBtn", "plantaBtn"].map((id) => document.getElementById(id)).filter((e) => e.offsetParent).map((e) => e.getBoundingClientRect());
+    const pie = ["almuBtn", "finBtn", "histBtn"].map((id) => document.getElementById(id)).filter((e) => e.offsetParent).map((e) => e.getBoundingClientRect());
     const todo = cajas.map((c) => c.x).concat(pie);
     return { n: cajas.length, ih, iw, pie: pie.length,
       aLaVista: todo.every((r) => r.top >= 0 && r.left >= 0 && r.bottom <= ih + 0.5 && r.right <= iw + 0.5),
       sinScroll: document.scrollingElement.scrollHeight <= ih + 1 && document.scrollingElement.scrollWidth <= iw,
       alto: Math.min(...cajas.map((c) => c.x.height)), ancho: Math.round(cajas[0].x.width),
       adentro: cajas.every((c) => c.adentro), centrada: cajas.every((c) => c.centrada), parte: R.classList.contains("parte"),
-      cols: cs.getPropertyValue("--cols").trim(), letra: cs.getPropertyValue("--letra").trim(), desc: !R.classList.contains("sin-desc") };
+      cols: cs.getPropertyValue("--cols").trim(), letra: cs.getPropertyValue("--letra").trim(), desc: !R.classList.contains("sin-desc"), fila: R.classList.contains("fila") };
   });
 }
 const linea = (nom, w, h, m) => `${nom} ${w}×${h}: ${m.n} áreas + ${m.pie} botones a la vista, sin scroll, centradas, nombre entero` +
   (m.aLaVista ? "" : " [se sale]") + (m.sinScroll ? "" : " [scroll]") + (m.adentro ? "" : " [nombre afuera]") + (m.centrada ? "" : " [no centrada]") +
-  (m.parte ? " [parte palabra]" : "") + (m.alto >= 55.5 ? "" : " [chica]") +
-  ` (${m.cols} col · ${m.ancho}×${Math.round(m.alto)} · letra ${m.letra}${m.desc ? " · con «Empezar»" : ""})`;
-const ok = (m, n, pie) => m.n === n && m.pie === pie && m.aLaVista && m.sinScroll && m.adentro && m.centrada && !m.parte && m.alto >= 55.5;
+  (m.parte ? " [parte palabra]" : "") + (m.alto >= 47.5 ? "" : " [chica]") +
+  ` (${m.cols} col · ${m.ancho}×${Math.round(m.alto)} · letra ${m.letra}${m.desc ? " · con «Empezar»" : ""}${m.fila ? " · ícono al costado" : ""})`;
+const ok = (m, n, pie) => m.n === n && m.pie === pie && m.aLaVista && m.sinScroll && m.adentro && m.centrada && !m.parte && m.alto >= 47.5;
 srv.listen(0, async () => {
   const url = "http://localhost:" + srv.address().port + "/";
   const br = await pw.chromium.launch();
@@ -77,24 +81,22 @@ srv.listen(0, async () => {
       const pg = await br.newPage({ viewport: { width: w, height: h } });
       await entrar(pg, url, 7);
       const m = await medir(pg);
-      chk(ok(m, 12, 3), linea(nom, w, h, m));
+      chk(ok(m, 13, 3), linea(nom, w, h, m));
       if (FOTOS) await pg.screenshot({ path: path.join(FOTOS, `botonera-${w}x${h}.png`) });
       await pg.close();
     }
-    // Darío trabaja en dos plantas: tiene además «Cambiar de planta» abajo
-    for (const [nom, w, h] of [["iPhone SE · Safari", 375, 553], ["celular viejo 320", 320, 480], ["iPhone SE acostado", 667, 325], ["Android acostado", 640, 300]]) {
-      const pg = await br.newPage({ viewport: { width: w, height: h } });
-      await entrar(pg, url, 6);
-      const m = await medir(pg);
-      chk(ok(m, 12, 4), "Darío (2 plantas) · " + linea(nom, w, h, m));
-      await pg.close();
-    }
+    // 1.31: ni Darío, que trabaja en dos plantas, tiene «Cambiar de planta» en la botonera
+    const pd = await br.newPage({ viewport: { width: 375, height: 553 } });
+    await entrar(pd, url, 6);
+    const md = await medir(pd);
+    chk(ok(md, 13, 3) && !(await pd.$("#plantaBtn")), "Darío (2 plantas), sin «Cambiar de planta» · " + linea("iPhone SE · Safari", 375, 553, md));
+    await pd.close();
     // girar el celular con la botonera abierta: se vuelve a acomodar
     const pg = await br.newPage({ viewport: { width: 390, height: 664 } });
     await entrar(pg, url, 7);
     await pg.setViewportSize({ width: 844, height: 340 }); await pg.waitForTimeout(150);
     const m = await medir(pg);
-    chk(ok(m, 12, 3), "al girar el celular · " + linea("acostado", 844, 340, m));
+    chk(ok(m, 13, 3), "al girar el celular · " + linea("acostado", 844, 340, m));
     // con un área abierta sigue estando sólo «Terminé» (sin grilla)
     await pg.setViewportSize({ width: 390, height: 664 });
     await pg.click(".box[data-cod=PED]"); await pg.waitForSelector(".termine-btn");
