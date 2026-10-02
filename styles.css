@@ -93,16 +93,20 @@ button:active{transform:scale(.97);}
 .ab-tiempo{font-size:22px;font-weight:700;color:var(--warn);font-variant-numeric:tabular-nums;}
 @keyframes latido{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.8)}}
 
-/* botonera de áreas: 2 columnas en el celular, 3 si entra */
-.row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px;}
-@media (min-width:430px){.row{grid-template-columns:repeat(3,1fr);}}
-.box{position:relative;min-height:104px;padding:12px 10px;border-radius:var(--r);background:var(--card);box-shadow:var(--sombra);
-  cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:8px;
+/* botonera de áreas (1.30, Elías: «aplicá lo mismo a esta botonera, y centrá el texto y la imagen»): la grilla ocupa el lugar
+   que dejan el encabezado y los botones de abajo; acomodarAreas() (app.js) elige columnas, alto, ícono y letra. Sin JS: 2 col. */
+#optionsScreen{max-width:760px;}
+#botonera.midiendo{flex:1 1 0;min-height:0;}
+.row{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));grid-auto-rows:var(--alto,104px);gap:10px;margin-top:12px;}
+.box{position:relative;height:100%;min-width:0;padding:6px;border-radius:var(--r);background:var(--card);box-shadow:var(--sombra);
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;
   border:2px solid transparent;transition:transform .08s;user-select:none;-webkit-user-select:none;}
 .box:active{transform:scale(.97);}
-.box-ico{font-size:28px;line-height:1;}
-.box-title{font-size:16px;font-weight:700;line-height:1.15;overflow-wrap:anywhere;}
-.box-desc{font-size:13px;font-weight:600;color:var(--acc);}
+.box-ico{font-size:var(--ico,28px);line-height:1;}
+.box-title{font-size:var(--letra,16px);font-weight:700;line-height:1.15;}
+.row.parte .box-title{overflow-wrap:anywhere;}
+.box-desc{font-size:max(11px,calc(var(--letra,16px) * .8));font-weight:600;color:var(--acc);}
+.row.sin-desc .box-desc{display:none;}
 .box.abierta{background:var(--warn-bg);border-color:var(--warn);}
 .box.abierta .box-desc{color:var(--warn);}
 
@@ -150,6 +154,7 @@ body.sin-scroll{overflow:hidden;}
 .error:empty,.cod-hint:empty{min-height:0;margin:0;}
 .tarjeta .chico{text-align:center;}
 /* v1.3: almuerzo y terminar día */
+.pie{display:flex;flex-direction:column;}
 .jornada{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
 .jornada .sec-btn{margin:0;min-height:56px;font-weight:600;}
 #almuBtn.activo{background:var(--warn-bg);border-color:var(--warn);color:var(--warn);}
@@ -161,3 +166,18 @@ body.sin-scroll{overflow:hidden;}
 .termine-btn:active{filter:brightness(.92);}
 .row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .row-2 .sec-btn{margin:0;}
+
+/* 1.30: pantalla baja (celular chico): los botones de abajo de 48 px y «Resumen» al lado de «Cambiar de planta» (si no
+   está, Resumen ocupa la fila), para dejarle el alto a las áreas */
+@media (max-height:600px){
+  .pie{flex-direction:row;flex-wrap:wrap;gap:8px;}
+  .pie .jornada{flex:1 1 100%;gap:8px;margin-top:10px;}
+  .pie .jornada .sec-btn,.pie .fin-btn{min-height:48px;}
+  .pie #histBtn,.pie #plantaBtn{flex:1 1 0;margin:0;min-height:48px;}
+}
+/* 1.30: pantalla baja y ancha (celular acostado): Almuerzo, Terminar día, Resumen y Cambiar de planta en una sola fila */
+@media (max-height:500px) and (min-aspect-ratio:1/1){
+  .pie{flex-direction:row;flex-wrap:nowrap;gap:8px;margin-top:10px;}
+  .pie .jornada{display:contents;}
+  .pie .sec-btn,.pie .fin-btn,.pie #histBtn,.pie #plantaBtn{flex:1 1 0;margin:0;min-height:48px;font-size:16px;}
+}

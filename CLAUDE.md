@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -181,6 +181,23 @@ insert into gt.rubros (codigo, nombre, unidad, orden) values ('<COD>', '<Área>'
 insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_texto, fila, orden)
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
+
+### 1.30 — la botonera de áreas entra entera en cualquier pantalla, con ícono y nombre centrados (Elías, 02/10/2026)
+
+- Pedido: *«ahora aplicá lo mismo a esta botonera, y centrá el texto y la imagen al botón»*. Antes: tarjetas de 104 px
+  en 2 o 3 columnas fijas, con el ícono y el nombre a la izquierda; en un iPhone 13 había que bajar para ver las 12 de
+  Pellegrini y los botones de abajo.
+- `acomodarAreas()` (`app.js`) usa la misma elección que «¿Quién sos?» (`elegirGrilla`): mide el lugar que dejan el
+  encabezado y los botones de abajo y elige columnas y alto. Tarjeta de 56 a 120 px de alto y 88 px de ancho o más, para
+  las áreas que haya (12 en Pellegrini, 4 en Esnaola). Queda 3 × 4 en el celular chico, 2 × 6 en el grande, 6 × 2
+  acostado, 3 × 4 o 4 × 3 en tablet y PC. Se rehace al girar o cambiar la ventana.
+- Ícono y nombre **centrados** en la tarjeta. La letra baja (de 19 a 12 px) hasta que el nombre entra sin partir
+  palabras; si la tarjeta es baja (menos de 84 px), sin el «Empezar» (lo dicen todas).
+- Botones de abajo (`.pie`): con hasta 600 px de alto, de 48 px y «Resumen» al lado de «Cambiar de planta»; con el
+  celular acostado, los cuatro en una sola fila.
+- Con un área abierta no cambia nada: sigue sólo «✅ Terminé».
+- `tests/botonera.cjs`: los mismos 16 tamaños que `nombres16.cjs` con las 12 áreas reales, más Darío (dos plantas, un
+  botón más) en los 4 más chicos y el giro del celular. Todo a la vista, sin scroll, centrado, el nombre entero.
 
 ### 1.29 — «¿Quién sos?» entra entera con 16 operarios, en cualquier pantalla (Elías, 02/10/2026)
 
@@ -658,8 +675,8 @@ Los avisos miden a cada uno contra **su** horario del día y lo muestran entre p
 - **Pulgar:** las acciones de cada pantalla van **justo debajo del campo** (`.acciones`, 1.9: fijas abajo las tapaba el teclado del iPhone), el encabezado fijo arriba con
   el «‹» de volver de 44 px. Todo lo que se toca mide **48 px o más**.
 - **Campos de 16 px o más** de letra: menos que eso y el iPhone hace zoom al tocarlos.
-- Áreas en **tarjetas con ícono** (`ICONO` en `app.js`; un área nueva sin ícono usa 🏷️), 2 columnas en el
-  celular y 3 si entra. El área abierta va arriba con el **tiempo que lleva** (se actualiza cada 30 s).
+- Áreas en **tarjetas con ícono** (`ICONO` en `app.js`; un área nueva sin ícono usa 🏷️), centradas y en las columnas
+  que hagan falta para que entren todas (1.30). El área abierta va arriba con el **tiempo que lleva** (se actualiza cada 30 s).
 - Resumen del día en tarjetas **dentro de un pop-up** (1.10, `#histPop`; ✕, tocar afuera o Esc cierran), horas en 24 h, **modo oscuro** si el celular lo tiene.
 - Colores en variables de `:root` (`styles.css`); el modo oscuro las redefine.
 

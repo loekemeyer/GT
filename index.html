@@ -12,7 +12,7 @@
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=1.29" />
+  <link rel="stylesheet" href="styles.css?v=1.30" />
 </head>
 <body>
   <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
@@ -58,12 +58,14 @@
     </header>
     <div id="abiertaBox" class="abierta hidden"></div>
     <div id="botonera"></div>
-    <div class="jornada">
-      <button id="almuBtn" class="sec-btn">🍽️ Almuerzo</button>
-      <button id="finBtn" class="fin-btn">🏁 Terminar día</button>
+    <div class="pie">
+      <div class="jornada">
+        <button id="almuBtn" class="sec-btn">🍽️ Almuerzo</button>
+        <button id="finBtn" class="fin-btn">🏁 Terminar día</button>
+      </div>
+      <button id="histBtn" class="sec-btn">📋 Resumen de hoy</button>
+      <button id="plantaBtn" class="sec-btn hidden">🏭 Cambiar de planta</button>
     </div>
-    <button id="histBtn" class="sec-btn">📋 Resumen de hoy</button>
-    <button id="plantaBtn" class="sec-btn hidden">🏭 Cambiar de planta</button>
   </div>
 
   <!-- 3) TERMINÉ: cantidad + «¿con qué seguís?» en la misma pantalla -->
@@ -136,7 +138,7 @@
       <div id="hist" class="pop-cuerpo"></div>
     </div>
   </div>
-  <script src="config.js?v=1.29"></script>
-  <script src="app.js?v=1.29"></script>
+  <script src="config.js?v=1.30"></script>
+  <script src="app.js?v=1.30"></script>
 </body>
 </html>

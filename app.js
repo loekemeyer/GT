@@ -77,14 +77,31 @@
   function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.remove("hidden"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add("hidden"), 2500); }
   function show(id) {
     ["claveScreen", "nombreScreen", "plantaScreen", "optionsScreen", "cantScreen", "codScreen", "medScreen", "pasoScreen"].forEach((s) => $(s).classList.toggle("hidden", s !== id));
-    if (id === "nombreScreen") acomodarNombres();
+    acomodar();
+  }
+  function acomodar() { acomodarNombres(); acomodarAreas(); }   // cada una sale sola si su pantalla no está a la vista
+
+  // 1.29 / 1.30: cuántas columnas y qué alto de fila para que `lugares` celdas entren enteras en W × H, en cualquier pantalla.
+  // Prueba de 1 a 6 columnas: primero lo que entra sin scroll (fila ≥ o.minH, columna ≥ o.minW); entre lo que entra, la
+  // celda más pareja (alto topeado en o.maxH contra o.k × ancho); a igualdad, menos columnas. Si nada entra, la menos mala
+  // con la fila en o.minH (y scroll).
+  function elegirGrilla(W, H, gap, lugares, o) {
+    let mejor = null;
+    for (let c = 1; c <= 6; c++) {
+      const w = (W - gap * (c - 1)) / c;
+      if (c > 1 && w < o.minW) break;
+      const f = Math.ceil(lugares / c), h = (H - gap * (f - 1)) / f;
+      const op = { c, w, h: Math.min(h, o.maxH), entra: h >= o.minH };
+      op.nota = Math.min(op.h, w * o.k);
+      if (!mejor || (op.entra && !mejor.entra) || (op.entra === mejor.entra && op.nota > mejor.nota + 0.5)) mejor = op;
+    }
+    return { c: mejor.c, w: mejor.w, alto: Math.max(o.minH, Math.floor(mejor.h)) };
   }
 
   // 1.29 (pedido 02/10: «que puedan aparecer 16 operarios en la pantalla… de cualquier dispositivo»): «¿Quién sos?» se arma
-  // para NOMBRES_LUGARES operarios aunque haya menos, así el botón no cambia de tamaño al dar de alta a alguien. Mide el lugar
-  // libre y prueba de 1 a 6 columnas: primero lo que entra sin scroll (fila ≥ 48 px, columna ≥ 88 px); entre lo que entra,
-  // el botón más parejo (alto contra 0,4 del ancho, fila topeada en 96 px); a igualdad, menos columnas.
-  // Con más operarios que lugares se arma para todos, y si no entran queda scroll dentro de la lista.
+  // para NOMBRES_LUGARES operarios aunque haya menos, así el botón no cambia de tamaño al dar de alta a alguien. Botón de
+  // 48 a 96 px de alto y 88 px de ancho o más. Con más operarios que lugares se arma para todos, y si no entran queda scroll
+  // dentro de la lista.
   const NOMBRES_LUGARES = 16;
   function acomodarNombres() {
     const L = $("nombreLista"), n = L.querySelectorAll("button").length;
@@ -92,18 +109,8 @@
     const cs = getComputedStyle(L), gap = parseFloat(cs.rowGap) || 8;
     const W = L.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     const H = L.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
-    const lugares = Math.max(n, NOMBRES_LUGARES);
-    let mejor = null;
-    for (let c = 1; c <= 6; c++) {
-      const w = (W - gap * (c - 1)) / c;
-      if (c > 1 && w < 88) break;
-      const f = Math.ceil(lugares / c), h = (H - gap * (f - 1)) / f;
-      const op = { c, w, h: Math.min(h, 96), entra: h >= 48 };
-      op.nota = Math.min(op.h, w * 0.4);
-      if (!mejor || (op.entra && !mejor.entra) || (op.entra === mejor.entra && op.nota > mejor.nota + 0.5)) mejor = op;
-    }
-    const alto = Math.max(48, Math.floor(mejor.h));
-    L.style.setProperty("--cols", mejor.c);
+    const g = elegirGrilla(W, H, gap, Math.max(n, NOMBRES_LUGARES), { minH: 48, maxH: 96, minW: 88, k: 0.4 }), alto = g.alto;
+    L.style.setProperty("--cols", g.c);
     L.style.setProperty("--alto", alto + "px");
     L.style.setProperty("--ini", Math.round(Math.min(40, alto * 0.62)) + "px");
     // la letra más grande con la que cada palabra entra entera y el nombre no pasa del botón; si no entra, sin el círculo de
@@ -112,7 +119,7 @@
     const entra = () => spans.every((x) => x.scrollWidth <= x.clientWidth + 1 && x.offsetHeight <= alto - 6);
     const tope = Math.round(Math.max(14, Math.min(20, alto * 0.32)));
     L.classList.remove("parte");
-    for (const ini of mejor.w >= 130 ? [true, false] : [false]) {
+    for (const ini of g.w >= 130 ? [true, false] : [false]) {
       L.classList.toggle("sin-ini", !ini);
       for (let letra = tope; letra >= (ini ? 15 : 13); letra--) {
         L.style.setProperty("--letra", letra + "px");
@@ -120,6 +127,37 @@
       }
     }
     L.classList.add("parte");
+  }
+
+  // 1.30 (Elías, 02/10: «ahora aplicá lo mismo a esta botonera, y centrá el texto y la imagen al botón»): las áreas entran
+  // enteras en el lugar que dejan el encabezado y los botones de abajo (Almuerzo, Terminar día, Resumen), con el ícono y el
+  // nombre centrados. Tarjeta de 56 a 120 px de alto y 88 px de ancho o más; con el celular acostado los botones de abajo
+  // van en una sola fila (styles.css) para dejarle el alto a las áreas.
+  function acomodarAreas() {
+    const B = $("botonera"), R = B.querySelector(".row");
+    if (!R || $("optionsScreen").classList.contains("hidden")) return;
+    B.classList.add("midiendo");                      // mientras mide, la botonera ocupa todo el lugar libre
+    const cs = getComputedStyle(R), gap = parseFloat(cs.rowGap) || 10;
+    const W = R.clientWidth, H = B.clientHeight - parseFloat(cs.marginTop);
+    B.classList.remove("midiendo");
+    const g = elegirGrilla(W, H, gap, R.children.length, { minH: 56, maxH: 120, minW: 88, k: 0.7 });
+    R.style.setProperty("--cols", g.c);
+    R.style.setProperty("--alto", g.alto + "px");
+    R.style.setProperty("--ico", Math.round(Math.max(20, Math.min(40, g.alto * 0.3))) + "px");
+    // la letra más grande con la que el nombre entra en la tarjeta sin partir palabras; si no entra, sin el «Empezar»
+    // (todas lo dicen); y si ni con 12 px entra, se parte la palabra
+    const cajas = [...R.children];
+    const entra = () => cajas.every((b) => b.scrollWidth <= b.clientWidth + 1 && b.scrollHeight <= b.clientHeight + 1);
+    const tope = Math.round(Math.max(14, Math.min(19, g.alto * 0.2, g.w * 0.13)));
+    R.classList.remove("parte");
+    for (const desc of g.alto >= 84 ? [true, false] : [false]) {
+      R.classList.toggle("sin-desc", !desc);
+      for (let letra = tope; letra >= 12; letra--) {
+        R.style.setProperty("--letra", letra + "px");
+        if (entra()) return;
+      }
+    }
+    R.classList.add("parte");
   }
 
   async function rpc(name, body) {
@@ -261,6 +299,7 @@
     $("plantaBtn").classList.toggle("hidden", !!ab || st.plantas.length < 2);
     $("almuBtn").textContent = ab && ab.rubro === "ALMU" ? "🍽️ Volví de almorzar" : "🍽️ Almuerzo";
     $("almuBtn").classList.toggle("activo", !!(ab && ab.rubro === "ALMU"));
+    acomodarAreas();
     syncBadge();
     if (!$("histPop").classList.contains("hidden")) renderHist();
   }
@@ -738,7 +777,7 @@
   $("histPop").addEventListener("click", (e) => { if (e.target === $("histPop")) cerrarHist(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarHist(); });
   window.addEventListener("online", flush);
-  window.addEventListener("resize", acomodarNombres);
+  window.addEventListener("resize", acomodar);
   setInterval(flush, 30000);
 
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
