@@ -186,6 +186,28 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.41 — Rendimiento de la pareja: las unidades se reparten según el TIEMPO de cada uno (02/10/2026)
+
+- Pedido (desde la cuenta de Thomas): *«si uno se va al baño, el otro en ese tiempo está haciendo el trabajo de los 2»* ·
+  *«le tiene que contar a los 2, como pareja, pero en proporción a lo que hicieron… es utilizar el tiempo»*.
+- **Lo que pasaba (gt_v151):** el tramo de quien invitó, con las cajas de los dos, se le copiaba entero al que aceptó. El
+  tiempo era sólo el de quien invitó, menos **sus** pausas. Con un baño de 10 min en un tramo de 30 (5 u/min cada uno):
+  si iba quien invitó, 4,8 s/u (20 % más rápido: se descontaba el rato, pero no las cajas que el otro hizo solo); si iba
+  el invitado, 7,2 s/u (20 % más lento). Y una pareja salía al doble de rápida que quien trabaja solo en la misma fila.
+- **Ahora (gt_v153):** tiempo de quien invitó = su tramo menos sus pausas. Tiempo del que aceptó = lo que estuvo **dentro**
+  del tramo de quien invitó (de su apertura con `_invitado` a su cierre, o al cierre del otro) menos **sus** pausas. Las
+  unidades se reparten en proporción a esos dos tiempos: cada uno queda con (tiempo de los dos ÷ unidades) s/u, lo que
+  tarda **una persona**, comparable con quien trabaja solo. En el ejemplo, 12 s/u para los dos, vaya quien vaya al baño.
+  **Deja sin efecto D47** («la pareja con los segundos de la pareja, no al doble»). El mínimo de 2 min (D35) se mide
+  sobre el tramo de quien invitó, antes de repartir. Las unidades salen con un decimal.
+- No se puede saber cuántas cajas hizo cada uno (carga uno solo): el reparto por tiempo es la medida.
+- `gt.pausas_seg(empleado, desde, hasta)`: las pausas de un operario dentro de un rango, sin contar dos veces una dentro
+  de otra (la misma cuenta que estaba escrita adentro de la función). `sql/gt_v153_rendimiento_pareja_por_tiempo.sql`.
+- Probado en transacción abortada: con los datos reales todo sale igual salvo la pareja Ximena + Luis del 223 (12 u:
+  7,2 para ella en 237 s y 4,8 para él en 157 s, 32,8 s/u los dos). Con tramos inventados de 30 min, 250 u y 10 min de
+  baño: quien invitó va al baño → 100 u en 1.200 s y 150 u en 1.800 s; va el invitado → al revés. 12 s/u en los 4.
+  En el admin, el título de Encolado / Contraído dice «las unidades se reparten según el tiempo de cada uno».
+
 ### 1.39 — Encolado y Contraído DE A DOS: uno invita y al otro le aparece la pregunta (Elías, 02/10/2026: D45)
 
 - Elías: *«se puede hacer que uno ponga y le aparezca al otro como pregunta: Vas a hacer (tarea) con (persona) · Sí / No»*.
@@ -201,7 +223,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   **No**: `gt_pareja_responder(…, false)`, no se abre nada. Una invitación sin contestar vence a los 20 min.
 - **Al terminar, el invitado no carga cajas** («la cantidad la carga Walter») ni se le pregunta con qué sigue: el cierre va
   sin cantidad (no mueve stock ni cuenta doble). En **Rendimiento** el tramo de quien invitó cuenta también para el que
-  aceptó, con el mismo número (lo que tarda la pareja por unidad; D47).
+  aceptó; desde 1.41, repartido según el tiempo de cada uno (antes: el mismo número a los dos, D47).
 - **1.40 (Elías: «entró directo sin preguntar por acompañante»):** en la 1.39 la lista de compañeros sólo se guardaba al
   poner el código y elegir el nombre; un celular con la sesión del día abierta antes (Ximena, 12:25: Encolado · 223 sin
   pregunta y sin Ingreso) no la tenía y arrancaba **solo, sin avisar**. Ahora cada vez que abre la app la trae de la base
@@ -231,6 +253,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   cuando hay menos de 15 min (el tiempo y las unidades, en el globito).
 - **D46 y D47 confirmados por Elías (02/10):** las filas quedan como están, y la pareja figura con los segundos por
   unidad **de la pareja** (no al doble en mano de obra). Las parejas de Encolado y Contraído (D45) cuentan desde 1.39.
+  ⚠ **D47 quedó sin efecto en 1.41**: la pareja se reparte las unidades según el tiempo de cada uno (s/u por persona).
 - `public.gt_admin_rendimiento(clave, desde, hasta)` devuelve json en una fila (el tope de 1.000 filas, 1.35).
   `sql/gt_v150_rendimiento.sql`. Probado con la clave cambiada en una transacción abortada (Luis: Encolado 10*30 2,2 s/u,
   30*40 15,6, 40*50 1,9; Walter: Emblistado Mold 03 · 30*40 3,5) y en `tests/smoke.cjs`.
@@ -401,7 +424,7 @@ repo) y tiene cuatro pestañas:
 | Monitor | `gt_monitor_clave` | el código de ingreso |
 | Producción | `gt_admin_produccion(pass, día)` | total por área (cantidad y unidades = cajas × UxB) y cada tramo por operario, con lo en curso |
 | Asistencia | `gt_admin_asistencia(pass, día)` | entrada, almuerzo y salida contra lo previsto, con chips (llegó tarde, tolerancia, no vino, sin almuerzo, no terminó el día…) |
-| Rendimiento (1.37) | `gt_admin_rendimiento(pass, desde, hasta)` | por área, una tabla: variable × operario, segundos por unidad sin pausas |
+| Rendimiento (1.37) | `gt_admin_rendimiento(pass, desde, hasta)` | por área, una tabla: variable × operario, segundos por unidad sin pausas; la pareja se reparte por tiempo (1.41) |
 | Pedidos (1.27, D29) | `gt_admin_pedidos(pass, cerrados)` · `gt_admin_pedido_armar(pass, id, items, estado, nota)` | los pedidos de la página de TN (NP, cliente, días, vence, VENCIDO, cajas armadas / pedidas) con sus renglones; se escribe cuántas cajas se armaron por renglón y se marca cargado, entregado o cancelado |
 
 Las dos RPC exigen la clave (`gt.pass_ok`): con clave mala devuelven 0 filas. Se elige el día; hoy se

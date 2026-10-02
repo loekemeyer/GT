@@ -139,7 +139,7 @@
     <div id="pedLista"></div>
   </section>
 
-  <script src="config.js?v=1.40"></script>
+  <script src="config.js?v=1.41"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -356,7 +356,7 @@
     const REND = [["CORTE", "Corte", "Moldura", "pieza"], ["GRAMP", "Grampeado", "Aro", "aro"], ["ENCOL", "Encolado", "Medida", "unidad"],
       ["MONT", "Montaje", "Familia", "unidad"], ["GANCHO", "Gancho", "Familia", "unidad"], ["EMBL", "Emblistado", "Familia", "unidad"],
       ["CONTR", "Contraído", "Familia", "unidad"]];
-    const DE_A_DOS = ["ENCOL", "CONTR"];   // D45: hoy cada uno con lo suyo
+    const DE_A_DOS = ["ENCOL", "CONTR"];   // D45 · gt_v153: la pareja se reparte las unidades según el tiempo neto de cada uno
     async function cargarRend() {
       if (!$("rendHasta").value) $("rendHasta").value = hoyAR();
       if (!$("rendDesde").value) { const d = new Date($("rendHasta").value + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - 27); $("rendDesde").value = d.toISOString().slice(0, 10); }
@@ -372,7 +372,7 @@
       const sinDatos = REND.filter(([cod]) => !filas.some((f) => f.rubro === cod)).map(([, nom]) => nom);
       $("rendTablas").innerHTML = REND.filter(([cod]) => filas.some((f) => f.rubro === cod)).map(([cod, nom, varNom, uni]) => {
         const fa = filas.filter((f) => f.rubro === cod);
-        const tit = "<h2>" + nom + (DE_A_DOS.includes(cod) ? ' <span class="desc">de a dos (cada uno con lo suyo, D45)</span>' : "") +
+        const tit = "<h2>" + nom + (DE_A_DOS.includes(cod) ? ' <span class="desc">de a dos: las unidades se reparten según el tiempo de cada uno</span>' : "") +
           ' <span class="desc">· segundos por ' + uni + "</span></h2>";
         const emps = [...new Set(fa.slice().sort((a, b) => leg(a.legajo) - leg(b.legajo) || a.empleado.localeCompare(b.empleado)).map((f) => f.empleado))];
         const vars = [...fa.reduce((m, f) => { const v = m.get(f.variable) || { v: f.variable, u: 0, s: 0 }; v.u += Number(f.unidades); v.s += Number(f.segundos); return m.set(f.variable, v); }, new Map()).values()]
