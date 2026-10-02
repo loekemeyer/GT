@@ -30,7 +30,7 @@ const PASOS = [
   { rubro: "PINT", orden: 2, campo: "texto", pregunta: "¿Qué moldura vas a pintar?", opciones: MOLD, fuente: "molduras", momento: "empezar" },
   { rubro: "PINT", orden: 3, campo: "manos", pregunta: "¿Cuántas manos?", opciones: ["1", "2"], momento: "terminar" }];
 const PELL = { codigo: "PELL", nombre: "Pellegrini" }, ESNA = { codigo: "ESNA", nombre: "Esnaola" };
-let CLAVE_MON = null; const LOGINS = []; const REING = [];
+let CLAVE_MON = null; const LOGINS = []; const REING = []; const ARMAR = [];
 const db = [];
 const CODIGOS = [{ codigo: "505", descripcion: "Pinza", medida: "10*15", rubro: "GRAMP" }, { codigo: "760", descripcion: "Otra", medida: null, rubro: "DECO" },
   { codigo: "136", descripcion: "Cuadros Mold 03 Set x3 Botanica", medida: "30*40 + 20*30 + 15*21", rubro: "MONT" },
@@ -61,6 +61,12 @@ const srv = http.createServer((req, res) => {
         { empleado: "Otro", legajo: "t2", entrada: null, entrada_prevista: "2026-10-01T08:00:00", almuerzo_sale: null, almuerzo_vuelve: null,
           almuerzo_desde: "2026-10-01T12:00:00", almuerzo_hasta: "2026-10-01T13:00:00", flexible: false, fin: null, salida_prevista: "2026-10-01T17:30:00",
           area_abierta: false, termino: false, tolerancia_min: 5 }] : [];
+      else if (fn === "gt_admin_pedidos") out = b.p_pass === CLAVE_MON ? [
+        { id: 1, np: "TN 0001", pedido_ref: "29", cliente_cod: "1971", cliente: "Huang Chun Chieh", fecha: "2026-09-08T14:00:00Z", dias: 23, vence: "2026-09-22", vencido: true, estado: "abierto", es_super: false, cajas: 26, armadas: 0, pct_armado: 0, nota: null,
+          items: [{ codigo: "134", descripcion: "Cuadro Mold 03 Nature", medida: "30*40", uxb: 16, cajas: 3, cajas_armadas: 0 }, { codigo: "183", descripcion: "Cuadro Mold 03 Ciudades", medida: "30*40", uxb: 16, cajas: 23, cajas_armadas: 0 }] },
+        { id: 2, np: "TN 0002", pedido_ref: "30", cliente_cod: "2024", cliente: "Bazares y Mas S.A", fecha: "2026-09-09T14:00:00Z", dias: 22, vence: "2026-09-23", vencido: false, estado: "cargado", es_super: false, cajas: 11, armadas: 11, pct_armado: 100, nota: "salió con el flete",
+          items: [{ codigo: "281", descripcion: "Multiple X6 Mold 012", medida: "10*10 + 10*15 + 13*18", uxb: 6, cajas: 11, cajas_armadas: 11 }] }] : [];
+      else if (fn === "gt_admin_pedido_armar") { ARMAR.push(b); out = b.p_pass === CLAVE_MON ? { ok: true, estado: b.p_estado || "parcial" } : { ok: false, error: "clave" }; }
       else if (fn === "gt_contraido_pendiente") out = [{ codigo: "760", descripcion: "Otra", cajas: 12 }];
       else if (fn === "gt_registros_hoy2" || fn === "gt_registros_hoy3") out = db.filter((r) => r.empleado_id === b.p_empleado);
       else if (fn === "gt_pasos") out = PASOS;
@@ -344,6 +350,21 @@ srv.listen(0, async () => {
     const asis = await ad.textContent("#asisTabla");
     chk(asis.includes("Llegó tarde") && asis.includes("No vino") && asis.includes("Sin almuerzo") && asis.includes("No terminó el día"),
         "Asistencia: llegó tarde, no vino, sin almuerzo y no terminó el día");
+    // D29: Pedidos, por ahora sólo desde el admin
+    await ad.click(".tab[data-tab=ped]"); await ad.waitForSelector("#pedLista .bloque");
+    chk((await ad.$$("#pedLista .bloque")).length === 2 && (await ad.textContent("#pedLista")).includes("VENCIDO") && (await ad.textContent("#pedInfo")).includes("1 por armar"),
+        "Pedidos (D29): los pedidos de TN con su estado, el vencido marcado y cuántos faltan armar");
+    chk((await ad.$$('#pedLista .bloque[data-id="1"] input.arm')).length === 2 && (await ad.$$('#pedLista .bloque[data-id="2"] input.arm')).length === 0,
+        "el armado se edita sólo en el pedido abierto: el cargado no tiene campos");
+    await ad.fill('#pedLista .bloque[data-id="1"] input.arm[data-cod="134"]', "3"); await ad.click('#pedLista .bloque[data-id="1"] button[data-acc=guardar]');
+    for (let i = 0; i < 30 && ARMAR.length < 1; i++) await ad.waitForTimeout(100);
+    chk(ARMAR.length === 1 && ARMAR[0].p_pedido_id === 1 && ARMAR[0].p_estado === null && ARMAR[0].p_items.find((i) => i.codigo === "134").cajas_armadas === 3 && ARMAR[0].p_items.length === 2,
+        "«Guardar armado» manda las cajas armadas por renglón (134 → 3) y deja que la base decida el estado");
+    await ad.waitForFunction(() => document.getElementById("pedMsg1") && document.getElementById("pedMsg1").textContent === "");
+    await ad.click('#pedLista .bloque[data-id="2"] button[data-acc=entregado]');
+    for (let i = 0; i < 30 && ARMAR.length < 2; i++) await ad.waitForTimeout(100);
+    chk(ARMAR.length === 2 && ARMAR[1].p_pedido_id === 2 && ARMAR[1].p_estado === "entregado" && ARMAR[1].p_items === null,
+        "«Entregado» manda sólo el estado: el pedido cargado no reenvía armado");
     await ad.click("#salirMon"); await ad.click(".tab[data-tab=prod]"); await ad.waitForTimeout(800); await ad.waitForSelector("#login:not(.hidden)");
     chk(!(await ad.isVisible("#prod")), "sin clave, Producción no muestra datos y pide la clave");
   } catch (e) { fallas.push(String(e)); console.log("✗", e.message); }

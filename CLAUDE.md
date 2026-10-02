@@ -183,19 +183,39 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 ### Admin: Monitor · Producción · Asistencia (1.5, Thomas — D26)
 
 `admin.html` pide la clave del monitor (guardada cifrada en `gt.config.monitor_pass`, nunca en el
-repo) y tiene tres pestañas:
+repo) y tiene cuatro pestañas:
 
 | pestaña | RPC | qué muestra |
 |---|---|---|
 | Monitor | `gt_monitor_clave` | el código de ingreso |
 | Producción | `gt_admin_produccion(pass, día)` | total por área (cantidad y unidades = cajas × UxB) y cada tramo por operario, con lo en curso |
 | Asistencia | `gt_admin_asistencia(pass, día)` | entrada, almuerzo y salida contra lo previsto, con chips (llegó tarde, tolerancia, no vino, sin almuerzo, no terminó el día…) |
+| Pedidos (1.27, D29) | `gt_admin_pedidos(pass, cerrados)` · `gt_admin_pedido_armar(pass, id, items, estado, nota)` | los pedidos de la página de TN (NP, cliente, días, vence, VENCIDO, cajas armadas / pedidas) con sus renglones; se escribe cuántas cajas se armaron por renglón y se marca cargado, entregado o cancelado |
 
 Las dos RPC exigen la clave (`gt.pass_ok`): con clave mala devuelven 0 filas. Se elige el día; hoy se
 refresca solo cada 60 s. `sql/gt_v15_admin_produccion_asistencia.sql`.
 **Tolerancia de 5 min CON aviso** (D24): lo que cae dentro sale igual en Telegram, en su bloque.
 **No se trabaja sábado** (D19). Javier Burgos: sólo el almuerzo es rotativo.
 **Empleados ordenados por legajo** (1.7) en la lista del celular, Producción y Asistencia (`gt.legajo_num`).
+
+### 1.27 — el ARMADO de pedidos se lleva desde el ADMIN (Thomas, 01/10/2026: D29 «por ahora solo desde el admin»)
+
+- **📦 Pedidos** en `admin.html`: un bloque por pedido (NP · cliente · pedido de la página · fecha · días · **vence** y
+  **VENCIDO** en rojo · cajas armadas / pedidas · nota) con la tabla de renglones (código · descripción · medida · UxB ·
+  pedidas · **armadas**, editable). Botones: **💾 Guardar armado** (manda las cajas armadas por renglón y la base
+  decide el estado: 0 = abierto, algunas = parcial, todas = armado) · **✔ Todo armado** (llena los campos, no graba) ·
+  **🚚 Cargado al camión** (vale con armado parcial: D17, *sale parcial*) · **✕ Cancelar pedido** · en un cargado,
+  **✅ Entregado** y **↩ Volver a armado**. La casilla «ver entregados y cancelados» trae los de 30 días.
+- **El estado lo decide la base**, no la pantalla: `gt_admin_pedido_armar` topea lo armado a lo pedido, no deja tocar
+  el armado de un pedido cargado / entregado / cancelado, exige cajas armadas para cargar y «cargado» para entregar.
+  Las dos RPC exigen la clave del monitor (`gt.pass_ok`) y, como las otras del admin, las llama la página con la clave
+  pública: con clave mala, lista vacía / `{ok:false}`.
+- **No mueve stock todavía**: el movimiento góndola → pedido queda para cuando el stock esté vivo (`stock_pedidos_activo`).
+  El área Pedidos del celular sigue sin pedir nada. **La pestaña no se refresca sola** (pisaría lo que se está tipeando):
+  ↻ Actualizar, o después de cada acción.
+- Probado en transacción abortada (parcial 2/26 → cargado → editar cargado rechazado → entregado · 11 cajas + 100 →
+  topea a 11 y queda armado · clave mala no lista ni escribe) y en `tests/smoke.cjs` con la pantalla corriendo.
+  `sql/gt_v139_admin_pedidos.sql`.
 
 ### Pedidos y qué fabricar — la base, sin app todavía (Thomas, 01/10/2026: D13, D17, D18, D20)
 
@@ -305,8 +325,8 @@ excluidos y remaps de la propia página** (hoy 0 y 0). Parámetros en `app_setti
   Chun Chieh, 26 cajas) y `TN 0002` = pedido 30 (Bazares y Mas, 11 cajas), los dos ya **vencidos** contra los 14 días.
   La demanda con esos dos: 31 productos → 19 aros → 24 piezas de corte. **Los 22 anteriores: D28** (si ya salieron,
   no se cargan; si no, se corre el corte: `update gt.config set valor = '2026-04-01' where clave = 'pedidos_tn_desde'`).
-- Falta la **app**: el área Pedidos todavía no registra qué pedido se arma ni cuántas cajas (D13 *«va de la mano con
-  D12»*), y el `stock_pedidos_activo` sigue apagado.
+- El armado pedido por pedido se lleva desde el **admin** (1.27, D29); el área Pedidos del celular sigue sin pedir nada
+  y el `stock_pedidos_activo` sigue apagado.
 - `sql/gt_tn_fdw_2_lado_gestion.sql` (aplicado como `gt_v136_tn_fdw_lado_gestion`), `sql/gt_v136_sync_pedidos_tn.sql`
   (aplicado como `gt_v137_sync_pedidos_tn`).
 

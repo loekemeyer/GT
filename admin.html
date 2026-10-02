@@ -65,6 +65,14 @@
     .t-err{color:var(--err);font-weight:700;} .t-warn{color:var(--warn);font-weight:700;}
     .vacio{text-align:center;color:var(--mut);padding:18px;}
     .desc{color:var(--mut);font-size:12px;}
+    /* PEDIDOS */
+    .ped-cab{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-bottom:8px;} .ped-cab b{font-size:16px;}
+    .ped-acc{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;}
+    .ped-acc button{border:1px solid var(--borde);background:var(--card);color:var(--fg);border-radius:10px;padding:7px 12px;font-size:14px;}
+    .ped-acc button.prim{background:var(--acc);border-color:var(--acc);color:#fff;} .ped-acc button.peligro{color:var(--err);}
+    .ped-msg{font-size:13px;color:var(--mut);}
+    td input.arm{width:64px;font:inherit;font-size:14px;text-align:center;padding:4px;border-radius:8px;border:1px solid var(--borde);background:var(--card);color:var(--fg);}
+    .c-mut{background:var(--borde);color:var(--mut);}
   </style>
 </head>
 <body>
@@ -77,6 +85,7 @@
     <button class="tab on" data-tab="monitor">📺 Monitor</button>
     <button class="tab" data-tab="prod">📊 Producción</button>
     <button class="tab" data-tab="asis">⏰ Asistencia</button>
+    <button class="tab" data-tab="ped">📦 Pedidos</button>
   </nav>
 
   <!-- CLAVE DEL MONITOR: la valida la base (gt_monitor_clave). Se recuerda en ESTA máquina hasta «Salir» o hasta el lunes 07:00 (v1.6). El ingreso tipeado va por gt_monitor_login. -->
@@ -112,7 +121,14 @@
     <div class="bloque"><div id="asisTabla"></div></div>
   </section>
 
-  <script src="config.js?v=1.26"></script>
+  <!-- PEDIDOS (D29, Thomas 01/10: «por ahora solo desde el admin»): los de la página de TN entran solos (gt.sync_pedidos_tn);
+       acá se marca qué se armó, se carga al camión, se entrega o se cancela. -->
+  <section id="ped" class="vista panel hidden">
+    <div class="barra"><button id="pedRef">↻ Actualizar</button><label class="info"><input type="checkbox" id="pedCerr" /> ver entregados y cancelados (30 días)</label><span class="info" id="pedInfo"></span></div>
+    <div id="pedLista"></div>
+  </section>
+
+  <script src="config.js?v=1.27"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -187,7 +203,7 @@
       tab = t;
       document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
       document.querySelectorAll(".vista").forEach((v) => v.classList.toggle("hidden", v.id !== t));
-      if (t === "monitor") pedir(primera); else if (t === "prod") cargarProd(); else cargarAsis();
+      if (t === "monitor") pedir(primera); else if (t === "prod") cargarProd(); else if (t === "ped") cargarPed(); else cargarAsis();
     }
     function sinPermiso() { olvidarPass(); verLogin("Clave incorrecta"); }
 
@@ -328,6 +344,50 @@
       $("asisTabla").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Entrada</th><th>Almuerzo</th><th>Salida</th><th>Estado</th></tr>" + html + "</table>"
         : '<div class="vacio">Sin datos.</div>';
     }
+    /* ---------- PEDIDOS (D29: por ahora sólo desde el admin) ---------- */
+    const EST = { abierto: ["c-warn", "Abierto"], parcial: ["c-warn", "Parcial"], armado: ["c-ok", "Armado"], cargado: ["c-ok", "Cargado"], entregado: ["c-mut", "Entregado"], cancelado: ["c-err", "Cancelado"] };
+    const ddmm = (d) => d ? String(d).slice(8, 10) + "/" + String(d).slice(5, 7) : "";
+    const hora = () => new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+    async function cargarPed() {
+      $("pedInfo").textContent = "Cargando…";
+      let rows;
+      try { rows = await rpc("gt_admin_pedidos", { p_pass: pass || "", p_cerrados: $("pedCerr").checked }); }
+      catch (e) { $("pedInfo").textContent = "⚠ No pude leer los pedidos (" + e.message + ")"; return; }
+      if (!rows.length && !(await claveOk())) return;
+      const abiertos = rows.filter((r) => ["abierto", "parcial", "armado"].includes(r.estado)).length, venc = rows.filter((r) => r.vencido).length;
+      $("pedInfo").textContent = rows.length + " pedidos · " + abiertos + " por armar · " + venc + " vencidos · actualizado " + hora();
+      $("pedLista").innerHTML = rows.length ? rows.map(pedHtml).join("")
+        : '<div class="vacio">No hay pedidos' + ($("pedCerr").checked ? "" : " abiertos") + ". Los de la página de Tierra Nativa entran solos cada 10 min.</div>";
+    }
+    function pedHtml(r) {
+      const [cc, ct] = EST[r.estado] || ["c-mut", r.estado], edit = ["abierto", "parcial", "armado"].includes(r.estado), items = r.items || [];
+      return '<div class="bloque" data-id="' + r.id + '"><div class="ped-cab"><b>' + esc(r.np) + "</b><span>" + esc(r.cliente || "—") +
+        (r.cliente_cod ? ' <span class="desc">(' + esc(r.cliente_cod) + ")</span>" : "") + '</span><span class="chip ' + cc + '">' + ct + "</span>" +
+        '<span class="desc">pedido ' + esc(r.pedido_ref) + " · " + ddmm(r.fecha) + " · " + r.dias + " días</span>" +
+        '<span class="' + (r.vencido ? "t-err" : "desc") + '">vence ' + ddmm(r.vence) + (r.vencido ? " · VENCIDO" : "") + "</span>" +
+        '<span class="desc">' + num(r.armadas) + " / " + num(r.cajas) + " cajas armadas" + (Number(r.cajas) ? " (" + Math.round(r.pct_armado || 0) + " %)" : "") + "</span>" +
+        (r.nota ? '<span class="desc">📝 ' + esc(r.nota) + "</span>" : "") + "</div>" +
+        "<table><tr><th>Código</th><th>Descripción</th><th>Medida</th><th>UxB</th><th>Pedidas</th><th>Armadas</th></tr>" +
+        items.map((i) => "<tr><td class=num>" + esc(i.codigo) + "</td><td class=izq>" + esc(i.descripcion || "—") + "</td><td>" + esc(i.medida || "—") + "</td><td>" + (i.uxb == null ? "—" : i.uxb) +
+          "</td><td class=num>" + num(i.cajas) + "</td><td>" + (edit ? '<input class="arm" type="number" inputmode="numeric" min="0" max="' + Number(i.cajas) + '" step="1" data-cod="' + esc(i.codigo) + '" value="' + Number(i.cajas_armadas) + '" />' : num(i.cajas_armadas)) + "</td></tr>").join("") + "</table>" +
+        '<div class="ped-acc">' +
+        (edit ? '<button class="prim" data-acc="guardar">💾 Guardar armado</button><button data-acc="todo">✔ Todo armado</button><button data-acc="cargado">🚚 Cargado al camión</button><button class="peligro" data-acc="cancelado">✕ Cancelar pedido</button>' : "") +
+        (r.estado === "cargado" ? '<button class="prim" data-acc="entregado">✅ Entregado</button><button data-acc="abierto">↩ Volver a armado</button>' : "") +
+        '<span class="ped-msg" id="pedMsg' + r.id + '"></span></div></div>';
+    }
+    async function pedAccion(id, acc, bloque) {
+      const msg = $("pedMsg" + id);
+      if (acc === "todo") { bloque.querySelectorAll("input.arm").forEach((i) => { i.value = i.max; }); msg.textContent = "Todo en lo pedido: tocá Guardar armado."; return; }
+      if (acc === "cancelado" && !confirm("¿Cancelar el pedido? Sale de la lista y de la demanda.")) return;
+      msg.textContent = "…";
+      const items = [...bloque.querySelectorAll("input.arm")].map((i) => ({ codigo: i.dataset.cod, cajas_armadas: Number(i.value) || 0 }));
+      let r;
+      try { r = await rpc("gt_admin_pedido_armar", { p_pass: pass || "", p_pedido_id: id, p_items: items.length ? items : null, p_estado: acc === "guardar" ? null : acc }); }
+      catch (e) { msg.textContent = "⚠ " + e.message; return; }
+      if (!r || !r.ok) { msg.textContent = "⚠ " + ((r && r.error) || "no se pudo"); if (r && r.error === "clave") sinPermiso(); return; }
+      cargarPed();
+    }
+    $("pedLista").addEventListener("click", (e) => { const b = e.target.closest("button[data-acc]"); if (!b) return; const bl = b.closest(".bloque"); pedAccion(Number(bl.dataset.id), b.dataset.acc, bl); });
     // una lista vacía puede ser «no hay nada» o «clave mala»: lo distingue el monitor
     async function claveOk() {
       try { const d = await rpc("gt_monitor_clave", { p_pass: pass || "" }); if (d.ok) return true; } catch { return true; }
@@ -337,7 +397,7 @@
     /* ---------- eventos ---------- */
     $("prodDia").value = $("asisDia").value = hoyAR();
     $("tabs").addEventListener("click", (e) => { const b = e.target.closest(".tab"); if (b) verTab(b.dataset.tab); });
-    $("prodRef").onclick = cargarProd; $("asisRef").onclick = cargarAsis;
+    $("prodRef").onclick = cargarProd; $("asisRef").onclick = cargarAsis; $("pedRef").onclick = cargarPed; $("pedCerr").onchange = cargarPed;
     $("prodDia").onchange = cargarProd; $("asisDia").onchange = cargarAsis;
     setInterval(() => { if (document.hidden) return; if (tab === "prod" && $("prodDia").value === hoyAR()) cargarProd();
                         if (tab === "asis" && $("asisDia").value === hoyAR()) cargarAsis(); }, 60000);
