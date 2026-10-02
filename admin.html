@@ -45,7 +45,7 @@
     /* PRODUCCIÓN y ASISTENCIA: tablas compactas, ancho según el dato, todo centrado */
     .panel{padding:0 16px 24px;max-width:1100px;margin:0 auto;}
     .barra{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 12px;}
-    .barra input{font:inherit;font-size:15px;padding:7px 10px;border-radius:10px;border:1px solid var(--borde);background:var(--card);color:var(--fg);}
+    .barra input,.barra select{font:inherit;font-size:15px;padding:7px 10px;border-radius:10px;border:1px solid var(--borde);background:var(--card);color:var(--fg);}
     .barra button{border:1px solid var(--borde);background:var(--card);color:var(--fg);border-radius:10px;padding:7px 12px;font-size:15px;}
     .barra .info{color:var(--mut);font-size:13px;}
     .bloque{background:var(--card);border-radius:var(--r);box-shadow:var(--sombra);padding:12px;margin-bottom:14px;overflow-x:auto;}
@@ -110,7 +110,9 @@
   </main>
 
   <section id="prod" class="vista panel hidden">
-    <div class="barra"><input type="date" id="prodDia" /><button id="prodRef">↻ Actualizar</button><span class="info" id="prodInfo"></span></div>
+    <div class="barra"><input type="date" id="prodDia" /><button id="prodRef">↻ Actualizar</button>
+      <select id="fArea" aria-label="Área"></select><select id="fOper" aria-label="Operario"></select><select id="fFam" aria-label="Familia"></select>
+      <span class="info" id="prodInfo"></span></div>
     <div class="bloque"><h2>Por área</h2><div id="prodArea"></div></div>
     <div class="bloque"><h2>Ritmo por operario</h2><div id="prodRitmo"></div></div>
     <div class="bloque"><h2>Por operario</h2><div id="prodOp"></div></div>
@@ -128,7 +130,7 @@
     <div id="pedLista"></div>
   </section>
 
-  <script src="config.js?v=1.32"></script>
+  <script src="config.js?v=1.33"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -235,6 +237,10 @@
     }, 250);
 
     /* ---------- PRODUCCIÓN ---------- */
+    // 1.33 (Elías): filtros por área, operario y familia (valen para las tres tablas), y la duración de cada tramo sin las
+    // pausas (Baño, Movimiento) que caen dentro, igual que el ritmo (gt_v147).
+    const PAUSAS = ["BANO", "MOVIM"];
+    let prodDatos = null;
     async function cargarProd() {
       const dia = $("prodDia").value || hoyAR();
       $("prodInfo").textContent = "Cargando…";
@@ -246,6 +252,36 @@
       }
       if (!rows.length && !(await claveOk())) return;
       $("prodInfo").textContent = rows.length + " tramos · actualizado " + new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+      // 1.14 (D35): lo hecho por hora, por operario y área, contra el promedio del área en las 4 semanas anteriores.
+      // Sólo tramos de 2 min o más con cantidad; menos de 15 min en el día no se informa (un toque no es un ritmo).
+      let ritmo = null, errRitmo = null;
+      try { ritmo = await rpc("gt_admin_ritmo2", { p_pass: pass || "", p_dia: dia }); }   // 1.15: por GRUPO (familia)
+      catch (e) { errRitmo = e.message; }
+      prodDatos = { rows, ritmo, errRitmo };
+      llenarFiltros(); pintarProd();
+    }
+    const famDe = (f) => (f && !/^Código /.test(f) ? f : "");   // un código que va solo no es una familia
+    function llenarFiltros() {
+      const { rows, ritmo } = prodDatos, rr = ritmo || [];
+      const opc = (id, vals, todos) => {
+        const sel = $(id), ant = sel.value, l = [...new Set(vals.filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
+        sel.innerHTML = '<option value="">' + todos + "</option>" + l.map((v) => '<option value="' + esc(v) + '">' + esc(v) + "</option>").join("");
+        sel.value = l.includes(ant) ? ant : "";
+      };
+      opc("fArea", rows.map((r) => r.area).concat(rr.map((r) => r.area)), "Todas las áreas");
+      opc("fOper", rows.map((r) => r.empleado).concat(rr.map((r) => r.empleado)), "Todos los operarios");
+      opc("fFam", rows.map((r) => famDe(r.familia)).concat(rr.map((r) => famDe(r.grupo))), "Todas las familias");
+    }
+    function pintarProd() {
+      if (!prodDatos) return;
+      const fa = $("fArea").value, fo = $("fOper").value, ff = $("fFam").value;
+      const pasa = (area, emp, fam) => (!fa || area === fa) && (!fo || emp === fo) && (!ff || famDe(fam) === ff);
+      const todos = prodDatos.rows, ahora = new Date();
+      // las pausas del mismo operario que caen dentro del tramo, en ms
+      const pausaMs = (r) => PAUSAS.includes(r.rubro) ? 0 : todos.filter((q) => PAUSAS.includes(q.rubro) && q.empleado === r.empleado &&
+          new Date(q.desde) >= new Date(r.desde) && new Date(q.hasta || ahora) <= new Date(r.hasta || ahora))
+        .reduce((m, q) => m + (new Date(q.hasta || ahora) - new Date(q.desde)), 0);
+      const rows = todos.filter((r) => pasa(r.area, r.empleado, r.familia));
       // por área: lo cerrado suma; lo en curso se cuenta aparte
       const porArea = new Map();
       rows.forEach((r) => {
@@ -259,7 +295,7 @@
       $("prodArea").innerHTML = areas.length ? "<table><tr><th>Área</th><th>Cant.</th><th>Unidad</th><th>Unid.<br>(cj×UxB)</th><th>Oper.</th><th>En<br>curso</th></tr>" +
         areas.map((a) => "<tr><td class=izq>" + esc(a.area) + "</td><td class=num>" + num(a.cant) + "</td><td>" + esc(a.unidad) +
           "</td><td class=num>" + (a.conUnid ? num(a.unid) : "—") + "</td><td>" + a.ops.size + "</td><td>" + (a.curso || "—") + "</td></tr>").join("") + "</table>"
-        : '<div class="vacio">Sin producción registrada ese día.</div>';
+        : '<div class="vacio">Sin producción registrada' + (fa || fo || ff ? " con ese filtro" : " ese día") + ".</div>";
       let prev = null;
       $("prodOp").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Área</th><th>Código</th><th>Familia</th><th>Desde</th><th>Hasta</th><th>Dur.</th><th>Cant.</th><th>Unid.</th></tr>" +
         rows.map((r) => {
@@ -270,22 +306,18 @@
             // 1.32 (Elías): la familia (grupo de fabricación: moldura + medida); un código que va solo, «—»
             "</td><td>" + (r.familia && !/^Código /.test(r.familia) ? esc(r.familia) : "—") +
             "</td><td>" + hhmmTz(r.desde) + "</td><td>" + (r.hasta ? hhmmTz(r.hasta) + (r.auto ? '<br><span class="desc">🔒 cerrado solo</span>' : "") : "en curso") + "</td><td>" +
-            hm(durMin(r.desde, r.hasta || new Date())) + "</td><td class=num>" +
+            hm(Math.max(0, Math.round((new Date(r.hasta || ahora) - new Date(r.desde) - pausaMs(r)) / 60000))) +
+            (pausaMs(r) >= 60000 ? '<br><span class="desc">−' + hm(Math.round(pausaMs(r) / 60000)) + " pausa</span>" : "") + "</td><td class=num>" +
             (r.cantidad == null ? "—" : num(r.cantidad)) + "</td><td class=num>" + (r.unidades == null ? "—" : num(r.unidades)) + "</td></tr>";
         }).join("") + "</table>" : '<div class="vacio">—</div>';
-      // 1.32: el ritmo no cuenta los tramos de menos de 2 min (D35); si sólo hubo de ésos, se dice
-      cargarRitmo(dia, rows.filter((r) => r.hasta && r.cantidad != null && new Date(r.hasta) - new Date(r.desde) < 120000).length);
-    }
-    // 1.14 (D35): lo hecho por hora, por operario y área, contra el promedio del área en las 4 semanas anteriores.
-    // Sólo tramos de 2 min o más con cantidad; menos de 15 min en el día no se informa (un toque no es un ritmo).
-    async function cargarRitmo(dia, cortos) {
-      let rows;
-      try { rows = await rpc("gt_admin_ritmo2", { p_pass: pass || "", p_dia: dia }); }   // 1.15: por GRUPO (tipo + moldura + medida)
-      catch (e) { $("prodRitmo").innerHTML = '<div class="vacio">⚠ No pude leer el ritmo (' + esc(e.message) + ")</div>"; return; }
-      let prev = null;
-      $("prodRitmo").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Área</th><th>Grupo<br><span class=desc>códigos</span></th><th>Hecho</th><th>Horas</th><th>Por<br>hora</th><th>Prom.<br>grupo 4 sem</th><th>vs<br>prom.</th></tr>" +
-        rows.map((r) => {
-          const nuevo = r.empleado !== prev; prev = r.empleado;
+      // 1.32: el ritmo no cuenta los tramos de menos de 2 min (D35), netos de pausas; si sólo hubo de ésos, se dice
+      const cortos = rows.filter((r) => r.hasta && r.cantidad != null && new Date(r.hasta) - new Date(r.desde) - pausaMs(r) < 120000).length;
+      if (prodDatos.errRitmo) { $("prodRitmo").innerHTML = '<div class="vacio">⚠ No pude leer el ritmo (' + esc(prodDatos.errRitmo) + ")</div>"; return; }
+      const rr = (prodDatos.ritmo || []).filter((r) => pasa(r.area, r.empleado, r.grupo));
+      let prevR = null;
+      $("prodRitmo").innerHTML = rr.length ? "<table><tr><th>Operario</th><th>Área</th><th>Grupo<br><span class=desc>códigos</span></th><th>Hecho</th><th>Horas</th><th>Por<br>hora</th><th>Prom.<br>grupo 4 sem</th><th>vs<br>prom.</th></tr>" +
+        rr.map((r) => {
+          const nuevo = r.empleado !== prevR; prevR = r.empleado;
           const pct = r.por_hora != null && r.prom_grupo ? Math.round((r.por_hora / r.prom_grupo - 1) * 100) : null;
           const cpct = pct == null ? "" : pct <= -20 ? "malo" : pct >= 20 ? "bueno" : "";
           return '<tr' + (nuevo ? ' class="sep"' : "") + '><td class=izq>' + (nuevo ? "<b>" + esc(r.empleado) + "</b>" : "") + "</td><td>" + esc(r.area) + "</td><td class=izq>" + (r.grupo ? esc(r.grupo) + '<br><span class="desc">' + esc(r.codigos || "") + "</span>" : "—") +
@@ -304,20 +336,33 @@
       const ahora = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 19);   // hora AR, mismo formato que la base
       $("asisInfo").textContent = "Cargando…";
       let rows;
-      try { rows = await rpc("gt_admin_asistencia", { p_pass: pass || "", p_dia: dia }); }
-      catch (e) { $("asisInfo").textContent = "⚠ No pude leer la asistencia (" + e.message + ")"; return; }
+      try { rows = await rpc("gt_admin_asistencia2", { p_pass: pass || "", p_dia: dia }); }   // 1.33: + ingreso con código y 1.er trabajo (gt_v147)
+      catch {
+        try { rows = await rpc("gt_admin_asistencia", { p_pass: pass || "", p_dia: dia }); }
+        catch (e) { $("asisInfo").textContent = "⚠ No pude leer la asistencia (" + e.message + ")"; return; }
+      }
       if (!rows.length && !(await claveOk())) return;
       const corre = (ts, min) => { const d = new Date(String(ts).replace(" ", "T") + "Z"); d.setUTCMinutes(d.getUTCMinutes() + min); return d.toISOString().slice(0, 19); };
       const t19 = (ts) => String(ts).replace(" ", "T").slice(0, 19);
       let faltas = 0;
       const html = rows.map((r) => {
         const tol = r.tolerancia_min || 5, chips = [];
-        let ent, alm = "—", sal = "—";
+        let ent, alm = "—", sal = "—", prod = "—";
         if (!r.entrada) { ent = '<span class="t-err">—</span>'; chips.push('<span class="chip c-err">No vino</span>'); }
         else {
           ent = hhmm(r.entrada);
           if (t19(r.entrada) > corre(r.entrada_prevista, tol)) { ent = '<span class="t-err">' + ent + "</span>"; chips.push('<span class="chip c-err">Llegó tarde</span>'); }
           else if (t19(r.entrada) > t19(r.entrada_prevista)) { ent = '<span class="t-warn">' + ent + "</span>"; chips.push('<span class="chip c-warn">Entrada en tolerancia</span>'); }
+          // 1.33 (Elías): el ingreso (código) puede ser antes de las 8 (desayuno); el 1.er trabajo productivo empieza a las 8
+          if (r.productivo) {
+            const dem = Math.round((Date.parse(t19(r.productivo) + "Z") - Date.parse(t19(r.entrada_prevista) + "Z")) / 60000);
+            prod = hhmm(r.productivo);
+            if (dem > tol) { prod = '<span class="t-err">' + prod + "</span>"; chips.push('<span class="chip c-err">Arrancó ' + dem + " min tarde</span>"); }
+            else if (dem > 0) prod = '<span class="t-warn">' + prod + "</span>";
+            prod += '<div class="desc">' + esc(r.productivo_area || "") + "</div>";
+          } else if ("productivo" in r && (!esHoy || ahora > corre(r.entrada_prevista, tol))) {
+            prod = '<span class="t-err">—</span>'; chips.push('<span class="chip c-err">Sin trabajo productivo</span>');
+          }
           if (!r.almuerzo_desde && !r.flexible) alm = '<span class="desc">de corrido</span>';
           else if (!r.almuerzo_sale) {
             alm = '<span class="desc">' + (r.flexible ? "rotativo · " : "") + "no fichó</span>";
@@ -344,12 +389,12 @@
         if (chips.some((c) => c.includes("c-err"))) faltas++;
         if (!chips.length) chips.push('<span class="chip c-ok">OK</span>');
         return "<tr><td class=izq><b>" + esc(r.empleado) + '</b> <span class="desc">' + esc(r.legajo || "") + "</span></td><td>" + ent +
-          '<div class="desc">' + hhmm(r.entrada_prevista) + "</div></td><td>" + alm +
+          '<div class="desc">' + hhmm(r.entrada_prevista) + (r.entrada && r.con_codigo === false ? " · 1.er registro" : "") + "</div></td><td>" + prod + "</td><td>" + alm +
           (r.almuerzo_desde ? '<div class="desc">' + hhmm(r.almuerzo_desde) + "–" + hhmm(r.almuerzo_hasta) + "</div>" : "") + "</td><td>" + sal +
           '<div class="desc">' + hhmm(r.salida_prevista) + "</div></td><td class=izq>" + chips.join("") + "</td></tr>";
       }).join("");
       $("asisInfo").textContent = rows.length + " operarios · " + faltas + " con faltas · abajo de cada hora, la que le toca";
-      $("asisTabla").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Entrada</th><th>Almuerzo</th><th>Salida</th><th>Estado</th></tr>" + html + "</table>"
+      $("asisTabla").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Ingreso</th><th>1.er<br>trabajo</th><th>Almuerzo</th><th>Salida</th><th>Estado</th></tr>" + html + "</table>"
         : '<div class="vacio">Sin datos.</div>';
     }
     /* ---------- PEDIDOS (D29: por ahora sólo desde el admin) ---------- */
@@ -407,6 +452,7 @@
     $("tabs").addEventListener("click", (e) => { const b = e.target.closest(".tab"); if (b) verTab(b.dataset.tab); });
     $("prodRef").onclick = cargarProd; $("asisRef").onclick = cargarAsis; $("pedRef").onclick = cargarPed; $("pedCerr").onchange = cargarPed;
     $("prodDia").onchange = cargarProd; $("asisDia").onchange = cargarAsis;
+    ["fArea", "fOper", "fFam"].forEach((id) => { $(id).onchange = pintarProd; });
     setInterval(() => { if (document.hidden) return; if (tab === "prod" && $("prodDia").value === hoyAR()) cargarProd();
                         if (tab === "asis" && $("asisDia").value === hoyAR()) cargarAsis(); }, 60000);
     document.addEventListener("visibilitychange", () => { if (!document.hidden && tab === "monitor") pedir(); });

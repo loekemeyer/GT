@@ -34,10 +34,13 @@ const PASOS = [
   { rubro: "MOLDU", orden: 1, campo: "texto", pregunta: "¿Qué moldura vas a hacer?", opciones: MOLD, fuente: "molduras", momento: "empezar" },
   { rubro: "PINT", orden: 1, campo: "color", pregunta: "¿De qué color vas a pintar?", opciones: ["Blanco parcial", "Blanco total", "Negro"], momento: "empezar" },
   { rubro: "PINT", orden: 2, campo: "texto", pregunta: "¿Qué moldura vas a pintar?", opciones: MOLD, fuente: "molduras", momento: "empezar" },
-  { rubro: "PINT", orden: 3, campo: "manos", pregunta: "¿Cuántas manos?", opciones: ["1", "2"], momento: "terminar" }];
+  { rubro: "PINT", orden: 3, campo: "manos", pregunta: "¿Cuántas manos?", opciones: ["1", "2"], momento: "terminar" },
+  // 1.33 (Elías): Movimientos pregunta qué está haciendo, con respuesta libre (sin opciones)
+  { rubro: "MOVIM", orden: 1, campo: "que", pregunta: "¿Qué estás haciendo?", opciones: null, momento: "empezar" }];
 const PELL = { codigo: "PELL", nombre: "Pellegrini" }, ESNA = { codigo: "ESNA", nombre: "Esnaola" };
 let CLAVE_MON = null; const LOGINS = []; const REING = []; const ARMAR = [];
 let SOLO_CORTO = false;   // 1.32: día con un solo tramo de menos de 2 min
+const INGRESOS = [];   // 1.33: los INGRESO van aparte (las posiciones de db de abajo son de los eventos de área)
 const db = [];
 const CODIGOS = [{ codigo: "505", descripcion: "Pinza", medida: "10*15", rubro: "GRAMP" }, { codigo: "760", descripcion: "Otra", medida: null, rubro: "DECO" },
   { codigo: "136", descripcion: "Cuadros Mold 03 Set x3 Botanica", medida: "30*40 + 20*30 + 15*21", rubro: "MONT" },
@@ -60,10 +63,21 @@ const srv = http.createServer((req, res) => {
       else if (fn === "gt_admin_ritmo2" && SOLO_CORTO) out = [];
       else if (fn === "gt_admin_produccion2" || fn === "gt_admin_produccion3") out = b.p_pass === CLAVE_MON ? [
         { empleado: "Prueba", area: "Encolado", rubro: "ENCOL", codigo: "080", descripcion: "Cuadro Ciudades MDF", desde: "2026-10-01T11:00:00Z", hasta: "2026-10-01T12:00:00Z", cantidad: 10, unidad: "cajas encoladas", uxb: 24, unidades: 240, familia: "MDF · 30*40" },
+        { empleado: "Prueba", area: "Baño", rubro: "BANO", codigo: null, descripcion: null, desde: "2026-10-01T11:15:00Z", hasta: "2026-10-01T11:30:00Z", cantidad: null, unidad: "—", uxb: null, unidades: null },
         { empleado: "Prueba", area: "Corte", rubro: "CORTE", codigo: "1", descripcion: "03 Bco", desde: "2026-10-01T12:00:00Z", hasta: null, cantidad: null, unidad: "unidades cortadas", uxb: null, unidades: null },
         { empleado: "Otro", area: "Gancho", rubro: "GANCHO", codigo: "080", descripcion: null, desde: "2026-10-01T15:00:00Z", hasta: "2026-10-01T20:30:00Z", cantidad: null, unidad: "cajas", uxb: 24, unidades: null, auto: true }] : [];
       else if (fn === "gt_admin_ritmo2") out = b.p_pass === CLAVE_MON ? [
         { empleado: "Prueba", legajo: "t1", area: "Montaje", rubro: "MONT", grupo: "Mold 03 · 30*40", codigos: "183", unidad: "unidades", hecho: 240, horas: 1, por_hora: 240, prom_grupo: 400, tramos: 1 }] : [];
+      else if (fn === "gt_admin_asistencia2") out = b.p_pass === CLAVE_MON ? [
+        { empleado: "Prueba", legajo: "t1", entrada: "2026-10-01T08:12:00", entrada_prevista: "2026-10-01T08:00:00", almuerzo_sale: null, almuerzo_vuelve: null,
+          almuerzo_desde: "2026-10-01T12:00:00", almuerzo_hasta: "2026-10-01T13:00:00", flexible: false, fin: null, salida_prevista: "2026-10-01T17:30:00",
+          area_abierta: true, termino: false, tolerancia_min: 5, con_codigo: true, productivo: "2026-10-01T08:30:00", productivo_area: "Corte" },
+        { empleado: "Otro", legajo: "t2", entrada: null, entrada_prevista: "2026-10-01T08:00:00", almuerzo_sale: null, almuerzo_vuelve: null,
+          almuerzo_desde: "2026-10-01T12:00:00", almuerzo_hasta: "2026-10-01T13:00:00", flexible: false, fin: null, salida_prevista: "2026-10-01T17:30:00",
+          area_abierta: false, termino: false, tolerancia_min: 5, con_codigo: false, productivo: null, productivo_area: null },
+        { empleado: "Tercero", legajo: "t3", entrada: "2026-10-01T07:42:00", entrada_prevista: "2026-10-01T08:00:00", almuerzo_sale: null, almuerzo_vuelve: null,
+          almuerzo_desde: "2026-10-01T12:00:00", almuerzo_hasta: "2026-10-01T13:00:00", flexible: false, fin: null, salida_prevista: "2026-10-01T17:30:00",
+          area_abierta: false, termino: false, tolerancia_min: 5, con_codigo: true, productivo: null, productivo_area: null }] : [];
       else if (fn === "gt_admin_asistencia") out = b.p_pass === CLAVE_MON ? [
         { empleado: "Prueba", legajo: "t1", entrada: "2026-10-01T08:12:00", entrada_prevista: "2026-10-01T08:00:00", almuerzo_sale: null, almuerzo_vuelve: null,
           almuerzo_desde: "2026-10-01T12:00:00", almuerzo_hasta: "2026-10-01T13:00:00", flexible: false, fin: null, salida_prevista: "2026-10-01T17:30:00",
@@ -78,11 +92,12 @@ const srv = http.createServer((req, res) => {
           items: [{ codigo: "281", descripcion: "Multiple X6 Mold 012", medida: "10*10 + 10*15 + 13*18", uxb: 6, cajas: 11, cajas_armadas: 11 }] }] : [];
       else if (fn === "gt_admin_pedido_armar") { ARMAR.push(b); out = b.p_pass === CLAVE_MON ? { ok: true, estado: b.p_estado || "parcial" } : { ok: false, error: "clave" }; }
       else if (fn === "gt_contraido_pendiente") out = [{ codigo: "760", descripcion: "Otra", cajas: 12 }];
-      else if (fn === "gt_registros_hoy2" || fn === "gt_registros_hoy3") out = db.filter((r) => r.empleado_id === b.p_empleado);
+      else if (fn === "gt_registros_hoy2" || fn === "gt_registros_hoy3") out = db.concat(INGRESOS).filter((r) => r.empleado_id === b.p_empleado);
       else if (fn === "gt_pasos") out = PASOS;
       else if (fn === "gt_registrar") {
         const ok = [], rech = [];
-        b.p_filas.forEach((f) => { if (f.opcion !== "FIN" && !AREAS2.find((a) => a.codigo === f.rubro)) rech.push({ client_id: f.client_id, motivo: "área inexistente" });
+        b.p_filas.forEach((f) => { if (f.opcion === "INGRESO") { if (!INGRESOS.find((x) => x.client_id === f.client_id)) INGRESOS.push(f); ok.push(f.client_id); }
+          else if (f.opcion !== "FIN" && !AREAS2.find((a) => a.codigo === f.rubro)) rech.push({ client_id: f.client_id, motivo: "área inexistente" });
           else { if (!db.find((x) => x.client_id === f.client_id)) db.push(f); ok.push(f.client_id); } });
         out = { ok, rechazados: rech };
       }
@@ -116,11 +131,14 @@ srv.listen(0, async () => {
     chk((await pg.$$(".box")).length === 9, "botonera = las áreas de Pellegrini (7 + Movimientos + Baño): las de Esnaola no aparecen");
     chk(!(await pg.$("#plantaBtn")), "la botonera no tiene «Cambiar de planta» (1.31)");
     const alDia = () => pg.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
+    await alDia();
+    chk(INGRESOS.length === 1 && INGRESOS[0].empleado_id === 7 && !INGRESOS[0].rubro && db.length === 0,
+        "elegir el nombre después del código registra el INGRESO (1.33), aparte de las áreas");
     await pg.click(".box[data-cod=CORTE]"); await alDia();
     chk(db.length === 1 && db[0].opcion === "AREA" && db[0].rubro === "CORTE" && db[0].ts_inicio === null, "Empecé Corte: apertura con ts_inicio NULL");
     chk(db[0].planta === "PELL", "el evento lleva la planta (Pellegrini, la de siempre)");
     await pg.reload(); await pg.waitForSelector(".termine-btn[data-cod=CORTE]");
-    chk(true, "al recargar, Corte sigue abierta (sesión del día + historial del servidor)");
+    chk(INGRESOS.length === 1, "al recargar, Corte sigue abierta (sesión del día + historial del servidor) y no se registra otro INGRESO");
     const termino = async (cod) => { await pg.click(".termine-btn[data-cod=" + cod + "]"); await pg.waitForSelector("#cantScreen:not(.hidden)"); };
     chk((await pg.$$("#botonera .box")).length === 0 && (await pg.$$("#botonera .termine-btn")).length === 1,
         "con un sector abierto, la botonera muestra SÓLO «Terminé» (no deja tocar otra área)");
@@ -183,22 +201,49 @@ srv.listen(0, async () => {
         "al terminar Recibir no pregunta nada: sólo «Listo» (D30)");
     await pg.click("#cantBtn"); await alDia();
     chk(db.length === nR + 1 && db[nR].cantidad == null && db[nR].rubro === "RECIB" && db[nR].ts_inicio, "Terminé Recibir sin cantidad");
-    // 1.28 (D31, Thomas: «movimientos»): un área sin código ni cantidad; al terminar propone el área PRODUCTIVA anterior
-    await pg.click(".box[data-cod=MOVIM]"); await alDia();
-    chk(db[db.length - 1].rubro === "MOVIM" && !db[db.length - 1].ts_inicio && !(await pg.isVisible("#codScreen")), "Movimientos (D31) empieza directo, sin código");
-    await termino("MOVIM");
-    chk(!(await pg.isVisible("#cantInput")) && await pg.isVisible("#sigueBox") && (await pg.textContent("#sigueLabel")).includes("Guardado"),
-        "al terminar Movimientos no pide cantidad y propone volver a Guardado (la productiva anterior), no a Recibir ni a Movimientos");
-    await pg.click("#cambioBtn"); await alDia();
-    chk(db[db.length - 1].rubro === "MOVIM" && db[db.length - 1].ts_inicio && db[db.length - 1].cantidad == null, "Terminé Movimientos: cierre sin cantidad");
-    // 1.31 (Elías: «añadí Baño, funciona de igual forma que Movimientos»)
+    // 1.28 (D31) / 1.33 (Elías): Movimientos desde la botonera pregunta qué está haciendo (respuesta libre); al terminar
+    // se cierra y vuelve la botonera, sin proponer el área anterior
+    await pg.click(".box[data-cod=MOVIM]"); await pg.waitForSelector("#pasoScreen:not(.hidden) #pasoTexto:not(.hidden)");
+    chk((await pg.textContent("#pasoLabel")) === "¿Qué estás haciendo?", "Movimientos pregunta «¿Qué estás haciendo?» con un campo para escribir");
+    await pg.click("#pasoBtn");
+    chk((await pg.textContent("#pasoError")).length > 0 && await pg.isVisible("#pasoScreen"), "sin escribir nada no sigue");
+    await pg.fill("#pasoTexto", "acomodar racks"); await pg.click("#pasoBtn"); await alDia();
+    chk(db[db.length - 1].rubro === "MOVIM" && !db[db.length - 1].ts_inicio && db[db.length - 1].detalle && db[db.length - 1].detalle.que === "acomodar racks",
+        "Empecé Movimientos con lo que escribió («acomodar racks») en el detalle");
+    await pg.click(".termine-btn[data-cod=MOVIM]"); await alDia(); await pg.waitForSelector("#botonera .box");
+    chk(db[db.length - 1].rubro === "MOVIM" && db[db.length - 1].ts_inicio && db[db.length - 1].cantidad == null && !(await pg.isVisible("#cantScreen")),
+        "Terminé Movimientos (desde la botonera): se cierra sin preguntar nada y vuelve la botonera");
+    // 1.31 / 1.33: Baño desde la botonera, lo mismo
     await pg.click(".box[data-cod=BANO]"); await alDia();
     chk(db[db.length - 1].rubro === "BANO" && !db[db.length - 1].ts_inicio && !(await pg.isVisible("#codScreen")), "Baño empieza directo, sin código");
-    await termino("BANO");
-    chk(!(await pg.isVisible("#cantInput")) && await pg.isVisible("#sigueBox") && (await pg.textContent("#sigueLabel")).includes("Guardado"),
-        "al terminar Baño no pide cantidad y propone volver a Guardado (la productiva anterior), no a Movimientos ni a Baño");
-    await pg.click("#cambioBtn"); await alDia();
-    chk(db[db.length - 1].rubro === "BANO" && db[db.length - 1].ts_inicio && db[db.length - 1].cantidad == null, "Terminé Baño: cierre sin cantidad");
+    await pg.click(".termine-btn[data-cod=BANO]"); await alDia(); await pg.waitForSelector("#botonera .box");
+    chk(db[db.length - 1].rubro === "BANO" && db[db.length - 1].ts_inicio && db[db.length - 1].cantidad == null, "Terminé Baño: cierre sin cantidad y vuelve la botonera");
+    // 1.33 (Elías): con un área abierta, Baño y Movimiento son una PAUSA dentro del área: no la cierran
+    await pg.click(".box[data-cod=CORTE]"); await alDia(); const nP = db.length;
+    chk((await pg.$$(".pausa-btn")).length === 2, "con Corte abierto: «Terminé» y además Baño y Movimiento");
+    await pg.click(".pausa-btn[data-pausa=BANO]"); await alDia();
+    chk(db.length === nP + 1 && db[nP].rubro === "BANO" && !db[nP].ts_inicio && (await pg.textContent("#abiertaBox")).includes("Corte en pausa") &&
+        (await pg.textContent(".termine-btn")).includes("Volví del baño"), "Baño con Corte abierto: Corte queda en pausa (no se cierra) y el botón es «Volví del baño»");
+    await pg.click(".termine-btn[data-cod=BANO]"); await alDia(); await pg.waitForSelector(".termine-btn[data-cod=CORTE]");
+    chk(db.length === nP + 2 && db[nP + 1].rubro === "BANO" && db[nP + 1].ts_inicio && (await pg.$$(".pausa-btn")).length === 2,
+        "Volví del baño: sigue en Corte, sin preguntar nada");
+    await pg.click(".pausa-btn[data-pausa=MOVIM]"); await pg.waitForSelector("#pasoScreen:not(.hidden) #pasoTexto:not(.hidden)");
+    await pg.fill("#pasoTexto", "buscar tablas"); await pg.click("#pasoBtn"); await alDia();
+    chk(db[nP + 2].rubro === "MOVIM" && db[nP + 2].detalle.que === "buscar tablas" && (await pg.textContent(".termine-btn")).includes("Terminé el movimiento"),
+        "Movimiento con Corte abierto: pregunta qué está haciendo y Corte queda en pausa");
+    await pg.click(".termine-btn[data-cod=MOVIM]"); await pg.waitForFunction(() => document.getElementById("pasoLabel").textContent.includes("¿Seguís con Corte"));
+    chk((await pg.$$("#pasoOpts button")).length === 2, "Terminé el movimiento: «¿Seguís con Corte?» Sí / No");
+    await pg.click("#pasoOpts button[data-val='Sí, sigo en Corte']"); await alDia(); await pg.waitForSelector(".termine-btn[data-cod=CORTE]");
+    chk(db[nP + 3].rubro === "MOVIM" && db[nP + 3].ts_inicio && db.length === nP + 4, "Sí: cierra el movimiento y sigue en Corte");
+    await pg.click(".pausa-btn[data-pausa=MOVIM]"); await pg.waitForSelector("#pasoTexto:not(.hidden)");
+    await pg.fill("#pasoTexto", "llevar cajas"); await pg.click("#pasoBtn"); await alDia();
+    await pg.click(".termine-btn[data-cod=MOVIM]"); await pg.waitForFunction(() => document.getElementById("pasoLabel").textContent.includes("¿Seguís con Corte"));
+    await pg.click("#pasoOpts button[data-val='No, terminé Corte']"); await pg.waitForSelector("#cantScreen:not(.hidden)");
+    chk(await pg.isVisible("#cantInput") && (await pg.textContent("#cantLabel")).includes("unidades cortadas"), "No: pide las cantidades de Corte");
+    await pg.fill("#cantInput", "12"); await pg.click("#cantBtn"); await alDia(); await pg.waitForSelector("#botonera .box");
+    const ult = db[db.length - 1];
+    chk(ult.rubro === "CORTE" && ult.cantidad === 12 && ult.ts_inicio === db[nP - 1].ts_cliente && db[db.length - 2].rubro === "MOVIM" && db[db.length - 2].ts_inicio,
+        "cierra el movimiento, cierra Corte con 12 y vuelve la botonera");
     chk(!(await pg.$(".box[data-cod=ALMU]")) && await pg.isVisible("#almuBtn") && await pg.isVisible("#finBtn"),
         "Almuerzo y Terminar día son botones aparte, no tarjetas de área");
     // almuerzo con un área abierta: cierra el área (cantidad) y empieza el almuerzo
@@ -233,7 +278,7 @@ srv.listen(0, async () => {
     const q = await pg.evaluate(() => [JSON.parse(localStorage.getItem("gt_queue_v3")).length, JSON.parse(localStorage.getItem("gt_rechazados_v3")).length]);
     chk(q[0] === 0 && q[1] === 1, "fila rechazada sale de la cola y queda anotada (no traba)");
     await pg.click("#histBtn");
-    const nh = (await pg.$$("#hist .hist-row")).length; chk(nh === 13, "resumen de hoy con 12 tramos (Movimientos y Baño incluidos) + fin del día (" + nh + ")");
+    const nh = (await pg.$$("#hist .hist-row")).length; chk(nh === 17, "resumen de hoy con 16 tramos (Movimientos, Baño y las pausas dentro de Corte) + fin del día (" + nh + ")");
     chk(await pg.isVisible("#histPop") && await pg.evaluate(() => getComputedStyle(document.getElementById("histPop")).position === "fixed"),
         "el Resumen de hoy se abre como pop-up (no se despliega abajo)");
     await pg.click("#histCerrar"); chk(!(await pg.isVisible("#histPop")), "el ✕ cierra el pop-up");
@@ -261,6 +306,7 @@ srv.listen(0, async () => {
     chk((await p2.$$("#plantaOpts button")).length === 2 && (await p2.textContent("#plantaScreen")).includes("¿En qué planta trabajás hoy?"),
         "Darío (dos plantas): lo primero que pregunta es en qué planta trabaja (Pellegrini o Esnaola)");
     await p2.click("#plantaOpts button[data-planta='ESNA']"); await p2.waitForSelector(".box[data-cod=MOLDU]");
+    await p2.waitForFunction(() => document.getElementById("syncBadge").textContent.includes("al día"));
     const cods = await p2.$$eval("#botonera .box", (bs) => bs.map((b) => b.dataset.cod).join(","));
     chk(cods === "MOLDU,LIJA,PINT,MOVIM,BANO" && (await p2.textContent("#opName")) === "Dario Mendez · Esnaola", "en Esnaola: Moldurado, Lijado, Pintado, Movimientos y Baño (en todas las plantas), y nada de Pellegrini");
     const n0 = db.length;
@@ -372,6 +418,16 @@ srv.listen(0, async () => {
         "Producción: por área con unidades (10 cajas × 24 = 240) y lo en curso");
     chk((await ad.textContent("#prodOp")).includes("cerrado solo"), "el tramo que cerró el sistema se marca «🔒 cerrado solo» (D34)");
     chk((await ad.textContent("#prodOp")).includes("MDF · 30*40"), "Por operario muestra la familia del tramo (1.32, gt_admin_produccion3)");
+    chk((await ad.textContent("#prodOp")).includes("0:45") && (await ad.textContent("#prodOp")).includes("−0:15 pausa"),
+        "el encolado de 11:00 a 12:00 con baño de 11:15 a 11:30 dura 0:45 (la pausa no cuenta, 1.33)");
+    await ad.selectOption("#fOper", "Otro");
+    chk(!(await ad.textContent("#prodOp")).includes("Prueba") && (await ad.textContent("#prodOp")).includes("Otro") && !(await ad.textContent("#prodArea")).includes("240"),
+        "filtro por operario (1.33): sólo Otro, en Por operario y en Por área");
+    await ad.selectOption("#fOper", ""); await ad.selectOption("#fFam", "MDF · 30*40");
+    chk((await ad.textContent("#prodOp")).includes("Encolado") && !(await ad.textContent("#prodOp")).includes("Corte"), "filtro por familia: sólo los tramos de MDF · 30*40");
+    await ad.selectOption("#fFam", ""); await ad.selectOption("#fArea", "Corte");
+    chk(!(await ad.textContent("#prodOp")).includes("Encolado") && (await ad.textContent("#prodArea")).includes("Corte"), "filtro por área: sólo Corte");
+    await ad.selectOption("#fArea", "");
     await ad.waitForFunction(() => document.getElementById("prodRitmo").textContent.includes("-40 %"));
     chk((await ad.textContent("#prodRitmo")).includes("Mold 03 · 30*40"), "Ritmo: 240 u/h contra 400 del GRUPO (Mold 03 · 30*40) = -40 %");
     // 1.32 (Elías): el día del encolado de 43 s del 173 — el ritmo vacío explica por qué, y la familia sale igual
@@ -385,6 +441,8 @@ srv.listen(0, async () => {
     const asis = await ad.textContent("#asisTabla");
     chk(asis.includes("Llegó tarde") && asis.includes("No vino") && asis.includes("Sin almuerzo") && asis.includes("No terminó el día"),
         "Asistencia: llegó tarde, no vino, sin almuerzo y no terminó el día");
+    chk(asis.includes("Arrancó 30 min tarde") && asis.includes("Sin trabajo productivo") && asis.includes("07:42"),
+        "Asistencia (1.33): ingreso y 1.er trabajo por separado · arrancó 30 min tarde · ingresó a las 07:42 (desayuno) y no trabajó");
     // D29: Pedidos, por ahora sólo desde el admin
     await ad.click(".tab[data-tab=ped]"); await ad.waitForSelector("#pedLista .bloque");
     chk((await ad.$$("#pedLista .bloque")).length === 2 && (await ad.textContent("#pedLista")).includes("VENCIDO") && (await ad.textContent("#pedInfo")).includes("1 por armar"),

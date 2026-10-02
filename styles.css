@@ -164,6 +164,10 @@ body.sin-scroll{overflow:hidden;}
 .hist-row.fin .hist-cant{font-size:16px;}
 .termine-btn{display:block;width:100%;min-height:96px;margin:4px 0 0;border:0;border-radius:18px;background:var(--ok);color:#fff;font-size:26px;font-weight:800;cursor:pointer;}
 .termine-btn:active{filter:brightness(.92);}
+/* 1.33: Baño y Movimiento como pausa dentro del área abierta, debajo de «Terminé» */
+.pausas{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:10px;}
+.pausas .sec-btn{margin:0;min-height:56px;font-weight:600;}
+.texto-libre{font-size:20px;font-weight:500;height:56px;}
 .row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .row-2 .sec-btn{margin:0;}
 

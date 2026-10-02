@@ -12,7 +12,7 @@
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=1.32" />
+  <link rel="stylesheet" href="styles.css?v=1.33" />
 </head>
 <body>
   <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
@@ -108,9 +108,13 @@
     <header class="top-bar"><button class="back-top" id="pasoVolver" aria-label="Volver">‹</button><span class="op-name" id="pasoTitulo"></span><span class="top-esp"></span></header>
     <div class="tarjeta">
       <div id="pasoResp" class="paso-resp hidden"></div>
-      <label class="label" id="pasoLabel"></label>
+      <label class="label" id="pasoLabel" for="pasoTexto"></label>
       <div id="pasoOpts" class="cod-opts"></div>
+      <!-- 1.33: pregunta sin opciones = se contesta escribiendo -->
+      <input id="pasoTexto" class="text-input texto-libre hidden" autocomplete="off" placeholder="Escribilo acá" />
+      <div id="pasoError" class="error"></div>
     </div>
+    <div class="acciones hidden" id="pasoAcc"><button id="pasoBtn" class="primary-btn">Siguiente</button></div>
   </div>
 
   <!-- 4) CÓDIGO (al empezar un área que lo pide) -->
@@ -137,7 +141,7 @@
       <div id="hist" class="pop-cuerpo"></div>
     </div>
   </div>
-  <script src="config.js?v=1.32"></script>
-  <script src="app.js?v=1.32"></script>
+  <script src="config.js?v=1.33"></script>
+  <script src="app.js?v=1.33"></script>
 </body>
 </html>

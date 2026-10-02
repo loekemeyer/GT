@@ -233,16 +233,27 @@
     if (d) s += (s ? " · " : "") + d;
     return s;
   }
-  // el área abierta se DEDUCE de los eventos (servidor + cola), no se guarda aparte
-  function abierta() {
-    let ab = null;
+  // el área abierta se DEDUCE de los eventos (servidor + cola), no se guarda aparte.
+  // 1.33 (Elías): Baño y Movimiento tocados con un área abierta son una PAUSA dentro de esa área, no la cierran: la pila
+  // del día tiene abajo el área y arriba la pausa. Abrir otra cosa reemplaza todo (como siempre); un cierre saca su área
+  // y lo que tenga encima.
+  const PAUSA_DENTRO = ["BANO", "MOVIM"];
+  function pilaAbierta() {
+    let p = [];
     eventosHoy().forEach((r) => {
       if (r.opcion !== "AREA") return;
-      if (!r.ts_inicio) ab = r;
-      else if (ab && ab.rubro === r.rubro) ab = null;
+      if (!r.ts_inicio) {
+        if (PAUSA_DENTRO.includes(r.rubro) && p.length === 1 && !PAUSA_DENTRO.includes(p[0].rubro) && p[0].rubro !== "ALMU") p.push(r);
+        else p = [r];
+        return;
+      }
+      const j = p.map((x) => x.rubro).lastIndexOf(r.rubro);
+      if (j >= 0) p = p.slice(0, j);
     });
-    return ab;
+    return p;
   }
+  function abierta() { const p = pilaAbierta(); return p.length ? p[p.length - 1] : null; }
+  function enPausa() { const p = pilaAbierta(); return p.length > 1 ? p[0] : null; }   // el área que quedó en pausa debajo
 
   function registrar(area, extra, offsetMs) {
     const fila = Object.assign({
@@ -266,8 +277,8 @@
     return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + String(m % 60).padStart(2, "0");
   }
   function renderBotonera() {
-    const ab = abierta();
-    const hoy = eventosHoy(), ult = hoy[hoy.length - 1];
+    const ab = abierta(), base = enPausa();
+    const hoy = eventosHoy().filter((r) => r.opcion !== "INGRESO"), ult = hoy[hoy.length - 1];
     const finDia = !ab && ult && ult.opcion === "FIN";
     $("abiertaBox").classList.toggle("hidden", !ab && !finDia);
     $("abiertaBox").classList.toggle("fin", !!finDia);
@@ -277,14 +288,22 @@
       const a = areaDe(ab.rubro);
       $("abiertaBox").innerHTML = '<span class="ab-punto"></span><div class="ab-txt"><div class="ab-area">' +
         (ICONO[ab.rubro] || "🏷️") + " " + esc(a ? a.nombre : ab.rubro) + (etq(ab) ? " · " + esc(etq(ab)) : "") +
-        '</div><div class="ab-det">Desde las ' + hhmm(ab.ts_cliente) + (ab.rubro === "ALMU" ? " · tocá «Volví de almorzar»" : "") + "</div></div>" +
+        '</div><div class="ab-det">Desde las ' + hhmm(ab.ts_cliente) + (ab.rubro === "ALMU" ? " · tocá «Volví de almorzar»" : "") +
+        (base ? " · " + (ICONO[base.rubro] || "") + " " + esc((areaDe(base.rubro) || { nombre: base.rubro }).nombre) + " en pausa" : "") + "</div></div>" +
         '<div class="ab-tiempo" data-desde="' + esc(ab.ts_cliente) + '">' + transcurrido(ab.ts_cliente) + "</div>";
     }
     // v1.8 (Thomas): con un sector abierto NO se ofrecen los otros: sólo «Terminé», que pide cuánto hizo
     // (y ahí mismo «¿con qué seguís?»). Con el almuerzo abierto, sólo «Volví de almorzar».
+    // 1.33 (Elías): con un área abierta, además de «Terminé», Baño y Movimiento (pausas dentro del área); con la pausa
+    // abierta, sólo volver de ella
     if (ab) {
+      const pausas = ab.rubro === "ALMU" || PAUSA_DENTRO.includes(ab.rubro) ? [] :
+        PAUSA_DENTRO.map((c) => st.areas.find((x) => x.codigo === c && deLaPlanta(x))).filter(Boolean);
       $("botonera").innerHTML = ab.rubro === "ALMU" ? "" :
-        '<button class="termine-btn" data-cod="' + esc(ab.rubro) + '">✅ Terminé</button>';
+        '<button class="termine-btn" data-cod="' + esc(ab.rubro) + '">' +
+        (base ? (ab.rubro === "BANO" ? "✅ Volví del baño" : "✅ Terminé el movimiento") : "✅ Terminé") + "</button>" +
+        (pausas.length ? '<div class="pausas">' + pausas.map((x) => '<button class="sec-btn pausa-btn" data-pausa="' + esc(x.codigo) + '">' +
+          (ICONO[x.codigo] || "🏷️") + " " + esc(x.nombre) + "</button>").join("") + "</div>" : "");
     } else $("botonera").innerHTML = st.areas.some((a) => a.codigo !== "ALMU" && deLaPlanta(a)) ?
       '<div class="row">' + st.areas.filter((a) => a.codigo !== "ALMU" && deLaPlanta(a)).map((a) => {
         const esAb = ab && ab.rubro === a.codigo;
@@ -310,6 +329,7 @@
     const a = areaDe(cod); if (!a) return;
     const ab = abierta();
     if (!ab) { empezar(a); return; }
+    if (ab.rubro === cod && PAUSA_DENTRO.includes(cod)) { terminarPausa(ab); return; }
     // v9.0: terminar la abierta y, EN LA MISMA PANTALLA, «¿con qué seguís?». Por defecto se sigue en
     // la misma área (lo normal en el día); si tocó otra, se propone ésa.
     const cierra = areaDe(ab.rubro) || { codigo: ab.rubro, nombre: ab.rubro, unidad: "cantidad" };
@@ -317,6 +337,43 @@
     // v1.3: al volver de almorzar se propone el área en la que estaba antes. 1.28 (D31): lo mismo al terminar Movimientos
     if (ab.rubro === cod && PAUSAS.includes(cod)) sigue = areaAntesDelAlmuerzo(ab);
     abrirTermine(ab, cierra, sigue, "normal");
+  }
+
+  // 1.33 (Elías): Baño / Movimiento tocados con un área abierta: el área queda en pausa (no se cierra ni pide cantidad)
+  function pausar(cod) {
+    const a = st.areas.find((x) => x.codigo === cod && deLaPlanta(x)) || areaDe(cod); if (!a) return;
+    const ab = abierta(); if (!ab) { empezar(a); return; }
+    const b = areaDe(ab.rubro) || { nombre: ab.rubro };
+    const listo = (x) => {
+      registrar(a, x, 1); flush();
+      toast((ICONO[a.codigo] || "") + " " + a.nombre + " · " + b.nombre + " queda en pausa");
+      show("optionsScreen"); renderBotonera();
+    };
+    if (pasosDe(a, "empezar").length) iniciarPasos(a, "empezar", a.nombre + " · " + b.nombre + " en pausa", (resp) => listo(extraDe(resp)),
+      () => { show("optionsScreen"); renderBotonera(); });
+    else listo(null);
+  }
+  // 1.33 (Elías): al terminar una pausa. Desde la botonera (sin área debajo): se cierra y vuelve la botonera. Del baño: se
+  // sigue en el área. Del movimiento: «¿Seguís con …?»; si no, las cantidades de lo que hizo.
+  function terminarPausa(ab) {
+    const p = areaDe(ab.rubro) || { codigo: ab.rubro, nombre: ab.rubro };
+    const base = enPausa();
+    registrar(p, { ts_inicio: ab.ts_cliente, texto: ab.texto || "", detalle: ab.detalle || null });
+    flush();
+    if (!base) { toast("✓ Terminaste " + p.nombre); show("optionsScreen"); renderBotonera(); return; }
+    const b = areaDe(base.rubro) || { codigo: base.rubro, nombre: base.rubro, unidad: "cantidad" };
+    if (ab.rubro === "BANO") { toast("✓ Volviste del baño · seguís en " + b.nombre); show("optionsScreen"); renderBotonera(); return; }
+    const si = "Sí, sigo en " + b.nombre, no = "No, terminé " + b.nombre;
+    preguntar("Terminé el movimiento", "¿Seguís con " + b.nombre + (etq(base) ? " · " + etq(base) : "") + "?", [si, no], (v) => {
+      if (v === no) { abrirTermine(base, b, null, "normal"); return; }
+      toast("✓ Seguís en " + b.nombre); show("optionsScreen"); renderBotonera();
+    });
+  }
+  // una pregunta suelta con botones, en la pantalla de preguntas (‹ = la primera opción no elegida: queda como estaba)
+  function preguntar(titulo, pregunta, opciones, onElegir) {
+    st.paso = { a: null, pasos: [{ campo: "_r", pregunta, opciones }], i: -1, resp: {}, vistos: [], titulo,
+                onFin: (resp) => onElegir(resp._r), onCancel: () => { show("optionsScreen"); renderBotonera(); } };
+    sigPaso();
   }
 
   // v1.3: «🏁 Terminar día». Si hay algo abierto, lo cierra (con su cantidad) y marca el fin del día.
@@ -328,7 +385,8 @@
     }
     abrirTermine(ab, areaDe(ab.rubro) || { codigo: ab.rubro, nombre: ab.rubro, unidad: "cantidad" }, null, "fin");
   }
-  // 1.28 (D31): Almuerzo y Movimientos son pausas del trabajo; al volver se propone el área productiva anterior (Recibir tampoco cuenta)
+  // 1.28 (D31): Almuerzo y Movimientos son pausas del trabajo; al volver se propone el área productiva anterior (Recibir tampoco cuenta).
+  // 1.33: Baño y Movimiento ya no pasan por acá (terminarPausa); queda para el almuerzo, y para no proponer una pausa
   const PAUSAS = ["ALMU", "MOVIM", "BANO"];   // 1.31 (Elías): Baño, igual que Movimientos
   function areaAntesDelAlmuerzo(ab) {
     const prev = eventosHoy().filter((r) => r.opcion === "AREA" && !PAUSAS.includes(r.rubro) && r.rubro !== "RECIB" && r.ts_inicio && r.ts_cliente <= ab.ts_cliente);
@@ -599,9 +657,18 @@
     $("pasoResp").classList.toggle("hidden", !ya.length);
     $("pasoLabel").textContent = p.pregunta;
     const ops = p.opciones || [];
-    $("pasoOpts").innerHTML = ops.length ? ops.map((o) => '<button data-val="' + esc(o) + '">' + esc(o) + "</button>").join("") :
-      '<div class="error">No hay opciones cargadas para esta pregunta (gt.rubro_pasos).</div>';
+    // 1.33: una pregunta sin opciones se contesta escribiendo (Movimientos: «¿Qué estás haciendo?»)
+    const libre = !ops.length;
+    $("pasoOpts").innerHTML = ops.map((o) => '<button data-val="' + esc(o) + '">' + esc(o) + "</button>").join("");
+    $("pasoTexto").classList.toggle("hidden", !libre); $("pasoAcc").classList.toggle("hidden", !libre); $("pasoError").textContent = "";
+    if (libre) $("pasoTexto").value = s.resp[p.campo] || "";
     show("pasoScreen");
+    if (libre) $("pasoTexto").focus();
+  }
+  function textoPaso() {
+    const v = $("pasoTexto").value.trim();
+    if (v.length < 2) { $("pasoError").textContent = "Escribí la respuesta"; $("pasoTexto").focus(); return; }
+    elegirPaso(v);
   }
   function elegirPaso(v) { const s = st.paso; if (!s) return; s.resp[s.pasos[s.i].campo] = v; sigPaso(); }
   // ‹ vuelve a la pregunta anterior; desde la primera, cancela
@@ -679,7 +746,7 @@
   // 1.31 (Elías): sin «Cambiar de planta» en la botonera: para cambiar, ‹ y volver a entrar con el código del monitor
   function elegirEmpleado(id, nombre) {
     const pl = (st.empsPlantas && st.empsPlantas[id]) || [];
-    if (pl.length < 2) { entrar(id, nombre, pl[0] ? pl[0].codigo : null, pl, st.principal); return; }
+    if (pl.length < 2) { entrar(id, nombre, pl[0] ? pl[0].codigo : null, pl, st.principal, true); return; }
     st.elige = { id, nombre, plantas: pl };
     mostrarPlantas();
   }
@@ -692,23 +759,31 @@
   function elegirPlanta(cod) {
     const e = st.elige; if (!e) return;
     st.elige = null;
-    entrar(e.id, e.nombre, cod, e.plantas, st.principal);
+    entrar(e.id, e.nombre, cod, e.plantas, st.principal, true);
   }
   function nombrePlanta(cod) { const p = st.plantas.find((x) => x.codigo === cod); return p ? p.nombre : cod || ""; }
   function ponerNombre() { $("opName").textContent = st.nombre + (st.plantas.length > 1 && st.planta ? " · " + nombrePlanta(st.planta) : ""); }
   function guardarSesion() {
     lsSet(LS_SESION, { id: st.emp, nombre: st.nombre, dia: hoyAR(), planta: st.planta, plantas: st.plantas, principal: st.principal });
   }
-  async function entrar(id, nombre, planta, plantas, principal) {
+  // ingreso = true cuando viene de poner el código y elegir el nombre (no al recargar con la sesión del día)
+  async function entrar(id, nombre, planta, plantas, principal, ingreso) {
     st.emp = Number(id); st.nombre = nombre;
     st.planta = planta || null; st.plantas = plantas || []; st.principal = principal || null;
     guardarSesion();
+    // 1.33 (Elías): el INGRESO (la hora del código) va aparte del primer trabajo productivo (el primer «Empecé»)
+    if (ingreso) {
+      const q = cola();
+      q.push({ client_id: uuid(), empleado_id: st.emp, opcion: "INGRESO", rubro: null, descripcion: "Ingresó con el código", texto: "",
+               cantidad: null, ts_cliente: new Date().toISOString(), ts_inicio: null, dispositivo: dispositivo(), planta: st.planta });
+      lsSet(LS_QUEUE, q);
+    }
     ponerNombre();
     show("optionsScreen");
     await Promise.all([cargarAreas(), cargarHoy()]);
     renderBotonera(); flush();
     // 1.21 (D44): si ya había terminado el día, puede seguir, pero la base avisa por Telegram (una vez por «Terminar día»)
-    const hoy = eventosHoy(), ult = hoy[hoy.length - 1];
+    const hoy = eventosHoy().filter((r) => r.opcion !== "INGRESO"), ult = hoy[hoy.length - 1];
     if (ult && ult.opcion === "FIN") rpc("gt_reingreso", { p_empleado: st.emp }).catch(() => { /* sin red: avisa el primer registro */ });
   }
 
@@ -734,7 +809,10 @@
   $("plantaOpts").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) elegirPlanta(b.dataset.planta); });
   $("plantaVolver").onclick = () => { st.elige = null; show("nombreScreen"); };
   $("nombreVolver").onclick = () => show("claveScreen");
-  $("botonera").addEventListener("click", (e) => { const b = e.target.closest(".box, .termine-btn"); if (b) tocar(b.dataset.cod); });
+  $("botonera").addEventListener("click", (e) => {
+    const pz = e.target.closest(".pausa-btn"); if (pz) { pausar(pz.dataset.pausa); return; }
+    const b = e.target.closest(".box, .termine-btn"); if (b) tocar(b.dataset.cod);
+  });
   $("salirBtn").onclick = salir;
   $("almuBtn").onclick = () => tocar("ALMU");
   $("finBtn").onclick = terminarDia;
@@ -754,6 +832,9 @@
   $("medVolver").onclick = () => { st.medPara = null; show("optionsScreen"); renderBotonera(); };
   $("pasoOpts").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) elegirPaso(b.dataset.val); });
   $("pasoVolver").onclick = volverPaso;
+  $("pasoBtn").onclick = textoPaso;
+  $("pasoTexto").addEventListener("keydown", (e) => { if (e.key === "Enter") textoPaso(); });
+  $("pasoTexto").addEventListener("input", () => { $("pasoError").textContent = ""; });
   $("codInput").addEventListener("keydown", (e) => { if (e.key === "Enter") confirmarCod(); });
   $("codVolver").onclick = cancelarCod;
   $("codOpts").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("codInput").value = b.dataset.cod; confirmarCod(); } });

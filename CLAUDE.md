@@ -183,6 +183,33 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.33 — ingreso vs. primer trabajo, Baño y Movimiento como pausa dentro del área, filtros en Producción (Elías, 02/10/2026)
+
+- **Ingreso ≠ primer trabajo productivo.** Elías: *«una cosa es el horario de ingreso, cuando ponen el código, y otra el
+  del primer mensaje productivo… llegan antes de las 8 porque entran a desayunar, pero el primer mensaje productivo tiene
+  que comenzar a las 8»*. El celular graba `opcion = 'INGRESO'` al elegir el nombre después del código (no al recargar;
+  fila `INGRESO` en `gt.tareas`, como `FIN`). Primer productivo = el primer «Empecé» de un área con
+  `gt.rubros.productivo` (false: Almuerzo, Movimientos, Baño; Recibir y Pedidos cuentan). Asistencia
+  (`gt_admin_asistencia2`): columnas **Ingreso** y **1.er trabajo**, chips «Arrancó N min tarde» (más de la tolerancia
+  contra la entrada del horario) y «Sin trabajo productivo». Avisos (`gt.alerta_llegada`): 08:05 «no habían ingresado» /
+  «ingresaron pero no empezaron a trabajar»; 10:30 «ingresaron después de las 08:00» / «empezaron a trabajar después de
+  las 08:05 (N min tarde) · ingresó HH:MM».
+- **Baño y Movimiento dentro del área.** Elías: *«el baño es sólo una pausa, no rompe nada: si estaba haciendo algo, va a
+  continuar… al regresar de movimiento te va a preguntar si vas a continuar; si no, hay que poner las cantidades»*. Con un
+  área abierta, debajo de «✅ Terminé» están **🚻 Baño** y **🔄 Movimientos**: el área queda en pausa (no se cierra).
+  «Volví del baño» sigue en el área sin preguntar; «Terminé el movimiento» pregunta «¿Seguís con Corte?» y, si no, pide
+  las cantidades de Corte y vuelve la botonera. En el celular es una pila (`pilaAbierta()`: abajo el área, arriba la
+  pausa); en la base son tramos anidados del mismo operario.
+- **El tiempo de la pausa no cuenta** (*«corte de 12:00 a 12:30 con baño de 12:15 a 12:30 = 15 min de corte»*):
+  `gt_admin_ritmo2` resta las pausas que caen dentro de cada tramo (y los 2 min mínimos son netos); en Producción la
+  duración sale neta con «−0:15 pausa» debajo. `gt.jornada_estado`: «área abierta» = apertura sin cierre.
+- **Movimientos pregunta «¿Qué estás haciendo?»**, con respuesta escrita (una pregunta de `gt.rubro_pasos` sin opciones
+  ahora se contesta escribiendo; va a `detalle.que`). Tocado desde la botonera (sin área abierta), «Terminé» lo cierra y
+  vuelve la botonera, sin proponer el área anterior. Baño desde la botonera, igual.
+- **Producción del admin: filtros por área, operario y familia** (valen para las tres tablas).
+- `sql/gt_v147_ingreso_primer_productivo.sql` (probado en transacción abortada: corte 12:00–12:30 con baño 12:15–12:30 →
+  30 piezas en 0,25 h; ingreso 07:40 y 1.er trabajo 12:00; área abierta con un movimiento cerrado adentro), `tests/smoke.cjs`.
+
 ### gt_v146 — en ENCOLADO la familia es sólo la medida (Elías, 02/10/2026)
 
 - Elías: *«cuando se hace encolado la moldura no es un factor, solamente la medida»*. Cambia, **sólo para Encolado**, la
