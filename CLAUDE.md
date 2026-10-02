@@ -187,7 +187,7 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
-### 02/10/2026 — todo lo cargado hasta el lunes 05/10 fue PRUEBA (D62: «sí»)
+### 02/10/2026 — todo lo cargado hasta el lunes 05/10 fue PRUEBA (Thomas, D62: «sí»)
 
 - La app se usa en serio desde el **lunes 05/10/2026**. Lo anterior se borra con `sql/gt_borrar_pruebas_antes_del_lunes.sql`
   (eventos, parejas e ingresos del monitor con fecha anterior al lunes), en el **SQL Editor**: desde la sesión el conector
@@ -195,7 +195,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 - Respaldo con RLS: `gt.bkp_registros_pruebas_20261002` (183 eventos, 01/10 13:26 → 02/10 17:22, 9 operarios, 0 de Deco),
   `gt.bkp_parejas_pruebas_20261002` (5) y `gt.bkp_monitor_ingresos_pruebas_20261002` (7).
 
-### 1.49 — al tocar un nombre, «¿Sos …?» antes de entrar (02/10/2026)
+### 1.49 — al tocar un nombre, «¿Sos …?» antes de entrar (Thomas, 02/10/2026)
 
 - Pedido: *«un empleado tocó el nombre de Walter y le puso el nombre de Luis… ¿le erró en la mano o tenés un error?…
   quiero que confirmen que la persona es tal persona cuando está tocando el botón del nombre»*.
@@ -211,6 +211,8 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   (`NOMBRE_ESPERA`) no cuenta: un doble toque sobre el nombre no confirma solo.
 - `tests/smoke.cjs` (pregunta, doble toque, No, tocar afuera, Sí) y `tests/nombres16.cjs` (la ventana con «Maximiliano
   Bustamante» entera, sin scroll y los dos botones ≥ 48 px en los 16 tamaños). Las otras pruebas contestan Sí.
+- Los commits b64967e (v1.49) y 783758c (borrado de pruebas) dicen «Hecho-por: sin confirmar»: los hizo Thomas (employee_id 3),
+  que se identificó después de pushearlos.
 
 ### 1.48 — cuando uno de la pareja se va, se le avisa al otro y el tramo se vuelve a ofrecer (Elías, 02/10/2026: D58 «sí»)
 
