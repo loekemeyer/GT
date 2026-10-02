@@ -447,13 +447,21 @@ qué lleva cada grupo: sin filas, nada cambia** (la lámina genérica de Encolad
   genérica −8 como siempre · 080 grampeado ×10: `GRAMPA −80`. `gt.demanda_insumos` dio 5.776 láminas y 5.744 ganchos
   para los 32 del grupo con demanda.
 - `sql/gt_v140_insumos.sql` (rollback en la cabecera: volver la vista con `sql/gt_movimientos_vivo.sql`).
+- **gt_v141 (Thomas, 01/10: «Lámina encolada es lámina + chapadur»):** Encolado descuenta **solo**, sin cargar nada,
+  `LAM <medida>` y `CHAP <medida>` del producto (un set x3: una de cada medida; `deposito = 'insumo'`). Reemplaza al
+  depósito genérico `lamina` de 1.23. Si el producto tiene receta propia de insumos en ENCOL, ésa manda (probado: el
+  183 con «lámina ×2» propia descuenta sólo eso). Para la DEMANDA hace falta saber de antemano qué productos llevan
+  lámina: **`gt.codigos.lleva_lamina`** (null = sin definir, no cuenta; se completa con **D36**). Probado en
+  transacción abortada: 134 encolado 2 cajas → `LAM 30*40 −32` y `CHAP 30*40 −32` · set 136, 1 caja → −8 de cada
+  medida · demanda con 134 y 136 marcados: 1.600 chapadur 30×40, 1.664 láminas 30×40 (el 183 con receta propia ×2).
+  `sql/gt_v141_lamina_chapadur.sql`.
 
 ### 1.23 — movimientos de stock por etapa, sólo internos (Thomas, 01/10/2026)
 
 - *«Por ahora no hace stock, hace solamente movimientos… que internamente funcionen los movimientos, pero que no
   se los muestren a los operarios.»* → **`gt.movimientos`** (vista): cada «Terminé» con cantidad suma en su etapa
   y descuenta de la anterior. No hay saldo inicial: **no es stock** hasta que Thomas cargue el inicial.
-- La cadena: Corte → (Grampeado: −2 piezas de cada lado del aro, + aro) → Encolado (− lámina, + encolado) →
+- La cadena: Corte → (Grampeado: −2 piezas de cada lado del aro, + aro) → Encolado (− lámina − chapadur de la medida, gt_v141; + encolado) →
   Montaje (− aro, − encolado, + montado) → Gancho → Emblistado → Contraído → Guardado a góndola. Unidades:
   piezas, aros y, en las áreas de producto, cajas × UxB. **Sets x3 por medida**; emblistar un set descuenta
   una de cada medida.
