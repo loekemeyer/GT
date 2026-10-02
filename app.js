@@ -272,9 +272,19 @@
                   PED: "🧾", DECO: "🎨", GUARD: "🗄️", RECIB: "🚚", MOVIM: "🔄", BANO: "🚻", ALMU: "🍽️", MOLDU: "🪚", LIJA: "🧽", PINT: "🖌️" };
   // 1.22: un área es de la planta elegida; un área sin planta es de la principal
   function deLaPlanta(a) { return (a.planta || st.principal || null) === (st.planta || st.principal || null); }
-  function transcurrido(iso) {
-    const m = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+  function transcurrido(iso, pausaMs) {
+    const m = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime() - (pausaMs || 0)) / 60000));
     return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + String(m % 60).padStart(2, "0");
+  }
+  // 1.34 (Elías: «tenía 2 min encolando, fui al baño 6-7 y al regresar aparecieron 9 min de encolando»): el tiempo de un
+  // área no cuenta las pausas (Baño, Movimiento) que hubo adentro, igual que el ritmo y la Producción del admin (gt_v147).
+  // Suma las pausas ya cerradas que empezaron después de abrir el área y terminaron antes de «hasta» (o de ahora).
+  function pausasDentro(rubro, desde, hasta) {
+    if (PAUSA_DENTRO.includes(rubro)) return 0;
+    const d = new Date(desde).getTime(), h = hasta ? new Date(hasta).getTime() : Date.now();
+    return eventosHoy().filter((r) => r.opcion === "AREA" && PAUSA_DENTRO.includes(r.rubro) && r.ts_inicio &&
+        new Date(r.ts_inicio).getTime() >= d && new Date(r.ts_cliente).getTime() <= h)
+      .reduce((m, r) => m + (new Date(r.ts_cliente) - new Date(r.ts_inicio)), 0);
   }
   function renderBotonera() {
     const ab = abierta(), base = enPausa();
@@ -290,7 +300,8 @@
         (ICONO[ab.rubro] || "🏷️") + " " + esc(a ? a.nombre : ab.rubro) + (etq(ab) ? " · " + esc(etq(ab)) : "") +
         '</div><div class="ab-det">Desde las ' + hhmm(ab.ts_cliente) + (ab.rubro === "ALMU" ? " · tocá «Volví de almorzar»" : "") +
         (base ? " · " + (ICONO[base.rubro] || "") + " " + esc((areaDe(base.rubro) || { nombre: base.rubro }).nombre) + " en pausa" : "") + "</div></div>" +
-        '<div class="ab-tiempo" data-desde="' + esc(ab.ts_cliente) + '">' + transcurrido(ab.ts_cliente) + "</div>";
+        '<div class="ab-tiempo" data-desde="' + esc(ab.ts_cliente) + '" data-pausa="' + pausasDentro(ab.rubro, ab.ts_cliente, null) + '">' +
+        transcurrido(ab.ts_cliente, pausasDentro(ab.rubro, ab.ts_cliente, null)) + "</div>";
     }
     // v1.8 (Thomas): con un sector abierto NO se ofrecen los otros: sólo «Terminé», que pide cuánto hizo
     // (y ahí mismo «¿con qué seguís?»). Con el almuerzo abierto, sólo «Volví de almorzar».
@@ -323,7 +334,7 @@
     syncBadge();
     if (!$("histPop").classList.contains("hidden")) renderHist();
   }
-  setInterval(() => { const t = document.querySelector(".ab-tiempo"); if (t) t.textContent = transcurrido(t.dataset.desde); }, 30000);
+  setInterval(() => { const t = document.querySelector(".ab-tiempo"); if (t) t.textContent = transcurrido(t.dataset.desde, Number(t.dataset.pausa) || 0); }, 30000);
 
   function tocar(cod) {
     const a = areaDe(cod); if (!a) return;
@@ -695,8 +706,10 @@
       const nom = (ICONO[r.rubro] || "🏷️") + " " + esc(a ? a.nombre : r.rubro) + (etq(r) ? " · " + esc(etq(r)) : "");
       if (!r.ts_inicio) return '<div class="hist-row curso"><div class="hist-main"><div class="hist-area">' + nom +
         '</div><div class="hist-det">Desde ' + hhmm(r.ts_cliente) + p + '</div></div><div class="hist-cant">en curso</div></div>';
+      const pz = pausasDentro(r.rubro, r.ts_inicio, r.ts_cliente);   // 1.34: sin las pausas de adentro
       return '<div class="hist-row"><div class="hist-main"><div class="hist-area">' + nom + '</div><div class="hist-det">' +
-        hhmm(r.ts_inicio) + " – " + hhmm(r.ts_cliente) + p + " · " + dur(new Date(r.ts_cliente) - new Date(r.ts_inicio)) +
+        hhmm(r.ts_inicio) + " – " + hhmm(r.ts_cliente) + p + " · " + dur(new Date(r.ts_cliente) - new Date(r.ts_inicio) - pz) +
+        (pz >= 60000 ? " (sin " + dur(pz) + " de pausa)" : "") +
         '</div></div><div class="hist-cant">' + (r.cantidad == null ? "—" : num(r.cantidad)) + "</div></div>";
     }).join("");
   }

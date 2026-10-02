@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -182,6 +182,17 @@ insert into gt.rubros (codigo, nombre, unidad, orden) values ('<COD>', '<Área>'
 insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_texto, fila, orden)
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
+
+### 1.34 — el reloj del área abierta y el Resumen de hoy no cuentan las pausas (Elías, 02/10/2026)
+
+- Elías: *«tenía 2 min encolando, fui al baño 6-7 y al regresar aparecieron 9 min de encolando»*. En 1.33 el ritmo y la
+  Producción del admin ya restaban las pausas, pero el celular no: el reloj del área abierta medía desde la apertura y el
+  Resumen de hoy daba la duración entera del tramo.
+- `pausasDentro(área, desde, hasta)` en `app.js` suma las pausas (Baño, Movimiento) ya cerradas que caen dentro del tramo;
+  el reloj (`.ab-tiempo`, también el refresco de cada 30 s) y el Resumen las descuentan, y el Resumen lo aclara: «0:03
+  (sin 0:06 de pausa)».
+- `tests/pausas.cjs`: el caso de Elías (encolando desde hace 9 min con 6 de baño) → reloj 3 min y Resumen 0:03; con la
+  1.33 daba 9 min y 0:09.
 
 ### 1.33 — ingreso vs. primer trabajo, Baño y Movimiento como pausa dentro del área, filtros en Producción (Elías, 02/10/2026)
 
