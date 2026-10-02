@@ -75,7 +75,52 @@
   function num(n) { return Number(n).toLocaleString("es-AR"); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
   function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.remove("hidden"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add("hidden"), 2500); }
-  function show(id) { ["claveScreen", "nombreScreen", "plantaScreen", "optionsScreen", "cantScreen", "codScreen", "medScreen", "pasoScreen"].forEach((s) => $(s).classList.toggle("hidden", s !== id)); }
+  function show(id) {
+    ["claveScreen", "nombreScreen", "plantaScreen", "optionsScreen", "cantScreen", "codScreen", "medScreen", "pasoScreen"].forEach((s) => $(s).classList.toggle("hidden", s !== id));
+    if (id === "nombreScreen") acomodarNombres();
+  }
+
+  // 1.29 (pedido 02/10: «que puedan aparecer 16 operarios en la pantalla… de cualquier dispositivo»): «¿Quién sos?» se arma
+  // para NOMBRES_LUGARES operarios aunque haya menos, así el botón no cambia de tamaño al dar de alta a alguien. Mide el lugar
+  // libre y prueba de 1 a 6 columnas: primero lo que entra sin scroll (fila ≥ 48 px, columna ≥ 88 px); entre lo que entra,
+  // el botón más parejo (alto contra 0,4 del ancho, fila topeada en 96 px); a igualdad, menos columnas.
+  // Con más operarios que lugares se arma para todos, y si no entran queda scroll dentro de la lista.
+  const NOMBRES_LUGARES = 16;
+  function acomodarNombres() {
+    const L = $("nombreLista"), n = L.querySelectorAll("button").length;
+    if (!n || $("nombreScreen").classList.contains("hidden")) return;
+    const cs = getComputedStyle(L), gap = parseFloat(cs.rowGap) || 8;
+    const W = L.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const H = L.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const lugares = Math.max(n, NOMBRES_LUGARES);
+    let mejor = null;
+    for (let c = 1; c <= 6; c++) {
+      const w = (W - gap * (c - 1)) / c;
+      if (c > 1 && w < 88) break;
+      const f = Math.ceil(lugares / c), h = (H - gap * (f - 1)) / f;
+      const op = { c, w, h: Math.min(h, 96), entra: h >= 48 };
+      op.nota = Math.min(op.h, w * 0.4);
+      if (!mejor || (op.entra && !mejor.entra) || (op.entra === mejor.entra && op.nota > mejor.nota + 0.5)) mejor = op;
+    }
+    const alto = Math.max(48, Math.floor(mejor.h));
+    L.style.setProperty("--cols", mejor.c);
+    L.style.setProperty("--alto", alto + "px");
+    L.style.setProperty("--ini", Math.round(Math.min(40, alto * 0.62)) + "px");
+    // la letra más grande con la que cada palabra entra entera y el nombre no pasa del botón; si no entra, sin el círculo de
+    // iniciales (el nombre centrado); y si ni con 13 px entra, se parte la palabra
+    const spans = [...L.querySelectorAll("button span")];
+    const entra = () => spans.every((x) => x.scrollWidth <= x.clientWidth + 1 && x.offsetHeight <= alto - 6);
+    const tope = Math.round(Math.max(14, Math.min(20, alto * 0.32)));
+    L.classList.remove("parte");
+    for (const ini of mejor.w >= 130 ? [true, false] : [false]) {
+      L.classList.toggle("sin-ini", !ini);
+      for (let letra = tope; letra >= (ini ? 15 : 13); letra--) {
+        L.style.setProperty("--letra", letra + "px");
+        if (entra()) return;
+      }
+    }
+    L.classList.add("parte");
+  }
 
   async function rpc(name, body) {
     const ctl = new AbortController();
@@ -564,7 +609,7 @@
     st.empsPlantas = {}; emps.forEach((e) => { st.empsPlantas[e.id] = e.plantas || []; });
     $("nombreLista").innerHTML = emps.length ? emps.map((e) =>
       '<button data-id="' + e.id + '" data-nombre="' + esc(e.nombre) + '" data-ini="' +
-        esc(e.nombre.split(/\s+/).map((x) => x[0] || "").join("").slice(0, 2).toUpperCase()) + '">' + esc(e.nombre) + "</button>").join("") :
+        esc(e.nombre.split(/\s+/).map((x) => x[0] || "").join("").slice(0, 2).toUpperCase()) + '"><span>' + esc(e.nombre) + "</span></button>").join("") :
       '<div class="error">No hay empleados cargados en GT.</div>';
     show("nombreScreen");
   }
@@ -693,6 +738,7 @@
   $("histPop").addEventListener("click", (e) => { if (e.target === $("histPop")) cerrarHist(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarHist(); });
   window.addEventListener("online", flush);
+  window.addEventListener("resize", acomodarNombres);
   setInterval(flush, 30000);
 
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

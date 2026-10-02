@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -181,6 +181,21 @@ insert into gt.rubros (codigo, nombre, unidad, orden) values ('<COD>', '<Área>'
 insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_texto, fila, orden)
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
+
+### 1.29 — «¿Quién sos?» entra entera con 16 operarios, en cualquier pantalla (Elías, 02/10/2026)
+
+- Pedido: *«que puedan aparecer 16 operarios en la pantalla… de cualquier dispositivo, tiene que ser responsive»*. La
+  lista pasó de una columna de botones de 64 px (entraban 7 en un iPhone SE) a una **grilla que ocupa el lugar libre**.
+- `acomodarNombres()` en `app.js` mide el lugar y prueba de 1 a 6 columnas: gana lo que entra sin scroll (fila ≥ 48 px,
+  columna ≥ 88 px) y, entre eso, el botón más parejo (fila topeada en 96 px). Queda 2 × 8 con el celular parado, 4 × 4
+  o 6 × 3 acostado, 3 × 6 en tablet o PC. Se rehace al girar el celular o cambiar la ventana.
+- Se arma **siempre para 16** (`NOMBRES_LUGARES`) aunque haya menos: con los 9 de hoy el botón mide lo mismo que con 16
+  y no cambia al dar de alta a alguien. Con más de 16 se arma para todos; si no entran, scroll dentro de la lista.
+- La letra baja (de 20 a 13 px) hasta que cada palabra del nombre entra entera; si la columna es angosta, sin el círculo
+  de iniciales y el nombre centrado.
+- `tests/nombres16.cjs`: 16 tamaños (celulares de 320 a 430 de ancho, parados y acostados, tablet, PC, ventana cuadrada)
+  con 16 nombres, 7 inventados y largos («Maximiliano Bustamante»). Todo a la vista, sin scroll, botón ≥ 48 px, nombre
+  adentro. Además: al girar se reacomoda · con 9 mide lo mismo que con 16 · con 30 no se pasa de ancho.
 
 ### 1.28 — «Movimientos» en la botonera (Thomas, 01/10/2026: D31 «movimientos»)
 

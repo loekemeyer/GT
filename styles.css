@@ -68,12 +68,20 @@ button:active{transform:scale(.97);}
 .version{text-align:center;color:var(--mut);font-size:13px;}
 .version a{color:var(--mut);}
 
-/* ¿quién sos? */
-.nombres{display:flex;flex-direction:column;gap:10px;padding-bottom:16px;}
-.nombres button{display:flex;align-items:center;gap:14px;width:100%;min-height:64px;padding:10px 14px;border:0;background:var(--card);
-  color:var(--txt);box-shadow:var(--sombra);font-size:19px;font-weight:600;text-align:left;}
-.nombres button::before{content:attr(data-ini);flex:0 0 42px;height:42px;border-radius:50%;background:var(--acc-bg);color:var(--acc);
-  display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;}
+/* ¿quién sos? (1.29, «que puedan aparecer 16 operarios en la pantalla… de cualquier dispositivo»): la lista es una grilla
+   que ocupa el lugar libre de la pantalla. acomodarNombres() (app.js) elige columnas, alto de fila y letra según ese lugar:
+   2 × 8 en el celular parado, 4 × 4 acostado, 3 × 6 en la tablet… Sin JS queda 2 columnas. */
+#nombreScreen{height:100vh;height:100dvh;min-height:0;max-width:760px;}
+.nombres{flex:1 1 0;min-height:0;overflow-y:auto;display:grid;gap:8px;align-content:start;padding:2px 2px 4px;
+  grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));grid-auto-rows:var(--alto,56px);}
+.nombres button{display:flex;align-items:center;gap:8px;min-width:0;height:100%;padding:4px 10px;border:0;background:var(--card);
+  color:var(--txt);box-shadow:var(--sombra);font-size:var(--letra,17px);font-weight:600;line-height:1.15;text-align:left;}
+.nombres button span{min-width:0;}
+.nombres.parte button span{overflow-wrap:anywhere;}
+.nombres button::before{content:attr(data-ini);flex:0 0 var(--ini,36px);height:var(--ini,36px);border-radius:50%;background:var(--acc-bg);
+  color:var(--acc);display:flex;align-items:center;justify-content:center;font-size:calc(var(--ini,36px) * .42);font-weight:700;}
+.nombres.sin-ini button{justify-content:center;text-align:center;padding:4px 5px;}
+.nombres.sin-ini button::before{display:none;}
 
 /* área en curso */
 .abierta{display:flex;align-items:center;gap:12px;margin-top:4px;padding:14px;border-radius:var(--r);background:var(--warn-bg);
