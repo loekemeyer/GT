@@ -37,6 +37,7 @@ const PASOS = [
   { rubro: "PINT", orden: 3, campo: "manos", pregunta: "¿Cuántas manos?", opciones: ["1", "2"], momento: "terminar" }];
 const PELL = { codigo: "PELL", nombre: "Pellegrini" }, ESNA = { codigo: "ESNA", nombre: "Esnaola" };
 let CLAVE_MON = null; const LOGINS = []; const REING = []; const ARMAR = [];
+let SOLO_CORTO = false;   // 1.32: día con un solo tramo de menos de 2 min
 const db = [];
 const CODIGOS = [{ codigo: "505", descripcion: "Pinza", medida: "10*15", rubro: "GRAMP" }, { codigo: "760", descripcion: "Otra", medida: null, rubro: "DECO" },
   { codigo: "136", descripcion: "Cuadros Mold 03 Set x3 Botanica", medida: "30*40 + 20*30 + 15*21", rubro: "MONT" },
@@ -54,8 +55,11 @@ const srv = http.createServer((req, res) => {
       else if (fn === "gt_botones") out = AREAS;
       else if (fn === "gt_botones2") out = AREAS2;
       else if (fn === "gt_codigos_area") out = CODIGOS;
-      else if (fn === "gt_admin_produccion2") out = b.p_pass === CLAVE_MON ? [
-        { empleado: "Prueba", area: "Encolado", rubro: "ENCOL", codigo: "080", descripcion: "Cuadro Ciudades MDF", desde: "2026-10-01T11:00:00Z", hasta: "2026-10-01T12:00:00Z", cantidad: 10, unidad: "cajas encoladas", uxb: 24, unidades: 240 },
+      else if (fn === "gt_admin_produccion3" && SOLO_CORTO) out = [{ empleado: "Luis Luna", area: "Encolado", rubro: "ENCOL", codigo: "173", descripcion: "Cuadro Mold 03 Grafic Work",
+          desde: "2026-10-02T13:23:26Z", hasta: "2026-10-02T13:24:09Z", cantidad: 1, unidad: "cajas encoladas", uxb: 16, unidades: 16, familia: "Mold 03 · 10*30" }];
+      else if (fn === "gt_admin_ritmo2" && SOLO_CORTO) out = [];
+      else if (fn === "gt_admin_produccion2" || fn === "gt_admin_produccion3") out = b.p_pass === CLAVE_MON ? [
+        { empleado: "Prueba", area: "Encolado", rubro: "ENCOL", codigo: "080", descripcion: "Cuadro Ciudades MDF", desde: "2026-10-01T11:00:00Z", hasta: "2026-10-01T12:00:00Z", cantidad: 10, unidad: "cajas encoladas", uxb: 24, unidades: 240, familia: "MDF · 30*40" },
         { empleado: "Prueba", area: "Corte", rubro: "CORTE", codigo: "1", descripcion: "03 Bco", desde: "2026-10-01T12:00:00Z", hasta: null, cantidad: null, unidad: "unidades cortadas", uxb: null, unidades: null },
         { empleado: "Otro", area: "Gancho", rubro: "GANCHO", codigo: "080", descripcion: null, desde: "2026-10-01T15:00:00Z", hasta: "2026-10-01T20:30:00Z", cantidad: null, unidad: "cajas", uxb: 24, unidades: null, auto: true }] : [];
       else if (fn === "gt_admin_ritmo2") out = b.p_pass === CLAVE_MON ? [
@@ -367,8 +371,15 @@ srv.listen(0, async () => {
     chk((await ad.textContent("#prodArea")).includes("240") && (await ad.textContent("#prodOp")).includes("en curso"),
         "Producción: por área con unidades (10 cajas × 24 = 240) y lo en curso");
     chk((await ad.textContent("#prodOp")).includes("cerrado solo"), "el tramo que cerró el sistema se marca «🔒 cerrado solo» (D34)");
+    chk((await ad.textContent("#prodOp")).includes("MDF · 30*40"), "Por operario muestra la familia del tramo (1.32, gt_admin_produccion3)");
     await ad.waitForFunction(() => document.getElementById("prodRitmo").textContent.includes("-40 %"));
     chk((await ad.textContent("#prodRitmo")).includes("Mold 03 · 30*40"), "Ritmo: 240 u/h contra 400 del GRUPO (Mold 03 · 30*40) = -40 %");
+    // 1.32 (Elías): el día del encolado de 43 s del 173 — el ritmo vacío explica por qué, y la familia sale igual
+    SOLO_CORTO = true; await ad.click("#prodRef");
+    await ad.waitForFunction(() => document.getElementById("prodRitmo").textContent.includes("2 min"));
+    chk((await ad.textContent("#prodRitmo")).includes("el que hubo duró menos") && (await ad.textContent("#prodOp")).includes("Mold 03 · 10*30"),
+        "un día con sólo un tramo corto: el ritmo dice que no cuenta los de menos de 2 min, y Por operario muestra la familia Mold 03 · 10*30");
+    SOLO_CORTO = false;
     await ad.click(".tab[data-tab=asis]"); await ad.fill("#asisDia", "2026-09-30"); await ad.dispatchEvent("#asisDia", "change");
     await ad.waitForFunction(() => document.getElementById("asisTabla").textContent.includes("No terminó"));
     const asis = await ad.textContent("#asisTabla");

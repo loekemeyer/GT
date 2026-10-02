@@ -183,6 +183,21 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.32 — la FAMILIA de cada tramo en Producción del admin, y por qué el ritmo sale vacío (Elías, 02/10/2026)
+
+- Pregunta: *«en admin no muestra el ritmo ni la familia, ¿están las familias subidas a la base? el encolado de la foto
+  es 10*30»*. **Las familias están**: es el grupo de fabricación de 1.15 (moldura + medida), calculado de la descripción
+  y la medida de `gt.codigos` por `gt.grupo_tramo()`: 224 de 317 activos tienen familia, el resto va solo. El 173
+  (Cuadro Mold 03 Grafic Work, 10*30) es «Mold 03 · 10*30», con 130, 140, 154, 164, 180, 185, 215, 230 y 444.
+- **El ritmo vacío era la regla D35**: sólo cuentan tramos de 2 min o más con cantidad, y el encolado de Luis duró 43 s
+  (10:23:26 → 10:24:09). La tabla decía «Sin tramos con cantidad ese día», que confundía: ahora dice que hubo tramos y
+  que duraron menos de 2 min.
+- **La familia sólo salía en la tabla de Ritmo.** Ahora «Por operario» tiene la columna **Familia** (un código que va
+  solo, «—»). `public.gt_admin_produccion3` = la 2 + `familia`, con la misma cuenta que el grupo del ritmo; es función
+  nueva porque cambiar las columnas de la 2 pide `DROP`. `admin.html` llama a la 3 y, si falla, a la 2.
+  `sql/gt_v145_admin_produccion_familia.sql`. Probado con la clave cambiada en una transacción abortada (3 tramos:
+  173 → Mold 03 · 10*30, Movimientos sin familia, 224 → Mold 30mm · 30*40) y en `tests/smoke.cjs`.
+
 ### 1.31 — «Baño» como Movimientos y sin «Cambiar de planta» en la botonera (Elías, 02/10/2026)
 
 - Pedido: *«de la botonera sacá el botón de cambiar planta, y añadí Baño, funciona de igual forma que Movimientos»*.

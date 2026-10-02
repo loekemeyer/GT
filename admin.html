@@ -128,7 +128,7 @@
     <div id="pedLista"></div>
   </section>
 
-  <script src="config.js?v=1.31"></script>
+  <script src="config.js?v=1.32"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -239,8 +239,11 @@
       const dia = $("prodDia").value || hoyAR();
       $("prodInfo").textContent = "Cargando…";
       let rows;
-      try { rows = await rpc("gt_admin_produccion2", { p_pass: pass || "", p_dia: dia }); }   // 1.14: + «auto»
-      catch (e) { $("prodInfo").textContent = "⚠ No pude leer la producción (" + e.message + ")"; return; }
+      try { rows = await rpc("gt_admin_produccion3", { p_pass: pass || "", p_dia: dia }); }   // 1.32: + «familia» (gt_v145)
+      catch {
+        try { rows = await rpc("gt_admin_produccion2", { p_pass: pass || "", p_dia: dia }); }   // 1.14: + «auto»
+        catch (e) { $("prodInfo").textContent = "⚠ No pude leer la producción (" + e.message + ")"; return; }
+      }
       if (!rows.length && !(await claveOk())) return;
       $("prodInfo").textContent = rows.length + " tramos · actualizado " + new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
       // por área: lo cerrado suma; lo en curso se cuenta aparte
@@ -258,21 +261,24 @@
           "</td><td class=num>" + (a.conUnid ? num(a.unid) : "—") + "</td><td>" + a.ops.size + "</td><td>" + (a.curso || "—") + "</td></tr>").join("") + "</table>"
         : '<div class="vacio">Sin producción registrada ese día.</div>';
       let prev = null;
-      $("prodOp").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Área</th><th>Código</th><th>Desde</th><th>Hasta</th><th>Dur.</th><th>Cant.</th><th>Unid.</th></tr>" +
+      $("prodOp").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Área</th><th>Código</th><th>Familia</th><th>Desde</th><th>Hasta</th><th>Dur.</th><th>Cant.</th><th>Unid.</th></tr>" +
         rows.map((r) => {
           const nuevo = r.empleado !== prev; prev = r.empleado;
           const cls = ((r.hasta ? (r.auto ? "auto" : "") : "curso") + (nuevo ? " sep" : "")).trim();
           return '<tr class="' + cls + '"><td class=izq>' + (nuevo ? "<b>" + esc(r.empleado) + "</b>" : "") + "</td><td>" + esc(r.area) +
             "</td><td class=izq>" + esc(r.codigo || "—") + (r.descripcion ? ' <span class="desc">' + esc(r.descripcion) + "</span>" : "") +
+            // 1.32 (Elías): la familia (grupo de fabricación: moldura + medida); un código que va solo, «—»
+            "</td><td>" + (r.familia && !/^Código /.test(r.familia) ? esc(r.familia) : "—") +
             "</td><td>" + hhmmTz(r.desde) + "</td><td>" + (r.hasta ? hhmmTz(r.hasta) + (r.auto ? '<br><span class="desc">🔒 cerrado solo</span>' : "") : "en curso") + "</td><td>" +
             hm(durMin(r.desde, r.hasta || new Date())) + "</td><td class=num>" +
             (r.cantidad == null ? "—" : num(r.cantidad)) + "</td><td class=num>" + (r.unidades == null ? "—" : num(r.unidades)) + "</td></tr>";
         }).join("") + "</table>" : '<div class="vacio">—</div>';
-      cargarRitmo(dia);
+      // 1.32: el ritmo no cuenta los tramos de menos de 2 min (D35); si sólo hubo de ésos, se dice
+      cargarRitmo(dia, rows.filter((r) => r.hasta && r.cantidad != null && new Date(r.hasta) - new Date(r.desde) < 120000).length);
     }
     // 1.14 (D35): lo hecho por hora, por operario y área, contra el promedio del área en las 4 semanas anteriores.
     // Sólo tramos de 2 min o más con cantidad; menos de 15 min en el día no se informa (un toque no es un ritmo).
-    async function cargarRitmo(dia) {
+    async function cargarRitmo(dia, cortos) {
       let rows;
       try { rows = await rpc("gt_admin_ritmo2", { p_pass: pass || "", p_dia: dia }); }   // 1.15: por GRUPO (tipo + moldura + medida)
       catch (e) { $("prodRitmo").innerHTML = '<div class="vacio">⚠ No pude leer el ritmo (' + esc(e.message) + ")</div>"; return; }
@@ -286,7 +292,9 @@
             '</td><td class=num>' + num(r.hecho) + ' <span class="desc">' + esc(r.unidad) + "</span></td><td>" + hm(Math.round(r.horas * 60)) +
             "</td><td class=num>" + (r.por_hora == null ? "—" : num(r.por_hora)) + "</td><td class=num>" + (r.prom_grupo == null ? "—" : num(r.prom_grupo)) +
             '</td><td class="num ' + cpct + '">' + (pct == null ? "—" : (pct > 0 ? "+" : "") + pct + " %") + "</td></tr>";
-        }).join("") + "</table>" : '<div class="vacio">Sin tramos con cantidad ese día.</div>';
+        }).join("") + "</table>" : '<div class="vacio">' + (cortos ? "Sin tramos de 2 min o más con cantidad ese día: " +
+          (cortos === 1 ? "el que hubo duró menos" : "los " + cortos + " que hubo duraron menos") + " y el ritmo no los cuenta."
+          : "Sin tramos con cantidad ese día.") + "</div>";
     }
 
     /* ---------- ASISTENCIA ---------- */
