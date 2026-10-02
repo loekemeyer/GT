@@ -464,6 +464,8 @@ srv.listen(0, async () => {
         "con menos de 15 min el número sale igual (15,6 s por unidad), en gris, no el tiempo acumulado (1.38)");
     chk(/Sin tramos de 2 min.*Grampeado, Montaje, Gancho, Emblistado, Contraído/.test(rend) && (await ad.$$("#rendTablas .bloque")).length === 2,
         "las áreas sin datos van juntas en una línea, sin bloques vacíos (Corte y Encolado tienen tabla)");
+    chk(rend.includes("las unidades se reparten según el tiempo de cada uno") && !rend.includes("cada uno con lo suyo"),
+        "Encolado de a dos: dice que la pareja se reparte las unidades según el tiempo de cada uno (gt_v153)");
     if (process.env.FOTO) await ad.screenshot({ path: process.env.FOTO, fullPage: true });
     // D29: Pedidos, por ahora sólo desde el admin
     await ad.click(".tab[data-tab=ped]"); await ad.waitForSelector("#pedLista .bloque");
