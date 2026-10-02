@@ -200,7 +200,12 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 
 - La app se usa en serio desde el **lunes 05/10/2026**. Lo anterior se borra con `sql/gt_borrar_pruebas_antes_del_lunes.sql`
   (eventos, parejas e ingresos del monitor con fecha anterior al lunes), en el **SQL Editor**: desde la sesión el conector
-  cortó el `DELETE` a los 60 s, como el 01/10. Se puede repetir el lunes antes de las 08:00.
+  cortó el `DELETE` a los 60 s, como el 01/10 (lo corre Thomas). **Alcanza con una vez**: el freno **gt_v158**
+  (`aaa_gt_pruebas_antes_del_lunes`, BEFORE INSERT en `gt.registros`) manda al respaldo, hasta el lunes 05/10 12:00, todo
+  evento con hora anterior al lunes (pruebas del fin de semana o de un celular sin red); el celular lo da por enviado.
+  Pasado el lunes 12:00 no hace nada. `sql/gt_v158_pruebas_antes_del_lunes.sql`.
+- **Lo único que Claude no corre desde la sesión son los borrados** (`DELETE` / `DROP`: el conector los corta). Todo lo
+  demás de GT (crear, cambiar, cargar) sí; afuera queda sólo lo del proyecto de Tierra Nativa.
 - Respaldo con RLS: `gt.bkp_registros_pruebas_20261002` (183 eventos, 01/10 13:26 → 02/10 17:22, 9 operarios, 0 de Deco),
   `gt.bkp_parejas_pruebas_20261002` (5) y `gt.bkp_monitor_ingresos_pruebas_20261002` (7).
 
