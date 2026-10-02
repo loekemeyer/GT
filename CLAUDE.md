@@ -183,6 +183,21 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### gt_v146 — en ENCOLADO la familia es sólo la medida (Elías, 02/10/2026)
+
+- Elías: *«cuando se hace encolado la moldura no es un factor, solamente la medida»*. Cambia, **sólo para Encolado**, la
+  regla de Thomas de 1.16 (*«misma moldura + misma medida = misma demora en cualquier proceso»*).
+- `gt.rubros.familia_sin_moldura` (hoy `true` sólo en `ENCOL`) y `gt.familia(área, código, medida)`: con la marca, la
+  familia es la medida («10*30»; un set de 3, «Set x3 · 15*21 + 20*30 + 30*40»); sin ella, `gt.grupo_tramo` como
+  siempre. La usan el ritmo (`gt_admin_ritmo2`, también el promedio de 4 semanas, que se recalcula solo) y Producción
+  (`gt_admin_produccion3`). Otra área que no dependa de la moldura: `update gt.rubros set familia_sin_moldura = true
+  where codigo = '…'`. Las recetas de insumos por grupo no cambian.
+- Medido sobre los 279 productos que GT fabrica: en Encolado pasan de **123 grupos de comparación a 59**, y los que van
+  solos de 88 a 34. El 173 (Mold 03) y el 185 quedan juntos en «10*30»; el 224 (Mold 30mm) en «30*40», con cualquier
+  30*40. En Montaje, Gancho, Emblistado y Contraído sigue «Mold 03 · 10*30».
+- Probado con los tramos del 02/10 (clave cambiada en una transacción abortada): Luis Luna · Encolado · 10*30 (173, 185)
+  y 30*40 (224); Walter Saucedo · Emblistado · Mold 03 · 30*40 (183). `sql/gt_v146_familia_encolado_medida.sql`.
+
 ### 1.32 — la FAMILIA de cada tramo en Producción del admin, y por qué el ritmo sale vacío (Elías, 02/10/2026)
 
 - Pregunta: *«en admin no muestra el ritmo ni la familia, ¿están las familias subidas a la base? el encolado de la foto
@@ -618,7 +633,7 @@ espejos, diplomas y múltiples siguen con moldura + medida. Excepciones (1.19, e
 ### 1.15 — grupo de fabricación (Thomas, 01/10/2026)
 
 Misma **moldura (o MDF) + misma medida** = misma demora en cualquier proceso (1.16, Thomas: el tipo NO
-entra; se retira el «tipo + moldura + medida» de 1.15): el 134 y el 183 son «Mold 03 · 30*40» (38 códigos:
+entra; se retira el «tipo + moldura + medida» de 1.15; **salvo Encolado, que va sólo por medida: gt_v146, Elías**): el 134 y el 183 son «Mold 03 · 30*40» (38 códigos:
 cuadros, diplomas y espejos). El ritmo del admin (`gt_admin_ritmo2`) agrupa por ese grupo y
 compara contra el promedio **del grupo** en el área (4 semanas). 226 de 323 códigos en 64 grupos; el resto
 va solo. Excepción a mano: `gt.codigo_grupo`. `sql/gt_v115_grupo_fabricacion.sql`.
