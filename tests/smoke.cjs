@@ -57,7 +57,7 @@ const srv = http.createServer((req, res) => {
           { id: 6, nombre: "Dario Mendez", plantas: [PELL, ESNA] }] } : { ok: false };
       else if (fn === "gt_botones") out = AREAS;
       else if (fn === "gt_botones2") out = AREAS2;
-      else if (fn === "gt_codigos_area") out = CODIGOS;
+      else if (fn === "gt_codigos_area" || fn === "gt_codigos_area2") out = CODIGOS;
       else if (fn === "gt_admin_produccion3" && SOLO_CORTO) out = [{ empleado: "Luis Luna", area: "Encolado", rubro: "ENCOL", codigo: "173", descripcion: "Cuadro Mold 03 Grafic Work",
           desde: "2026-10-02T13:23:26Z", hasta: "2026-10-02T13:24:09Z", cantidad: 1, unidad: "cajas encoladas", uxb: 16, unidades: 16, familia: "Mold 03 · 10*30" }];
       else if (fn === "gt_admin_ritmo2" && SOLO_CORTO) out = [];

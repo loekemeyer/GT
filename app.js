@@ -741,8 +741,14 @@
       try { st.areas = await rpc("gt_botones", {}); lsSet(LS_AREAS, st.areas); }
       catch { st.areas = lsGet(LS_AREAS, []); }
     }
-    try { st.codigos = await rpc("gt_codigos_area", {}); lsSet(LS_CODS, st.codigos); }
-    catch { st.codigos = lsGet(LS_CODS, []); }
+    // 1.35 (Elías: «estoy en guardado y no me aparece nada al poner 224»): la API corta en 1.000 filas y la lista tiene
+    // 2.273 (ordenada por área): a Gancho, Grampeado, Guardado, Montaje, Recibir y parte de Encolado no les llegaba nada.
+    // gt_codigos_area2 manda la lista entera en una sola fila; si no está, la de antes.
+    try { st.codigos = await rpc("gt_codigos_area2", {}); if (!Array.isArray(st.codigos)) throw new Error("sin lista"); lsSet(LS_CODS, st.codigos); }
+    catch {
+      try { st.codigos = await rpc("gt_codigos_area", {}); lsSet(LS_CODS, st.codigos); }
+      catch { st.codigos = lsGet(LS_CODS, []); }
+    }
     try { st.pasos = await rpc("gt_pasos", {}); lsSet(LS_PASOS, st.pasos); }
     catch { st.pasos = lsGet(LS_PASOS, []); }
   }

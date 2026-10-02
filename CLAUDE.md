@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -182,6 +182,21 @@ insert into gt.rubros (codigo, nombre, unidad, orden) values ('<COD>', '<Área>'
 insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_texto, fila, orden)
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
+
+### 1.35 — al celular le faltaban los códigos de 5 áreas (Elías, 02/10/2026)
+
+- Elías: *«estoy en guardado y no me aparece nada al poner 224»*. La API de Supabase corta cada respuesta en **1.000
+  filas** y `gt_codigos_area()` tiene **2.273** (317 productos en 6 áreas + los propios de Corte, Grampeado, Deco y
+  Recibir), ordenadas por área: al celular le llegaban Contraído, Corte, Deco, Emblistado y 127 de los 317 de Encolado,
+  y **nada** de Gancho, Grampeado, Guardado, Montaje ni Recibir. Ahí no se mostraba qué producto era lo tipeado, no se
+  preguntaba «¿Lo registro igual?» y Montaje / Gancho no preguntaban la medida de un set de 3 (1.17). El aviso de
+  Telegram por código no registrado sí andaba (lo hace la base). Desde el 01/10; medido el 02/10: 7 aperturas con
+  código en esas áreas, ningún set.
+- `public.gt_codigos_area2()` (gt_v148) devuelve la misma lista en **una sola fila** (json, 26 KB comprimido); la app
+  la usa y, si no está, cae a la 1. ⚠ **Cualquier RPC que pueda pasar de 1.000 filas tiene que devolver json en una
+  fila** (o paginar): la API corta sin avisar.
+- `tests/codigos.cjs`: base simulada que corta en 1.000 como la real; con la 1.34 fallaban Guardado, Grampeado, el «no
+  está en la lista» y la medida del set; con la 1.35 pasan. `sql/gt_v148_codigos_area_completa.sql`.
 
 ### 1.34 — el reloj del área abierta y el Resumen de hoy no cuentan las pausas (Elías, 02/10/2026)
 
