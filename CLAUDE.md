@@ -195,6 +195,10 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   (cajas × UxB; piezas y aros en Corte y Grampeado). Verde ≤ −20 % del promedio de la fila, rojo ≥ +20 %. Con menos de
   15 min en la celda sólo sale el tiempo, en gris (D35). Tramos de 2 min o más con cantidad. Período desde / hasta (4
   semanas por defecto). Las áreas sin datos van juntas en una línea.
+- **1.38 (Elías: «¿qué es prom?»):** «Prom.» = el de toda la fila (el tiempo de todos ÷ todas las unidades), la vara para
+  pintar cada celda. Con menos de 15 min de datos la celda mostraba el tiempo acumulado («0:04» = 4 min) y bajo el título
+  «segundos por pieza» parecían segundos: ahora sale siempre el número de segundos por unidad, en gris y sin color
+  cuando hay menos de 15 min (el tiempo y las unidades, en el globito).
 - **Lo de D46 (filas) y D47 (número de la pareja) está con lo propuesto, a confirmar**; las parejas de Encolado y
   Contraído (D45) todavía no: cada uno figura con lo suyo.
 - `public.gt_admin_rendimiento(clave, desde, hasta)` devuelve json en una fila (el tope de 1.000 filas, 1.35).

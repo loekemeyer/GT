@@ -460,7 +460,8 @@ srv.listen(0, async () => {
         "Rendimiento: Encolado 10*30 (Prueba 2,5 · Otro 4,0 s por unidad) y Corte Mold 03 (36,0 s por pieza)");
     chk((await ad.textContent("#rendTablas td.bueno")) === "2,5" && (await ad.textContent("#rendTablas td.malo")) === "4,0",
         "más rápido que el promedio de la fila en verde, más lento en rojo (± 20 %)");
-    chk(rend.includes("0:03") && !rend.includes("15,6"), "con menos de 15 min en la celda sólo se ve el tiempo (0:03), no el número");
+    chk((await ad.$$eval("#rendTablas td.poco", (ts) => ts.map((t) => t.textContent))).join(",") === "15,6,15,6" && !rend.includes("0:03"),
+        "con menos de 15 min el número sale igual (15,6 s por unidad), en gris, no el tiempo acumulado (1.38)");
     chk(/Sin tramos de 2 min.*Grampeado, Montaje, Gancho, Emblistado, Contraído/.test(rend) && (await ad.$$("#rendTablas .bloque")).length === 2,
         "las áreas sin datos van juntas en una línea, sin bloques vacíos (Corte y Encolado tienen tabla)");
     if (process.env.FOTO) await ad.screenshot({ path: process.env.FOTO, fullPage: true });

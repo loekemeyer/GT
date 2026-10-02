@@ -59,6 +59,7 @@
     .sep td{border-top:2px solid var(--borde);}
     tr.curso td{background:var(--warn-bg);}
     tr.auto td{background:var(--acc-bg, #eaf1ff);}
+    td.poco{color:var(--mut);font-style:italic;}
     td.malo{color:var(--err, #dc2626);font-weight:700;} td.bueno{color:var(--ok, #16a34a);font-weight:700;}
     .chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;margin:1px 2px;}
     .c-ok{background:var(--ok-bg);color:var(--ok);} .c-warn{background:var(--warn-bg);color:var(--warn);} .c-err{background:var(--err-bg);color:var(--err);}
@@ -138,7 +139,7 @@
     <div id="pedLista"></div>
   </section>
 
-  <script src="config.js?v=1.37"></script>
+  <script src="config.js?v=1.38"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -348,8 +349,10 @@
        · «el rendimiento tiene que estar medido en cuántos segundos tardan por unidad») ---------- */
     // Una tabla por área. Fila = la variable (Corte: moldura · Grampeado: moldura + medida del aro · el resto: la familia,
     // gt.variable_rendimiento). Columna = cada operario que trabajó ahí + el promedio. Celda = SEGUNDOS POR UNIDAD: tiempo
-    // neto de pausas ÷ unidades (cajas × UxB en las áreas de producto). Verde = 20 % más rápido que el promedio de la fila,
-    // rojo = 20 % más lento. Con menos de 15 min en la celda no se informa (D35): sale sólo el tiempo, en gris.
+    // neto de pausas ÷ unidades (cajas × UxB en las áreas de producto). «Prom.» = el de la fila: el tiempo de todos ÷ todas
+    // las unidades. Verde = 20 % más rápido que el Prom., rojo = 20 % más lento. 1.38 (Elías: «¿qué es prom?»): con menos
+    // de 15 min de datos el número sale igual, en gris y sin color (antes salía el tiempo acumulado, «0:04», y parecían
+    // segundos); el tiempo y las unidades van en el globito.
     const REND = [["CORTE", "Corte", "Moldura", "pieza"], ["GRAMP", "Grampeado", "Aro", "aro"], ["ENCOL", "Encolado", "Medida", "unidad"],
       ["MONT", "Montaje", "Familia", "unidad"], ["GANCHO", "Gancho", "Familia", "unidad"], ["EMBL", "Emblistado", "Familia", "unidad"],
       ["CONTR", "Contraído", "Familia", "unidad"]];
@@ -365,7 +368,7 @@
       const filas = (r && r.filas) || [], MIN = 15 * 60;
       const s1 = (x) => x.toLocaleString("es-AR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
       const leg = (l) => { const m = String(l || "").match(/\d+/); return m ? Number(m[0]) : 1e9; };
-      $("rendInfo").textContent = filas.reduce((n, f) => n + f.tramos, 0) + " tramos · segundos por unidad, sin pausas · tramos de 2 min o más";
+      $("rendInfo").textContent = filas.reduce((n, f) => n + f.tramos, 0) + " tramos · segundos por unidad, sin pausas · Prom. = el de toda la fila · en gris: menos de 15 min de datos";
       const sinDatos = REND.filter(([cod]) => !filas.some((f) => f.rubro === cod)).map(([, nom]) => nom);
       $("rendTablas").innerHTML = REND.filter(([cod]) => filas.some((f) => f.rubro === cod)).map(([cod, nom, varNom, uni]) => {
         const fa = filas.filter((f) => f.rubro === cod);
@@ -377,7 +380,7 @@
         const celda = (f, prom) => {
           if (!f) return "<td>—</td>";
           const t = Number(f.segundos), u = Number(f.unidades), x = t / u, txt = num(u) + " u en " + hm(Math.round(t / 60)) + " · " + f.tramos + " tramo" + (f.tramos > 1 ? "s" : "");
-          if (t < MIN) return '<td title="' + esc(txt) + '"><span class="desc">' + hm(Math.round(t / 60)) + "</span></td>";
+          if (t < MIN) return '<td class="poco" title="' + esc("pocos datos: " + txt) + '">' + s1(x) + "</td>";
           const cl = prom == null ? "" : x <= prom * 0.8 ? "bueno" : x >= prom * 1.2 ? "malo" : "";
           return '<td class="num ' + cl + '" title="' + esc(txt) + '">' + s1(x) + "</td>";
         };
@@ -385,7 +388,8 @@
           vars.map((v) => {
             const prom = v.s >= MIN ? v.s / v.u : null;
             return "<tr><td class=izq>" + esc(v.v) + "</td>" + emps.map((e) => celda(fa.find((f) => f.variable === v.v && f.empleado === e), prom)).join("") +
-              (prom == null ? '<td><span class="desc">' + hm(Math.round(v.s / 60)) + "</span></td>" : "<td class=num><b>" + s1(prom) + "</b></td>") + "</tr>";
+              (prom == null ? '<td class="poco" title="' + esc("pocos datos: " + num(v.u) + " u en " + hm(Math.round(v.s / 60))) + '">' + s1(v.s / v.u) + "</td>"
+                : "<td class=num><b>" + s1(prom) + "</b></td>") + "</tr>";
           }).join("") + "</table></div>";
       }).join("") +
       // las áreas sin datos van juntas en una línea (sin bloques vacíos)
