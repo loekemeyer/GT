@@ -85,6 +85,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 | Pedidos | no | — (y no pide cantidad) |
 | Almuerzo (`ALMU`) | no | botón aparte, no tarjeta; sin cantidad |
 | Recibir mercadería | **no** (1.12, D29) | — ; al terminar no pide cantidad (1.13, D30) |
+| Movimientos (`MOVIM`, 1.28, D31) | no | — ; sin cantidad. En **todas** las plantas. Es una pausa: al terminar propone volver al área productiva anterior |
 
 Avisos de llegada: van al grupo de Telegram **«GT Avisos»** (`gt.config.telegram_chat = -5397417174`,
 configurado y probado el 01/10/2026). El bot es `@Faltantes_Virgilio_bot`, el mismo que vacía
@@ -180,6 +181,18 @@ insert into gt.rubros (codigo, nombre, unidad, orden) values ('<COD>', '<Área>'
 insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_texto, fila, orden)
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
+
+### 1.28 — «Movimientos» en la botonera (Thomas, 01/10/2026: D31 «movimientos»)
+
+- Pedido: qué pausas van además de Almuerzo → **una sola: Movimientos** (mover material, racks, etc.). Es una tarjeta más
+  (🔄), sin código ni cantidad, y **en las dos plantas**: `gt.rubros.todas_plantas = true` hace que `gt_botones2` la
+  devuelva una vez por planta activa (misma firma: sin `DROP`), y el celular filtra por la planta elegida.
+- Al terminar Movimientos el celular propone **volver al área productiva anterior** (como al volver de almorzar):
+  `PAUSAS = ["ALMU", "MOVIM"]` en `app.js`, y Recibir mercadería no cuenta como productiva. Baño, limpieza y demás no
+  existen: lo que no es un área queda sin registro, como hasta ahora.
+- No mueve stock (`gt.movimientos` lo ignora), no entra al ritmo (sin cantidad) y cuenta como «llegó» en Asistencia.
+- `sql/gt_v143_movimientos_area.sql`, `tests/smoke.cjs` (Movimientos en Pellegrini y en Esnaola, y el «¿seguís en
+  Guardado?» al terminar).
 
 ### Admin: Monitor · Producción · Asistencia (1.5, Thomas — D26)
 
@@ -463,7 +476,7 @@ qué lleva cada grupo: sin filas, nada cambia** (la lámina genérica de Encolad
 
   | etapa | a quién (descripción) | insumo | cant | fuente |
   |---|---|---|---|---|
-  | Encolado | Cuadro / Cuadros, salvo MDF | `LAM {medida}` + `CHAP {medida}`, por pieza | 1 | Thomas |
+  | Encolado | Cuadro / Cuadros, **también los «c/Vidrio»**, salvo MDF | `LAM {medida}` + `CHAP {medida}`, por pieza | 1 | Thomas (D36: «con vidrio también») |
   | Gancho | cuadros, portas, espejos, diplomas, múltiples | `GANCHO`, por pieza | 1 | [Probable] |
   | Emblistado | ídem | `BLIS {medida}` (un set entero en uno) | 1 | [Probable] |
   | Contraído | ídem | `FILM` (cuenta unidades, no metros) | 1 | [Adivinando] |
@@ -473,7 +486,7 @@ qué lleva cada grupo: sin filas, nada cambia** (la lámina genérica de Encolad
   | Grampeado | todo aro | `GRAMPA` | 8 | [Adivinando] |
 
   Lo marcado [Probable] / [Adivinando] es lectura de Claude, no dato de Thomas: se corrige con un `update` a la regla
-  (D36). Probado en transacción abortada: 134 encolado 2 cajas → lámina y chapadur 30×40 −32 · gancho −32 · blíster
+  (D36 confirmó lámina + chapadur también para los cuadros c/Vidrio; el resto queda como está hasta que diga otra cosa). Probado en transacción abortada: 134 encolado 2 cajas → lámina y chapadur 30×40 −32 · gancho −32 · blíster
   30×40 −32 · film −32 · set 136 encolado → −8 de cada medida y, con gancho en 30×40, un solo −8 · diploma 192 montaje →
   vidrio y fondo 30×40 −16 · bandeja 541 encolada (sin regla) → el respaldo lámina + chapadur 25×35 · aro 080 ×10 →
   grampas −80 · receta `-` en 134/Encolado → nada. `gt.codigos.lleva_lamina` queda **sin uso** (la regla lo reemplaza).

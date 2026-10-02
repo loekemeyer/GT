@@ -173,7 +173,7 @@
   /* ---------- botonera de áreas ---------- */
   // v1.1: ícono por área (se ve en la tarjeta); un área nueva sin ícono usa 🏷️
   const ICONO = { CORTE: "✂️", GRAMP: "📌", ENCOL: "🧴", MONT: "🛠️", GANCHO: "🪝", EMBL: "📦", CONTR: "🎞️",
-                  PED: "🧾", DECO: "🎨", GUARD: "🗄️", RECIB: "🚚", ALMU: "🍽️", MOLDU: "🪚", LIJA: "🧽", PINT: "🖌️" };
+                  PED: "🧾", DECO: "🎨", GUARD: "🗄️", RECIB: "🚚", MOVIM: "🔄", ALMU: "🍽️", MOLDU: "🪚", LIJA: "🧽", PINT: "🖌️" };
   // 1.22: un área es de la planta elegida; un área sin planta es de la principal
   function deLaPlanta(a) { return (a.planta || st.principal || null) === (st.planta || st.principal || null); }
   function transcurrido(iso) {
@@ -229,8 +229,8 @@
     // la misma área (lo normal en el día); si tocó otra, se propone ésa.
     const cierra = areaDe(ab.rubro) || { codigo: ab.rubro, nombre: ab.rubro, unidad: "cantidad" };
     let sigue = ab.rubro === cod ? cierra : a;
-    // v1.3: al volver de almorzar se propone el área en la que estaba antes
-    if (ab.rubro === "ALMU" && cod === "ALMU") sigue = areaAntesDelAlmuerzo(ab);
+    // v1.3: al volver de almorzar se propone el área en la que estaba antes. 1.28 (D31): lo mismo al terminar Movimientos
+    if (ab.rubro === cod && PAUSAS.includes(cod)) sigue = areaAntesDelAlmuerzo(ab);
     abrirTermine(ab, cierra, sigue, "normal");
   }
 
@@ -243,8 +243,10 @@
     }
     abrirTermine(ab, areaDe(ab.rubro) || { codigo: ab.rubro, nombre: ab.rubro, unidad: "cantidad" }, null, "fin");
   }
+  // 1.28 (D31): Almuerzo y Movimientos son pausas del trabajo; al volver se propone el área productiva anterior (Recibir tampoco cuenta)
+  const PAUSAS = ["ALMU", "MOVIM"];
   function areaAntesDelAlmuerzo(ab) {
-    const prev = eventosHoy().filter((r) => r.opcion === "AREA" && r.rubro !== "ALMU" && r.ts_inicio && r.ts_cliente <= ab.ts_cliente);
+    const prev = eventosHoy().filter((r) => r.opcion === "AREA" && !PAUSAS.includes(r.rubro) && r.rubro !== "RECIB" && r.ts_inicio && r.ts_cliente <= ab.ts_cliente);
     return prev.length ? areaDe(prev[prev.length - 1].rubro) : null;
   }
   function registrarFin() {
