@@ -224,6 +224,13 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   (tampoco en «¿Con qué código seguís en Encolado?») ni aviso de «sin la E no está»: el 781 y el 781E (Porta Mold 03,
   13*18) se encolan igual, la caja exhibidora va después. `SIN_LETRA = ["ENCOL"]` en `app.js`; otra área sin la E es
   sumarla ahí.
+- **gt_v154 — qué se encola** (Elías: *«lo único que se encola son los artículos de deco y los de cuadros, y los portarretratos
+  del 220 al 224. Todo el resto de los portarretratos no se encolan»*): la lista de Encolado del celular pasó de 310 a
+  **198** (146 cuadros, 47 de deco, portas 220 a 224). Salieron 58 portas, 10 espejos, 4 múltiples, 2 diplomas y 38 de
+  reventa. `gt.codigo_area.activo` (false = no se hace en esa área; el conector no deja `DELETE`); volver uno a la lista es
+  `update gt.codigo_area set activo = true where rubro = 'ENCOL' and codigo = '…'`. Uno que no está, tipeado en Encolado,
+  pregunta «¿Lo registro igual?» y avisa por Telegram como cualquier código fuera de la lista. En `gt.movimientos`, Montaje
+  descuenta «encolado» sólo de lo que se encola. `sql/gt_v154_encolado_solo_cuadros_deco.sql`.
 - `tests/letras.cjs` (320 y 390 px: la E en Corte y Emblistado, sin la E en Encolado, poner y sacar, 781 sin la E, el foco,
   «¿con qué seguís?»).
 
