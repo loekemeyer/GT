@@ -64,6 +64,9 @@ const srv = http.createServer((req, res) => {
       else if (fn === "gt_admin_produccion2" || fn === "gt_admin_produccion3") out = b.p_pass === CLAVE_MON ? [
         { empleado: "Prueba", area: "Encolado", rubro: "ENCOL", codigo: "080", descripcion: "Cuadro Ciudades MDF", desde: "2026-10-01T11:00:00Z", hasta: "2026-10-01T12:00:00Z", cantidad: 10, unidad: "cajas encoladas", uxb: 24, unidades: 240, familia: "MDF · 30*40" },
         { empleado: "Prueba", area: "Baño", rubro: "BANO", codigo: null, descripcion: null, desde: "2026-10-01T11:15:00Z", hasta: "2026-10-01T11:30:00Z", cantidad: null, unidad: "—", uxb: null, unidades: null },
+        // 1.36: un movimiento de 11:35 a 11:55 con un baño de 11:40 a 11:45 ADENTRO: al encolado se le restan 20, no 25
+        { empleado: "Prueba", area: "Movimientos", rubro: "MOVIM", codigo: null, descripcion: null, desde: "2026-10-01T11:35:00Z", hasta: "2026-10-01T11:55:00Z", cantidad: null, unidad: "—", uxb: null, unidades: null },
+        { empleado: "Prueba", area: "Baño", rubro: "BANO", codigo: null, descripcion: null, desde: "2026-10-01T11:40:00Z", hasta: "2026-10-01T11:45:00Z", cantidad: null, unidad: "—", uxb: null, unidades: null },
         { empleado: "Prueba", area: "Corte", rubro: "CORTE", codigo: "1", descripcion: "03 Bco", desde: "2026-10-01T12:00:00Z", hasta: null, cantidad: null, unidad: "unidades cortadas", uxb: null, unidades: null },
         { empleado: "Otro", area: "Gancho", rubro: "GANCHO", codigo: "080", descripcion: null, desde: "2026-10-01T15:00:00Z", hasta: "2026-10-01T20:30:00Z", cantidad: null, unidad: "cajas", uxb: 24, unidades: null, auto: true }] : [];
       else if (fn === "gt_admin_ritmo2") out = b.p_pass === CLAVE_MON ? [
@@ -418,8 +421,9 @@ srv.listen(0, async () => {
         "Producción: por área con unidades (10 cajas × 24 = 240) y lo en curso");
     chk((await ad.textContent("#prodOp")).includes("cerrado solo"), "el tramo que cerró el sistema se marca «🔒 cerrado solo» (D34)");
     chk((await ad.textContent("#prodOp")).includes("MDF · 30*40"), "Por operario muestra la familia del tramo (1.32, gt_admin_produccion3)");
-    chk((await ad.textContent("#prodOp")).includes("0:45") && (await ad.textContent("#prodOp")).includes("−0:15 pausa"),
-        "el encolado de 11:00 a 12:00 con baño de 11:15 a 11:30 dura 0:45 (la pausa no cuenta, 1.33)");
+    chk((await ad.textContent("#prodOp")).includes("0:25") && (await ad.textContent("#prodOp")).includes("−0:35 pausa"),
+        "encolado de 11:00 a 12:00 con baño de 15 y movimiento de 20 (con 5 de baño adentro): 0:25, −0:35 de pausa (1.33 / 1.36)");
+    chk((await ad.textContent("#prodOp")).includes("−0:05 pausa"), "el movimiento descuenta el baño que tuvo adentro (0:15, −0:05 de pausa)");
     await ad.selectOption("#fOper", "Otro");
     chk(!(await ad.textContent("#prodOp")).includes("Prueba") && (await ad.textContent("#prodOp")).includes("Otro") && !(await ad.textContent("#prodArea")).includes("240"),
         "filtro por operario (1.33): sólo Otro, en Por operario y en Por área");

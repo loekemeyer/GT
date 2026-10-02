@@ -243,8 +243,12 @@
     eventosHoy().forEach((r) => {
       if (r.opcion !== "AREA") return;
       if (!r.ts_inicio) {
-        if (PAUSA_DENTRO.includes(r.rubro) && p.length === 1 && !PAUSA_DENTRO.includes(p[0].rubro) && p[0].rubro !== "ALMU") p.push(r);
-        else p = [r];
+        // 1.36 (Elías: «dentro de movimiento también puede ir al baño»): Baño va encima de un área o de un Movimiento;
+        // Movimiento, sólo encima de un área
+        const top = p[p.length - 1];
+        const encima = top && top.rubro !== "ALMU" && PAUSA_DENTRO.includes(r.rubro) &&
+          (r.rubro === "BANO" ? top.rubro !== "BANO" : !PAUSA_DENTRO.includes(top.rubro));
+        if (encima) p.push(r); else p = [r];
         return;
       }
       const j = p.map((x) => x.rubro).lastIndexOf(r.rubro);
@@ -253,7 +257,7 @@
     return p;
   }
   function abierta() { const p = pilaAbierta(); return p.length ? p[p.length - 1] : null; }
-  function enPausa() { const p = pilaAbierta(); return p.length > 1 ? p[0] : null; }   // el área que quedó en pausa debajo
+  function enPausa() { const p = pilaAbierta(); return p.length > 1 ? p[p.length - 2] : null; }   // lo que quedó en pausa justo debajo
 
   function registrar(area, extra, offsetMs) {
     const fila = Object.assign({
@@ -279,12 +283,17 @@
   // 1.34 (Elías: «tenía 2 min encolando, fui al baño 6-7 y al regresar aparecieron 9 min de encolando»): el tiempo de un
   // área no cuenta las pausas (Baño, Movimiento) que hubo adentro, igual que el ritmo y la Producción del admin (gt_v147).
   // Suma las pausas ya cerradas que empezaron después de abrir el área y terminaron antes de «hasta» (o de ahora).
+  // 1.36: un Movimiento descuenta el baño que tuvo adentro, y un baño dentro de un movimiento se descuenta una sola vez
+  // del área de abajo (se suma la unión de los tramos de pausa, no cada uno)
   function pausasDentro(rubro, desde, hasta) {
-    if (PAUSA_DENTRO.includes(rubro)) return 0;
+    if (rubro === "BANO") return 0;
     const d = new Date(desde).getTime(), h = hasta ? new Date(hasta).getTime() : Date.now();
-    return eventosHoy().filter((r) => r.opcion === "AREA" && PAUSA_DENTRO.includes(r.rubro) && r.ts_inicio &&
+    const iv = eventosHoy().filter((r) => r.opcion === "AREA" && PAUSA_DENTRO.includes(r.rubro) && r.rubro !== rubro && r.ts_inicio &&
         new Date(r.ts_inicio).getTime() >= d && new Date(r.ts_cliente).getTime() <= h)
-      .reduce((m, r) => m + (new Date(r.ts_cliente) - new Date(r.ts_inicio)), 0);
+      .map((r) => [new Date(r.ts_inicio).getTime(), new Date(r.ts_cliente).getTime()]).sort((a, b) => a[0] - b[0]);
+    let tot = 0, cur = null;
+    iv.forEach(([a, b]) => { if (!cur || a > cur[1]) { if (cur) tot += cur[1] - cur[0]; cur = [a, b]; } else cur[1] = Math.max(cur[1], b); });
+    return cur ? tot + cur[1] - cur[0] : tot;
   }
   function renderBotonera() {
     const ab = abierta(), base = enPausa();
@@ -308,8 +317,9 @@
     // 1.33 (Elías): con un área abierta, además de «Terminé», Baño y Movimiento (pausas dentro del área); con la pausa
     // abierta, sólo volver de ella
     if (ab) {
-      const pausas = ab.rubro === "ALMU" || PAUSA_DENTRO.includes(ab.rubro) ? [] :
-        PAUSA_DENTRO.map((c) => st.areas.find((x) => x.codigo === c && deLaPlanta(x))).filter(Boolean);
+      // con un área: Baño y Movimiento · con un Movimiento: sólo Baño (1.36) · con el Baño o el almuerzo: nada
+      const pausas = (ab.rubro === "ALMU" || ab.rubro === "BANO" ? [] : ab.rubro === "MOVIM" ? ["BANO"] : PAUSA_DENTRO)
+        .map((c) => st.areas.find((x) => x.codigo === c && deLaPlanta(x))).filter(Boolean);
       $("botonera").innerHTML = ab.rubro === "ALMU" ? "" :
         '<button class="termine-btn" data-cod="' + esc(ab.rubro) + '">' +
         (base ? (ab.rubro === "BANO" ? "✅ Volví del baño" : "✅ Terminé el movimiento") : "✅ Terminé") + "</button>" +
@@ -373,6 +383,7 @@
     flush();
     if (!base) { toast("✓ Terminaste " + p.nombre); show("optionsScreen"); renderBotonera(); return; }
     const b = areaDe(base.rubro) || { codigo: base.rubro, nombre: base.rubro, unidad: "cantidad" };
+    // del baño se vuelve a lo de abajo, sea un área o un movimiento (1.36)
     if (ab.rubro === "BANO") { toast("✓ Volviste del baño · seguís en " + b.nombre); show("optionsScreen"); renderBotonera(); return; }
     const si = "Sí, sigo en " + b.nombre, no = "No, terminé " + b.nombre;
     preguntar("Terminé el movimiento", "¿Seguís con " + b.nombre + (etq(base) ? " · " + etq(base) : "") + "?", [si, no], (v) => {

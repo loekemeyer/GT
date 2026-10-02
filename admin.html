@@ -130,7 +130,7 @@
     <div id="pedLista"></div>
   </section>
 
-  <script src="config.js?v=1.35"></script>
+  <script src="config.js?v=1.36"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -277,10 +277,17 @@
       const fa = $("fArea").value, fo = $("fOper").value, ff = $("fFam").value;
       const pasa = (area, emp, fam) => (!fa || area === fa) && (!fo || emp === fo) && (!ff || famDe(fam) === ff);
       const todos = prodDatos.rows, ahora = new Date();
-      // las pausas del mismo operario que caen dentro del tramo, en ms
-      const pausaMs = (r) => PAUSAS.includes(r.rubro) ? 0 : todos.filter((q) => PAUSAS.includes(q.rubro) && q.empleado === r.empleado &&
-          new Date(q.desde) >= new Date(r.desde) && new Date(q.hasta || ahora) <= new Date(r.hasta || ahora))
-        .reduce((m, q) => m + (new Date(q.hasta || ahora) - new Date(q.desde)), 0);
+      // las pausas del mismo operario que caen dentro del tramo, en ms. 1.36: un baño dentro de un movimiento cuenta una
+      // sola vez (unión de los tramos), y un movimiento descuenta el baño que tuvo adentro
+      const pausaMs = (r) => {
+        if (r.rubro === "BANO") return 0;
+        const iv = todos.filter((q) => PAUSAS.includes(q.rubro) && q.rubro !== r.rubro && q.empleado === r.empleado &&
+            new Date(q.desde) >= new Date(r.desde) && new Date(q.hasta || ahora) <= new Date(r.hasta || ahora))
+          .map((q) => [new Date(q.desde).getTime(), new Date(q.hasta || ahora).getTime()]).sort((x, y) => x[0] - y[0]);
+        let tot = 0, cur = null;
+        iv.forEach(([a, b]) => { if (!cur || a > cur[1]) { if (cur) tot += cur[1] - cur[0]; cur = [a, b]; } else cur[1] = Math.max(cur[1], b); });
+        return cur ? tot + cur[1] - cur[0] : tot;
+      };
       const rows = todos.filter((r) => pasa(r.area, r.empleado, r.familia));
       // por área: lo cerrado suma; lo en curso se cuenta aparte
       const porArea = new Map();

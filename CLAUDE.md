@@ -183,6 +183,19 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.36 — Baño también dentro de un Movimiento (Elías, 02/10/2026)
+
+- Elías: *«y dentro de movimiento también puede ir al baño»*. Con un Movimiento abierto (desde la botonera o dentro de un
+  área) aparece **🚻 Baño**; «Volví del baño» vuelve al Movimiento. La pila puede tener 3: área → Movimiento → Baño
+  (`pilaAbierta()`: Baño va encima de un área o de un Movimiento; Movimiento, sólo encima de un área). `enPausa()` es lo
+  que quedó justo debajo.
+- **El baño de adentro se descuenta una sola vez**: el tiempo del área resta la UNIÓN de sus pausas (celular:
+  `pausasDentro`; admin: `pausaMs`), y el Movimiento descuenta el baño que tuvo adentro. En la base (`gt_admin_ritmo2`,
+  gt_v149) sólo cuentan las pausas que no están dentro de otra. Probado en transacción abortada: Corte 12:00–12:30,
+  Movimiento 12:05–12:25, Baño 12:10–12:15 → Corte 10 min netos (no 5).
+- `tests/pausas.cjs` (Baño dentro del Movimiento desde la botonera y dentro de Corte, y el reloj de Corte 20 − 10 = 10
+  min), `tests/smoke.cjs` (admin: −0:35 de pausa, no −0:40). `sql/gt_v149_bano_dentro_de_movimiento.sql`.
+
 ### 1.35 — al celular le faltaban los códigos de 5 áreas (Elías, 02/10/2026)
 
 - Elías: *«estoy en guardado y no me aparece nada al poner 224»*. La API de Supabase corta cada respuesta en **1.000

@@ -53,6 +53,56 @@ srv.listen(0, async () => {
     const ban = await pg.$$eval("#hist .hist-row", (rs) => (rs.find((r) => r.textContent.includes("Baño")) || {}).textContent || "");
     chk(/0:06/.test(ban) && !/pausa/.test(ban), "el tramo de Baño sigue mostrando sus 0:06");
     await pg.close();
+
+    // 1.36 (Elías: «dentro de movimiento también puede ir al baño»)
+    const entrar = async () => {
+      const p = await br.newPage({ viewport: { width: 390, height: 664 } });
+      await p.goto(url); await p.fill("#claveInput", "1234"); await p.click("#claveBtn");
+      await p.click("#nombreLista button[data-id='7']"); await p.waitForSelector(".box[data-cod=ENCOL]");
+      return p;
+    };
+    // a) Movimiento desde la botonera → Baño → vuelve al Movimiento → Terminé → botonera
+    const pa = await entrar();
+    await pa.click(".box[data-cod=MOVIM]"); await pa.waitForSelector(".termine-btn[data-cod=MOVIM]");
+    const btnsMov = await pa.$$eval(".pausa-btn", (bs) => bs.map((b) => b.dataset.pausa).join(","));
+    chk(btnsMov === "BANO", "con un Movimiento abierto aparece sólo el botón de Baño (" + btnsMov + ")");
+    await pa.click(".pausa-btn[data-pausa=BANO]"); await pa.waitForSelector(".termine-btn[data-cod=BANO]");
+    chk((await pa.textContent(".termine-btn")).includes("Volví del baño") && (await pa.textContent("#abiertaBox")).includes("Movimientos en pausa"),
+        "Baño dentro del Movimiento: el Movimiento queda en pausa");
+    await pa.click(".termine-btn[data-cod=BANO]"); await pa.waitForSelector(".termine-btn[data-cod=MOVIM]");
+    chk(true, "Volví del baño: vuelve al Movimiento");
+    await pa.click(".termine-btn[data-cod=MOVIM]"); await pa.waitForSelector("#botonera .box");
+    chk(!(await pa.isVisible("#cantScreen")), "Terminé el Movimiento (desde la botonera): se cierra y vuelve la botonera");
+    await pa.close();
+    // b) Corte → Movimiento → Baño → vuelve al Movimiento → «¿Seguís con Corte?» Sí
+    const pb = await entrar();
+    await pb.click(".box[data-cod=CORTE]"); await pb.waitForSelector(".pausa-btn[data-pausa=MOVIM]");
+    await pb.click(".pausa-btn[data-pausa=MOVIM]"); await pb.waitForSelector(".termine-btn[data-cod=MOVIM]");
+    await pb.click(".pausa-btn[data-pausa=BANO]"); await pb.waitForSelector(".termine-btn[data-cod=BANO]");
+    await pb.click(".termine-btn[data-cod=BANO]"); await pb.waitForSelector(".termine-btn[data-cod=MOVIM]");
+    chk((await pb.textContent(".termine-btn")).includes("Terminé el movimiento") && (await pb.textContent("#abiertaBox")).includes("Corte en pausa"),
+        "Corte → Movimiento → Baño → Volví: sigue el Movimiento, con Corte en pausa abajo");
+    await pb.click(".termine-btn[data-cod=MOVIM]"); await pb.waitForFunction(() => document.getElementById("pasoLabel").textContent.includes("¿Seguís con Corte"));
+    await pb.click("#pasoOpts button[data-val='Sí, sigo en Corte']"); await pb.waitForSelector(".termine-btn[data-cod=CORTE]");
+    chk(true, "Terminé el movimiento → «¿Seguís con Corte?» Sí → sigue en Corte");
+    await pb.close();
+    // c) el reloj: Corte desde hace 20 min, Movimiento de -15 a -5 con Baño de -12 a -8 adentro → 10 min (no 6)
+    const pc = await entrar();
+    await pc.evaluate(() => {
+      const ya = Date.now(), t = (min) => new Date(ya - min * 60000).toISOString();
+      const ev = (id, rubro, ts, ini) => ({ client_id: id, empleado_id: 7, opcion: "AREA", rubro, descripcion: rubro, texto: "", cantidad: null,
+        ts_cliente: ts, ts_inicio: ini, dispositivo: "prueba", planta: "PELL" });
+      const q = JSON.parse(localStorage.getItem("gt_queue_v3") || "[]");
+      q.push(ev("c1", "CORTE", t(20), null), ev("m1", "MOVIM", t(15), null), ev("b1", "BANO", t(12), null), ev("b2", "BANO", t(8), t(12)), ev("m2", "MOVIM", t(5), t(15)));
+      localStorage.setItem("gt_queue_v3", JSON.stringify(q));
+    });
+    await pc.reload(); await pc.waitForSelector(".termine-btn[data-cod=CORTE]");
+    const rc = (await pc.textContent(".ab-tiempo")).trim();
+    chk(rc === "10 min", "Corte con un baño DENTRO del movimiento: 20 − 10 de movimiento = 10 min, el baño no se resta dos veces (" + rc + ")");
+    await pc.click("#histBtn"); await pc.waitForSelector("#histPop:not(.hidden)");
+    const mov = await pc.$$eval("#hist .hist-row", (rs) => (rs.find((r) => r.textContent.includes("Movimientos")) || {}).textContent || "");
+    chk(/0:06/.test(mov) && /sin 0:04 de pausa/.test(mov), "el Movimiento descuenta su baño: 0:06 (sin 0:04 de pausa) — " + mov.replace(/\s+/g, " ").trim());
+    await pc.close();
   } catch (e) { fallas.push(String(e)); console.log("✗ " + e); }
   await br.close(); srv.close();
   console.log(fallas.length ? `\n${fallas.length} falla(s)` : "\nTodo OK");
