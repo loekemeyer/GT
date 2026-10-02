@@ -243,7 +243,7 @@ el pedido es una **orden de fabricación**, no de despacho: no se arma y sale en
 | `gt.stock_inicial` | conteo inicial por depósito (en la unidad del depósito); los movimientos posteriores al conteo se suman encima. Vacía |
 | `gt.stock` | saldo por depósito y código = conteo + `gt.movimientos` posteriores; `con_conteo = false` cuando no hay conteo |
 | `gt.pedidos` + `gt.pedido_items` | la copia local de los pedidos (venga de donde venga): `pedido_ref` único por origen, `np`, `es_super`, `plazo_dias` (14), `estado` abierto → parcial → armado → cargado → entregado / cancelado; cajas y cajas armadas por renglón. Las llena `gt.sync_pedidos_tn()` desde la página de TN (D12, cada 10 min) |
-| `gt.demanda_producto` | **objetivo = máximo que rige + pedidos abiertos** (rige el consumo —calculado desde TN, o cargado a mano— y si no el de góndola: `maximo_rige`, `supera_gondola_cajas`, `consumo_cajas_mes`); `a_fabricar` = objetivo − góndola; `a_empezar` descuenta además lo que ya está en proceso (encolado a contraído). Sin conteo la góndola vale 0 y lo dice la `nota` |
+| `gt.demanda_producto` | **sólo lo que GT fabrica** (`gt.codigos.fabrica`, D37) · **objetivo = máximo que rige + pedidos abiertos** (rige el consumo —calculado desde TN, o cargado a mano— y si no el de góndola: `maximo_rige`, `supera_gondola_cajas`, `consumo_cajas_mes`); `a_fabricar` = objetivo − góndola; `a_empezar` descuenta además lo que ya está en proceso (encolado a contraído). Sin conteo la góndola vale 0 y lo dice la `nota` |
 | `gt.demanda_aros` · `gt.demanda_corte` | eso traducido a aros a grampear y piezas a cortar con las recetas de 1.23–1.26, menos lo que ya hay en stock |
 | `gt.pedidos_plazo` | cada pedido contra su plazo (días, vence, vencido), % armado y si **puede salir completo o parcial** con la góndola de hoy |
 
@@ -493,7 +493,14 @@ qué lleva cada grupo: sin filas, nada cambia** (la lámina genérica de Encolad
   **Demanda de insumos al 01/10, sin conteo:** 178.657 grampas · 21.618 ganchos · 19.122 film · 6.990 láminas y 6.990
   chapadur 30×40 · 5.794 blíster 30×40 (`select * from gt.demanda_insumos`). ⚠ `gt.demanda_producto` incluye **13
   productos que GT no fabrica** (3 cajas, 6 cestos, 2 estantes, jabonera, set 900: 22 cajas) porque tienen consumo en
-  TN: D37. `sql/gt_v142_insumo_reglas.sql`.
+  TN. **D37 (Thomas, 01/10: «sí») → `gt.codigos.fabrica`** (gt_v144): false = reventa / importado, no entra a
+  `gt.demanda_producto` ni a lo que cuelga de ella. En false: los 14 que nombró Thomas (cajas 661 a 663, cestos 619 a
+  626, estantes 898 y 899, jabonera 920, set 900) y [Probable] 24 hermanos de reventa sin demanda ese día (jarrones,
+  libros, frascos, individuales, macetas, canasto 901, set 902). Todo lo que lleva «Mold», los sets de bandejas (518,
+  519, 660), Cartel Flecha 527, Org.Canasta 615, Percheros 632 y Secaplatos 557 siguen como fabricados. Medido: la
+  demanda pasó de 210 a 198 productos y de 1.665 a 1.644 cajas; aros, ganchos y film no cambiaron. Marcar otro es
+  `update gt.codigos set fabrica = false where codigo = '…'`. `sql/gt_v142_insumo_reglas.sql`,
+  `sql/gt_v144_demanda_solo_fabricados.sql`.
 
 ### 1.23 — movimientos de stock por etapa, sólo internos (Thomas, 01/10/2026)
 
