@@ -523,7 +523,7 @@
         esOpciones(sigue) ? "¿Seguís en " + sigue.nombre + "? ¿" + codigosDe(sigue).map((c) => c.descripcion || c.codigo).join(" o ") + "?" :
         "¿Con qué código seguís en " + sigue.nombre + "?";
       prepararInput("sigueInput", "sigueHint", sigue); $("sigueError").textContent = "";
-      if (!sigue.pide_codigo) { $("sigueInput").classList.add("hidden"); $("sigueOpts").classList.add("hidden"); }
+      if (!sigue.pide_codigo) { $("sigueInput").classList.add("hidden"); $("sigueOpts").classList.add("hidden"); $("sigueSuf").classList.add("hidden"); }
       if (sigue.codigo === "GUARD" && sigue.pide_codigo) pendientesContraido("siguePend", () => st.pend && st.pend.sigue && st.pend.sigue.codigo === "GUARD");
     }
     restaurarBtn("cantBtn");
@@ -554,7 +554,7 @@
       nuevo = validarCodigo(sigue, $("sigueInput").value);
       if (nuevo.err) { $("sigueError").textContent = nuevo.err; $("sigueInput").focus(); return; }
       const avisoS = nuevo.nuevo ? null : fueraDeContraido(sigue, nuevo.guardo);
-      if ((nuevo.nuevo || avisoS) && !confirmoNuevo(nuevo.guardo, "sigueError", "cantBtn", avisoS)) return;
+      if ((nuevo.nuevo || avisoS) && !confirmoNuevo(nuevo.guardo, "sigueError", "cantBtn", avisoS || (nuevo.nuevo && avisoLetra(sigue, nuevo.guardo)))) return;
     }
     const finX = extraDe(p.fin || {});
     const det = Object.assign({}, p.ab.detalle || {}, finX.detalle || {});
@@ -611,7 +611,16 @@
     opts.classList.toggle("hidden", !conOpc);
     opts.innerHTML = conOpc ? lista.map((c) => '<button data-cod="' + esc(c.codigo) + '">' + esc(c.descripcion || c.codigo) + "</button>").join("") : "";
     el.value = ""; el.dataset.area = a.codigo; el.dataset.hint = hintId;
-    el.setAttribute("inputmode", lista.length && lista.every((c) => /^\d+$/.test(c.codigo)) ? "numeric" : "text");
+    // 1.42 (Elías: «que todos los inputs para poner código sean numéricos y con un botón al lado para agregar a ese código o
+    // sacarle (en caso de doble tap) una E»): teclado numérico siempre (inputmode en index.html) y, al lado, la E. Si la
+    // lista del área tiene códigos que terminan en otra letra (514G a 519G, 535W), también esa: con teclado numérico no
+    // se podrían tipear
+    const suf = $(inputId === "codInput" ? "codSuf" : "sigueSuf");
+    const otras = [...new Set(lista.map((c) => (String(c.codigo).toUpperCase().match(/^\d+([A-Z])$/) || [])[1]).filter(Boolean))]
+      .filter((l) => l !== "E").sort();
+    suf.innerHTML = conOpc ? "" : ["E"].concat(otras).map((l) => '<button type="button" class="suf-btn" data-l="' + l +
+      '" aria-label="Agregar o sacar la ' + l + '">' + l + "</button>").join("");
+    suf.classList.toggle("hidden", conOpc);
     $(hintId).textContent = ""; $(hintId).classList.remove("nuevo");
     st.nuevoOk = null;
   }
@@ -620,12 +629,27 @@
     if (!a || !h) return;
     st.nuevoOk = null;
     const v = el.value.trim();
+    const suf = $(el.id === "codInput" ? "codSuf" : "sigueSuf");
+    suf.querySelectorAll(".suf-btn").forEach((b) => b.classList.remove("sugerida"));
     if (!v) { h.textContent = ""; h.classList.remove("nuevo"); return; }
     const r = validarCodigo(a, v);
-    const c = r.cod;
+    const c = r.cod, s = r.nuevo ? conLetra(a, v) : null;
     h.classList.toggle("nuevo", !!r.nuevo);
     h.textContent = c ? [c.descripcion, c.medida].filter(Boolean).join(" · ") || "✓" :
+      s ? "Sin la " + s.codigo.slice(-1).toUpperCase() + " no está. " + s.codigo + ": " + [s.descripcion, s.medida].filter(Boolean).join(" · ") :
       r.nuevo ? "No está en la lista de " + a.nombre : "";
+    if (s) { const b = suf.querySelector('.suf-btn[data-l="' + s.codigo.slice(-1).toUpperCase() + '"]'); if (b) b.classList.add("sugerida"); }
+  }
+  // 1.42 (Elías: «también tiene que buscar en la lista si se le agrega la E»): un número que no está en la lista pero sí con
+  // una letra al final (781 → 781E) lo dice abajo del campo y marca esa letra
+  function conLetra(a, raw) {
+    const v = String(raw || "").trim().toUpperCase(), sin0 = (x) => String(x).toUpperCase().replace(/^0+(?=\d)/, "");
+    if (!/^\d+$/.test(v)) return null;
+    return codigosDe(a).find((c) => /^\d+[A-Z]$/i.test(c.codigo) && sin0(c.codigo).slice(0, -1) === sin0(v)) || null;
+  }
+  function avisoLetra(a, raw) {
+    const s = conLetra(a, raw);
+    return s ? "El " + String(raw).trim() + " no está en la lista, el " + s.codigo + " sí: tocá la " + s.codigo.slice(-1).toUpperCase() + "." : null;
   }
   // un código fuera de la lista se registra sólo si se confirma (segundo toque con el mismo código)
   function confirmoNuevo(cod, errId, btnId, msg) {
@@ -641,6 +665,16 @@
     const sin0 = (x) => String(x).toUpperCase().replace(/^0+(?=\d)/, "");
     return st.pendCont.some((x) => sin0(x.codigo) === sin0(cod)) ? null :
       "El " + cod + " no salió de Contraído o ya no le quedan cajas por guardar.";
+  }
+  // 1.42: la letra al final del código: un toque la pone (en lugar de otra letra), otro toque la saca
+  function ponerLetra(inputId, l) {
+    const el = $(inputId), v = el.value.trim().toUpperCase(), base = v.replace(/[A-Z]+$/, "");
+    el.value = v.endsWith(l) ? base : base + l;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  function marcarLetra(inputId) {
+    const v = $(inputId).value.trim().toUpperCase();
+    $(inputId === "codInput" ? "codSuf" : "sigueSuf").querySelectorAll(".suf-btn").forEach((b) => b.classList.toggle("activo", v.endsWith(b.dataset.l)));
   }
   function restaurarBtn(id) { const b = $(id); if (b.dataset.txt) { b.textContent = b.dataset.txt; delete b.dataset.txt; } }
   function empezar(a) {
@@ -687,7 +721,7 @@
     const r = validarCodigo(a, $("codInput").value);
     if (r.err) { $("codError").textContent = r.err; return; }
     const avisoC = r.nuevo ? null : fueraDeContraido(a, r.guardo);
-    if ((r.nuevo || avisoC) && !confirmoNuevo(r.guardo, "codError", "codBtn", avisoC)) return;
+    if ((r.nuevo || avisoC) && !confirmoNuevo(r.guardo, "codError", "codBtn", avisoC || (r.nuevo && avisoLetra(a, r.guardo)))) return;
     restaurarBtn("codBtn");
     const piezas = piezasSet(a, r.cod);
     if (piezas) { st.codPara = null; pedirMedida(a, r.guardo, piezas); return; }
@@ -970,9 +1004,13 @@
   $("codOpts").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("codInput").value = b.dataset.cod; confirmarCod(); } });
   $("sigueOpts").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("sigueInput").value = b.dataset.cod; confirmarCant(true); } });
   ["codInput", "sigueInput"].forEach((id) => $(id).addEventListener("input", (e) => {
-    mostrarHint(e.target); $(id === "codInput" ? "codError" : "sigueError").textContent = "";
+    mostrarHint(e.target); marcarLetra(id); $(id === "codInput" ? "codError" : "sigueError").textContent = "";
     restaurarBtn(id === "codInput" ? "codBtn" : "cantBtn");
   }));
+  [["codSuf", "codInput"], ["sigueSuf", "sigueInput"]].forEach(([sid, iid]) => {
+    $(sid).addEventListener("mousedown", (e) => { if (e.target.closest(".suf-btn")) e.preventDefault(); });   // no le saca el foco al campo
+    $(sid).addEventListener("click", (e) => { const b = e.target.closest(".suf-btn"); if (b) ponerLetra(iid, b.dataset.l); });
+  });
   $("codPend").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("codInput").value = b.dataset.cod; confirmarCod(); } });
   $("histBtn").onclick = () => { renderHist(); $("histPop").classList.remove("hidden"); document.body.classList.add("sin-scroll"); };
   const cerrarHist = () => { $("histPop").classList.add("hidden"); document.body.classList.remove("sin-scroll"); };

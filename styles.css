@@ -54,6 +54,13 @@ button:active{transform:scale(.97);}
   color:var(--txt);font-size:32px;font-weight:600;text-align:center;outline:none;}
 .text-input:focus{border-color:var(--acc);background:var(--card);box-shadow:0 0 0 4px var(--acc-bg);}
 .text-input::placeholder{color:var(--mut);opacity:.5;font-weight:400;}
+/* 1.42: el código con la E (y G, W) al lado */
+.cod-fila{display:flex;gap:8px;margin-top:12px;}
+.cod-fila .text-input{margin-top:0;flex:1;min-width:0;}
+.sufijos{display:flex;gap:6px;}
+.suf-btn{width:52px;height:64px;padding:0;border:2px solid var(--borde);background:var(--bg);color:var(--txt);font-size:24px;font-weight:800;}
+.suf-btn.activo{background:var(--acc);border-color:var(--acc);color:#fff;}
+.suf-btn.sugerida{border-color:var(--warn);color:var(--warn);box-shadow:0 0 0 3px var(--warn-bg, transparent);}
 
 /* ingreso */
 .marca{text-align:center;margin:12vh 0 8px;}

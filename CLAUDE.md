@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos, con dos celulares) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla) · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos, con dos celulares) · `node tests/letras.cjs` (el código con la E al lado) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -82,7 +82,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 |---|---|---|
 | Corte | sí | 168 propios (Corte 45°; 157 y 158 entraron con D22, 159 a 168 con D27) |
 | Grampeado | sí | 130 propios (234 a 240 entraron con D22 y D26) |
-| Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos (6 discontinuos desde D22: no se listan) |
+| Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos (13 discontinuos: 6 desde D22 y los 7 G y W desde el 02/10, no se listan) |
 | Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`). Acepta **cualquier** producto, pero si no salió de Contraído **avisa y pide confirmar** (v11.0, D17) |
 | Deco | sí | 71 de operación (tablero «08. Sector Deco» completo) |
 | Pedidos | no | — (y no pide cantidad) |
@@ -185,6 +185,23 @@ insert into gt.rubros (codigo, nombre, unidad, orden) values ('<COD>', '<Área>'
 insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_texto, fila, orden)
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
+
+### 1.42 — el código se tipea con teclado numérico y una E al lado (Elías, 02/10/2026)
+
+- Pedido: *«que todos los inputs para poner código sean numéricos y con un botón al lado para agregar a ese código o
+  sacarle (en caso de doble tap) una E»* · *«también tiene que buscar en la lista si se le agrega la E»*.
+- Los dos campos de código (Empecé y «¿Con qué código seguís?») abren siempre el **teclado numérico** (`inputmode`
+  numeric). Al lado, el botón **E**: un toque la pone al final, otro la saca, y queda marcado mientras está puesta. No le
+  saca el foco al campo (el teclado no se cierra). Al ponerla o sacarla se vuelve a buscar en la lista y abajo dice qué es
+  («781E» → «Porta Mold 03 Caja Exhibidora · 13*18»).
+- **Al revés también:** si se escribe **781** y en la lista sólo está el **781E**, abajo dice «Sin la E no está. 781E: …»,
+  marca la E en naranja y, si se toca Empezar igual, «El 781 no está en la lista, el 781E sí: tocá la E» (con un segundo
+  toque se registra el 781, como cualquier código fuera de la lista).
+- Los códigos con letra que quedan activos son **781E y 782E**. Los **514G a 519G y 535W** los dio de baja Elías el
+  02/10 (*«los G y W son discontinuos»*): `gt.codigos.activo = false` con `discontinuado_nota`; tenían 0 registros, 0
+  pedidos y 3 cajas en la demanda (514G, 515G y 517G, 1 cada uno), que salieron. Si un código activo termina en otra letra,
+  su botón aparece solo al lado de la E (sale de la lista del área, no del código).
+- `tests/letras.cjs` (320 y 390 px: la E en Corte y Emblistado, poner y sacar, 781 sin la E, el foco, «¿con qué seguís?»).
 
 ### 1.41 — Rendimiento de la pareja: las unidades se reparten según el TIEMPO de cada uno (02/10/2026)
 
