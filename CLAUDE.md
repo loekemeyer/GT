@@ -187,6 +187,14 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 02/10/2026 — todo lo cargado hasta el lunes 05/10 fue PRUEBA (D62: «sí»)
+
+- La app se usa en serio desde el **lunes 05/10/2026**. Lo anterior se borra con `sql/gt_borrar_pruebas_antes_del_lunes.sql`
+  (eventos, parejas e ingresos del monitor con fecha anterior al lunes), en el **SQL Editor**: desde la sesión el conector
+  cortó el `DELETE` a los 60 s, como el 01/10. Se puede repetir el lunes antes de las 08:00.
+- Respaldo con RLS: `gt.bkp_registros_pruebas_20261002` (183 eventos, 01/10 13:26 → 02/10 17:22, 9 operarios, 0 de Deco),
+  `gt.bkp_parejas_pruebas_20261002` (5) y `gt.bkp_monitor_ingresos_pruebas_20261002` (7).
+
 ### 1.49 — al tocar un nombre, «¿Sos …?» antes de entrar (02/10/2026)
 
 - Pedido: *«un empleado tocó el nombre de Walter y le puso el nombre de Luis… ¿le erró en la mano o tenés un error?…
