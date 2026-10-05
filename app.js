@@ -52,6 +52,7 @@
   const LS_CODS = "gt_codigos_v6";
   const LS_PASOS = "gt_pasos_v1";
   const LS_DISP = "gt_dispositivo";
+  const LS_LLAVE = "gt_llave_v1";   // 1.53: la clave personal del encargado en SU celular { llave, nombre, da }
   const TIMEOUT_MS = 15000;
 
   const $ = (id) => document.getElementById(id);
@@ -1009,11 +1010,27 @@
   async function validarClave() {
     const v = $("claveInput").value.replace(/\D/g, "");
     $("claveError").textContent = "";
-    if (v.length !== 4) { $("claveError").textContent = "El código tiene 4 números"; return; }
+    if (v.length !== 4 && v.length !== 6) { $("claveError").textContent = "El código tiene 4 números"; return; }
     let r;
     try { r = await rpc("gt_clave_validar", { p_clave: v }); }
     catch { $("claveError").textContent = "Sin conexión. Probá de nuevo."; return; }
-    if (!r.ok) { $("claveError").textContent = "Código incorrecto o vencido: mirá el monitor"; return; }
+    if (!r.ok) {
+      if (v.length === 6) { const k = lsGet(LS_LLAVE, null); if (k && k.llave === v) { try { localStorage.removeItem(LS_LLAVE); } catch { /* nada */ } pintarLlave(); } }
+      $("claveError").textContent = v.length === 6 ? "Clave personal incorrecta" : "Código incorrecto o vencido: mirá el monitor"; return;
+    }
+    // 1.53 (Thomas: «Darío es el encargado… que pueda fichar sin la necesidad de un código y que cuando fiche le diga el
+    // código para el compañero»): con la clave personal entra directo como él, sin lista ni «¿Sos …?», y este celular la
+    // recuerda (los días siguientes es un toque en «👷 Entrar como …»). Con el código de una planta (el que muestra el
+    // encargado) no se pregunta la planta: entra en ésa
+    st.plantaFija = r.planta || null;
+    if (r.personal && (r.empleados || []).length === 1) {
+      const e = r.empleados[0];
+      lsSet(LS_LLAVE, { llave: v, nombre: e.nombre, da: r.da_codigo || null });
+      st.principal = r.principal || null; st.vistaClave = false;
+      st.empsPlantas = {}; st.empsPlantas[e.id] = e.plantas || [];
+      $("claveInput").value = ""; pintarLlave();
+      elegirEmpleado(e.id, e.nombre); return;
+    }
     st.vistaClave = !!r.vista;   // 1.52: la clave del administrador (gt.config.clave_vista): elegir a quién ver, sin grabar
     $("nombreLista").classList.toggle("vista", st.vistaClave);
     const emps = r.empleados || [];
@@ -1067,6 +1084,7 @@
   // 1.31 (Elías): sin «Cambiar de planta» en la botonera: para cambiar, ‹ y volver a entrar con el código del monitor
   function elegirEmpleado(id, nombre) {
     const pl = (st.empsPlantas && st.empsPlantas[id]) || [];
+    if (st.plantaFija) { entrar(id, nombre, st.plantaFija, pl, st.principal, true, st.vistaClave); return; }   // 1.53
     if (pl.length < 2) { entrar(id, nombre, pl[0] ? pl[0].codigo : null, pl, st.principal, true, st.vistaClave); return; }
     st.elige = { id, nombre, plantas: pl };
     mostrarPlantas();
@@ -1100,7 +1118,7 @@
                cantidad: null, ts_cliente: new Date().toISOString(), ts_inicio: null, dispositivo: dispositivo(), planta: st.planta });
       guardarCola(q);
     }
-    ponerNombre();
+    ponerNombre(); pintarLlave();
     show("optionsScreen");
     await Promise.all([cargarAreas(), cargarHoy()]);
     renderBotonera(); flush();
@@ -1109,23 +1127,59 @@
     if (ult && ult.opcion === "FIN" && !st.vista) rpc("gt_reingreso", { p_empleado: st.emp }).catch(() => { /* sin red: avisa el primer registro */ });
   }
 
+  // 1.53: el botón «👷 Entrar como Dario Mendez» (pantalla del código) y la 🔑 de arriba (el código de su planta para el
+  // compañero: sólo en el celular del encargado, entrando en esa planta y no en modo vista)
+  function pintarLlave() {
+    const k = lsGet(LS_LLAVE, null);
+    $("llaveBtn").classList.toggle("hidden", !k);
+    if (k) $("llaveBtn").textContent = "👷 Entrar como " + k.nombre;
+    $("codPlantaBtn").classList.toggle("hidden", !(k && k.da && st.emp && !st.vista && st.planta === k.da));
+  }
+  function entrarConLlave() {
+    const k = lsGet(LS_LLAVE, null); if (!k) return;
+    $("claveInput").value = k.llave; validarClave(); $("claveInput").value = "";
+  }
+  let codTimer = null;
+  async function mostrarCodigoPlanta() {
+    const k = lsGet(LS_LLAVE, null); if (!k) return;
+    let r = null;
+    try { r = await rpc("gt_codigo_planta", { p_llave: k.llave }); } catch { toast("Sin conexión: probá de nuevo"); return; }
+    if (!r || !r.ok) { toast("No hay código para mostrar"); return; }
+    let resta = Number(r.cambia_en_s) || 60;
+    const pinta = () => { const n = document.getElementById("codPlantaNum"), s = document.getElementById("codPlantaSeg"); if (n) n.textContent = r.clave; if (s) s.textContent = "cambia en " + resta + " s"; };
+    aviso({ ico: "🔑", tit: "Código de " + (r.planta_nombre || r.planta),
+      txt: '<span id="codPlantaNum" class="cod-planta"></span><br><span id="codPlantaSeg" class="mut"></span>',
+      nota: "Que tu compañero lo ponga en su celular, en «Código de ingreso». Entra directo en " + esc(r.planta_nombre || r.planta) + ".",
+      botones: [{ t: "Listo", fn: () => { clearInterval(codTimer); codTimer = null; } }] });
+    pinta();
+    clearInterval(codTimer);
+    codTimer = setInterval(async () => {
+      if (!st.aviso) { clearInterval(codTimer); codTimer = null; return; }
+      resta--;
+      if (resta <= 0) { try { const x = await rpc("gt_codigo_planta", { p_llave: k.llave }); if (x && x.ok) { r = x; resta = Number(x.cambia_en_s) || 60; } } catch { resta = 5; } }
+      pinta();
+    }, 1000);
+  }
+
   // 1.20 (Thomas): al terminar el día vuelve a la pantalla del código de la TV (cierra la sesión).
   // La cola sigue mandando lo pendiente: cada fila ya lleva su empleado_id.
   function finDelDia() {
     try { localStorage.removeItem(LS_SESION); } catch { /* nada */ }
-    st.emp = null; st.server = []; st.vista = false; st.vistaClave = false; st.sim = []; $("claveInput").value = ""; $("histPop").classList.add("hidden"); st.aviso = null; $("avisoPop").classList.add("hidden"); document.body.classList.remove("sin-scroll");
+    st.emp = null; st.server = []; st.vista = false; st.vistaClave = false; st.sim = []; st.plantaFija = null; $("claveInput").value = ""; $("histPop").classList.add("hidden"); st.aviso = null; $("avisoPop").classList.add("hidden"); document.body.classList.remove("sin-scroll");
     show("claveScreen");
   }
   function salir() {
     if (abierta() && !st.vista && !confirm("Tenés un área sin terminar. ¿Cambiar de operario igual? (queda abierta)")) return;
     try { localStorage.removeItem(LS_SESION); } catch { /* nada */ }
-    st.emp = null; st.server = []; st.vista = false; st.vistaClave = false; st.sim = []; $("claveInput").value = ""; $("histPop").classList.add("hidden"); st.aviso = null; $("avisoPop").classList.add("hidden"); document.body.classList.remove("sin-scroll");
+    st.emp = null; st.server = []; st.vista = false; st.vistaClave = false; st.sim = []; st.plantaFija = null; $("claveInput").value = ""; $("histPop").classList.add("hidden"); st.aviso = null; $("avisoPop").classList.add("hidden"); document.body.classList.remove("sin-scroll");
     show("claveScreen");
   }
 
   /* ---------- eventos ---------- */
   $("verBadge").textContent = "v" + CFG.APP_VERSION;
   $("claveBtn").onclick = validarClave;
+  $("llaveBtn").onclick = entrarConLlave;
+  $("codPlantaBtn").onclick = mostrarCodigoPlanta;
   $("claveInput").addEventListener("keydown", (e) => { if (e.key === "Enter") validarClave(); });
   // 1.52: en modo vista no se pregunta «¿Sos …?»: no se graba nada a nombre de nadie
   $("nombreLista").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; if (st.vistaClave) elegirEmpleado(b.dataset.id, b.dataset.nombre); else confirmarNombre(b.dataset.id, b.dataset.nombre); });
@@ -1194,6 +1248,7 @@
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 
   const ses = lsGet(LS_SESION, null);
+  pintarLlave();
   if (ses && ses.dia === hoyAR() && ses.id) entrar(ses.id, ses.nombre, ses.planta, ses.plantas, ses.principal, false, ses.vista);
   else show("claveScreen");
 

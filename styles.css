@@ -291,3 +291,7 @@ body.sin-scroll{overflow:hidden;}
 }
 /* 1.52: modo vista (clave del administrador): no graba nada */
 .sync.vista{background:var(--warn-bg);color:var(--warn);}
+/* 1.53: el código de la planta que muestra el encargado */
+.cod-planta{display:inline-block;font-size:56px;font-weight:700;letter-spacing:8px;line-height:1.1;margin:6px 0 2px;}
+.llave-top{flex:0 0 44px;font-size:22px;padding:0;}
+#llaveBtn{margin-top:4px;}

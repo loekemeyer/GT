@@ -12,7 +12,7 @@
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=1.52" />
+  <link rel="stylesheet" href="styles.css?v=1.53" />
 </head>
 <body>
   <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
@@ -25,11 +25,13 @@
     <div class="tarjeta">
       <label class="label" for="claveInput">🔑 Código de ingreso</label>
       <p class="mut chico">Está en el monitor y cambia cada minuto</p>
-      <input id="claveInput" class="input-clave" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="····" />
+      <input id="claveInput" class="input-clave" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="····" />
       <div id="claveError" class="error"></div>
     </div>
     <div class="acciones">
       <button id="claveBtn" class="primary-btn">Siguiente</button>
+      <!-- 1.53: en el celular del encargado (clave personal guardada), entrar sin código -->
+      <button id="llaveBtn" class="sec-btn hidden"></button>
       <div class="version"><span id="verBadge"></span> · <a href="admin.html">Admin</a></div>
     </div>
   </div>
@@ -55,6 +57,8 @@
       <button class="back-top" id="salirBtn" aria-label="Cambiar operario">‹</button>
       <div class="op-cab"><span class="op-name" id="opName"></span><span class="muerto" id="muerto"></span></div>
       <span class="sync" id="syncBadge"></span>
+      <!-- 1.53: el encargado ve el código de su planta para el compañero -->
+      <button class="back-top llave-top hidden" id="codPlantaBtn" aria-label="Código para el compañero">🔑</button>
     </header>
     <div id="abiertaBox" class="abierta hidden"></div>
     <div id="botonera"></div>
@@ -158,7 +162,7 @@
       <div id="avisoBtns" class="aviso-btns"></div>
     </div>
   </div>
-  <script src="config.js?v=1.52"></script>
-  <script src="app.js?v=1.52"></script>
+  <script src="config.js?v=1.53"></script>
+  <script src="app.js?v=1.53"></script>
 </body>
 </html>

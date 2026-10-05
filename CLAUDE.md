@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) · `node tests/vista.cjs` (el modo vista y las áreas de un solo empleado) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) · `node tests/vista.cjs` (el modo vista y las áreas de un solo empleado) · `node tests/esnaola.cjs` (Esnaola sin monitor: la clave del encargado y el código para el compañero) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -210,6 +210,27 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   demás de GT (crear, cambiar, cargar) sí; afuera queda sólo lo del proyecto de Tierra Nativa.
 - Respaldo con RLS: `gt.bkp_registros_pruebas_20261002` (183 eventos, 01/10 13:26 → 02/10 17:22, 9 operarios, 0 de Deco),
   `gt.bkp_parejas_pruebas_20261002` (5) y `gt.bkp_monitor_ingresos_pruebas_20261002` (7).
+
+### 1.53 — Esnaola sin monitor: el encargado entra con su clave y le da el código al compañero (Thomas, 05/10/2026)
+
+- Pedido: *«en Esnaola no van a tener un monitor… Darío es el encargado, en el cual sí tengo confianza. Que pueda fichar sin
+  la necesidad de un código y que cuando fiche le diga el código para el compañero, que es Luis»*. Esnaola tiene wifi.
+  Descartado el código por WhatsApp válido una hora (lo propuso Thomas): llega al celular y se puede usar desde cualquier lado.
+- **Darío** tiene una **clave personal de 6 números** en **`gt.clave_personal`** (con RLS, anon no la lee; **no se escribe en el
+  repo**). En «Código de ingreso» la pone una vez: entra directo como él (sin lista ni «¿Sos …?»; sí «¿En qué planta?», porque
+  trabaja en las dos) y **el celular la recuerda**: desde ahí la pantalla del código tiene **«👷 Entrar como Dario Mendez»**, un
+  toque. Si la clave se cambia o se desactiva, el botón se borra solo al fallar.
+- **El código para Luis:** entrando en **Esnaola**, arriba a la derecha tiene una **🔑** que abre una ventana con el código de
+  Esnaola (4 números grandes, cambia cada minuto y se actualiza solo; vale también el del minuto anterior):
+  `public.gt_codigo_planta(llave)` → `gt.clave_planta_de('ESNA', minuto)`, con semilla propia, que nunca es la clave de vista ni
+  el código del monitor de ese minuto. En Pellegrini o en modo vista no hay 🔑.
+- **Luis** pone ese código en «Código de ingreso»: sólo aparecen los de Esnaola (Darío y Luis), «¿Sos …?», y entra **directo en
+  Esnaola** (no pregunta la planta). En Pellegrini usa el código del monitor, como siempre.
+- Otro encargado / otra planta: `insert into gt.clave_personal (clave, empleado_id, da_codigo_planta) values ('<6 números>', <id>,
+  '<planta>')`. Cambiar la de Darío: `update gt.clave_personal set activo = false where empleado_id = 6` + un insert nuevo.
+- ⚠ No es un candado: quien tenga la clave de Darío ficha como él desde cualquier lado. Es la confianza de Thomas en Darío.
+- `sql/gt_v163_esnaola_encargado.sql` · `tests/esnaola.cjs` (dos celulares: clave mala, entrar con la clave, la 🔑 y su
+  cambio de minuto, «Entrar como», sin 🔑 en Pellegrini, Luis con el código de Esnaola, Luis con el del monitor; 320 y 360 px).
 
 ### 1.52 — modo VISTA del administrador y áreas sólo de Javier (Thomas, 05/10/2026)
 
