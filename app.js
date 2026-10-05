@@ -674,6 +674,11 @@
     $("cantBtn").textContent = modo === "fin" ? "🏁 Terminar el día" : almorzar ? "🍽️ Terminar e ir a almorzar" :
       conSigue ? (cierra.codigo === "ALMU" ? "Volver y seguir en " : "Terminar y seguir en ") + sigue.nombre : "Listo";
     $("cambioBtn").classList.toggle("hidden", !conSigue);
+    // 1.51 (D72, Thomas: «sí»): terminando Encolado, «🔧 Puesta a punto encoladora» cierra con la cantidad y la abre (no al
+    // terminar la propia puesta a punto)
+    const hijas = conSigue && !DENTRO_DE[cierra.codigo] ? hijasDe(sigue) : [];
+    $("sigueHijas").innerHTML = hijas.map((x) => '<button class="sec-btn" data-cod="' + esc(x.codigo) + '">' + (ICONO[x.codigo] || "🏷️") + '<span class="h-l"> Terminar e ir a</span> ' + esc(x.nombre) + "</button>").join("");
+    $("sigueHijas").classList.toggle("hidden", !hijas.length);
     $("cambioBtn").textContent = cierra.codigo === "ALMU" ? "Volví · elegir otra área" : "Cambiar de área / no sigo";
     $("salidaBox").classList.toggle("hidden", modo === "fin" || almorzar || cierra.codigo === "ALMU");
     $("cantAlmuBtn").classList.toggle("hidden", !areaDe("ALMU"));
@@ -1121,6 +1126,7 @@
   $("finBtn").onclick = terminarDia;
   $("cantBtn").onclick = () => confirmarCant(true);
   $("cambioBtn").onclick = () => confirmarCant(false);
+  $("sigueHijas").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b || !st.pend) return; st.pend.sigue = areaDe(b.dataset.cod); confirmarCant(true); });
   $("cantAlmuBtn").onclick = () => { if (!st.pend) return; st.pend.sigue = areaDe("ALMU"); st.pend.modo = "normal"; confirmarCant(true); };
   $("cantFinBtn").onclick = () => { if (!st.pend) return; st.pend.modo = "fin"; confirmarCant(false); };
   $("cantInput").addEventListener("keydown", (e) => {

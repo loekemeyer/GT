@@ -64,6 +64,19 @@ srv.listen(0, async () => {
       await pg.waitForTimeout(300);
       const ci = filas.find((f) => f.rubro === "PAPENC" && f.ts_inicio), en = filas.find((f) => f.rubro === "ENCOL" && !f.ts_inicio);
       chk(ci && ci.cantidad == null && en && en.texto === "781" && (await pg.textContent("#abiertaBox")).includes("Encolado"), w + " px · cierra la puesta a punto y abre Encolado · 781");
+      // 1.51 (D72): terminando Encolado, «Terminar e ir a Puesta a punto encoladora»
+      await pg.click(".termine-btn"); await pg.waitForSelector("#cantScreen:not(.hidden)");
+      const ir = await pg.$("#sigueHijas button[data-cod=PAPENC]"), irBox = ir && await ir.boundingBox();
+      chk(ir && (await ir.isVisible()) && irBox.height >= 48 && irBox.y + irBox.height <= h, w + " px · al terminar Encolado, el botón de la puesta a punto a la vista");
+      await ir.click();
+      chk((await pg.textContent("#cantError")).includes("Poné un número"), w + " px · sin cantidad no cierra Encolado");
+      await pg.fill("#cantInput", "5"); await pg.click("#sigueHijas button[data-cod=PAPENC]"); await pg.waitForSelector("#optionsScreen:not(.hidden)");
+      await pg.waitForTimeout(300);
+      const ce = filas.find((f) => f.rubro === "ENCOL" && f.ts_inicio), p2 = filas.filter((f) => f.rubro === "PAPENC" && !f.ts_inicio);
+      chk(ce && ce.cantidad === 5 && ce.texto === "781" && p2.length === 2 && (await pg.textContent("#abiertaBox")).includes("Puesta a punto"),
+          w + " px · cierra Encolado · 781 con 5 cajas y abre otra puesta a punto");
+      await pg.click(".termine-btn"); await pg.waitForSelector("#cantScreen:not(.hidden)");
+      chk(!(await pg.isVisible("#sigueHijas")), w + " px · al terminar la puesta a punto no se ofrece otra");
       await pg.close();
     }
   } catch (e) { fallas.push(String(e)); console.log("✗ " + e); }

@@ -228,6 +228,10 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   Thomas: *«426 Línea Matisse Floral · 425 Línea Coral · 30x40»*. Cargados como «Cuadro Mold 03 Línea …», 30*40, en las 6 áreas
   de producto. [Probable] Mold 03 y UxB 16 (como los cuadros 30*40 del 403 al 428) y sin color de marco: falta confirmarlo.
   Entran a la demanda: 30 y 14 cajas. `sql/gt_v161_codigos_425_426.sql`.
+- **1.51 (D72, Thomas: «sí»):** también en la pantalla de **Terminé de Encolado**: «🔧 Terminar e ir a Puesta a punto
+  encoladora» cierra Encolado con sus cajas (las pide igual) y abre la puesta a punto; al terminarla, «¿Con qué código seguís en
+  Encolado?». No sale al terminar la propia puesta a punto. Con 520 px de alto o menos va al lado de «Terminar y seguir», con
+  el nombre corto. `tests/puesta.cjs`.
 
 ### 1.49 — al tocar un nombre, «¿Sos …?» antes de entrar (Thomas, 02/10/2026)
 

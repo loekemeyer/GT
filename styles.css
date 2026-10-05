@@ -254,6 +254,11 @@ body.sin-scroll{overflow:hidden;}
   #cantScreen .acciones{flex-direction:row;flex-wrap:wrap;}
   #cantScreen #cantBtn{flex:1 1 100%;}
   #cantScreen #salidaBox{display:contents;}
+  /* 1.51: la puesta a punto, en la fila de «Terminar y seguir» y con el nombre corto */
+  #cantScreen #sigueHijas{display:contents;}
+  #cantScreen #sigueHijas .sec-btn{flex:1 1 calc(36% - 6px);min-width:0;margin:0;padding:2px 4px;font-size:14px;line-height:1.15;order:-1;}
+  #cantScreen .acciones:has(#sigueHijas:not(.hidden)) #cantBtn{flex:2 1 calc(64% - 6px);order:-2;}
+  #cantScreen .h-l{display:none;}
   #cantScreen #cambioBtn,#cantScreen #salidaBox .sec-btn{flex:1 1 0;min-width:0;margin:0;padding:2px 4px;font-size:14px;line-height:1.15;}
   .marca-logo,.marca p{display:none;}
   .marca{margin:2vh 0 4px;}
@@ -272,6 +277,8 @@ body.sin-scroll{overflow:hidden;}
   #cantScreen>.tarjeta{flex:1 1 0;min-width:0;}
   #cantScreen .acciones{flex-wrap:nowrap;}
   #cantScreen #cantBtn{flex:1.4 1 0;}
+  #cantScreen .acciones:has(#sigueHijas:not(.hidden)) #cantBtn{flex:1.4 1 0;}
+  #cantScreen #sigueHijas .sec-btn{flex:1 1 0;}
   .cod-opts.muchas{grid-template-columns:repeat(3,1fr);}
   .cod-opts.muchas button:last-child:nth-child(odd){grid-column:auto;}
 }
