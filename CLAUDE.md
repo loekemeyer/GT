@@ -228,6 +228,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   (`ISIS` 💻), **Hacer OP** (`OP` 📝) y **Facturación** (`FACT` 💵), sin código ni cantidad, productivas. **`gt.empleado_rubro`
   pasa a decir de quién es un área**: con filas, la ven sólo esos empleados; sin filas, todos (hoy sólo las 3 de Javier, id 1).
   La app lee `gt_botones3()` (= `gt_botones2` + `solo`); si no está, cae a la 2 (y entonces las ve todo el mundo).
+  **D74 (Thomas: «no»):** ninguna pide cantidad. **D75 (Thomas: «sí»):** quedan los nombres cortos.
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
 
