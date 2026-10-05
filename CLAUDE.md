@@ -246,7 +246,8 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   ni de veces. El commit 27796c5 dice «Hecho-por: sin confirmar»: lo hizo Thomas (employee_id 3).
 - **425 y 426 (D69, cargados el 05/10, gt_v161):** se vendían en TN (425: 19,5 cajas/mes · 426: 8,67) sin ficha en ningún lado.
   Thomas: *«426 Línea Matisse Floral · 425 Línea Coral · 30x40»*. Cargados como «Cuadro Mold 03 Línea …», 30*40, en las 6 áreas
-  de producto. [Probable] Mold 03 y UxB 16 (como los cuadros 30*40 del 403 al 428) y sin color de marco: falta confirmarlo.
+  de producto. **D73 (Thomas: «va x16 · Aro Natural»):** UxB 16 y marco Natural → aro 078 (03 Nat 27.5*40, como el 248). Mold 03 queda
+  [Probable] (no se confirmó aparte; el aro Natural de 27,5×40 es de la 03).
   Entran a la demanda: 30 y 14 cajas. `sql/gt_v161_codigos_425_426.sql`.
 - **1.51 (D72, Thomas: «sí»):** también en la pantalla de **Terminé de Encolado**: «🔧 Terminar e ir a Puesta a punto
   encoladora» cierra Encolado con sus cajas (las pide igual) y abre la puesta a punto; al terminarla, «¿Con qué código seguís en

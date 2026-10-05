@@ -8,3 +8,7 @@ on conflict do nothing;
 insert into gt.codigo_area (codigo, rubro, activo)
 select c, r, true from unnest(array['425','426']) c cross join unnest(array['ENCOL','MONT','GANCHO','EMBL','CONTR','GUARD']) r
 on conflict do nothing
+;
+-- D73 (Thomas, 05/10: «va x16 · Aro Natural 425 y 426»): UxB 16 confirmado y marco Natural → aro 078 (03 Nat 27.5*40), como el 248
+select gt.color_fijar('425', array['Natural'], 'Thomas 05/10');
+select gt.color_fijar('426', array['Natural'], 'Thomas 05/10')
