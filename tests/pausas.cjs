@@ -5,7 +5,8 @@ const path = require("path"), http = require("http"), fs = require("fs");
 let pw; try { pw = require("playwright"); } catch { pw = require(require("child_process").execSync("npm root -g").toString().trim() + "/playwright"); }
 const ROOT = path.join(__dirname, "..");
 const A = (codigo, nombre, orden, x) => Object.assign({ codigo, nombre, unidad: "cajas encoladas", orden, planta: "PELL", pide_codigo: false, pide_cantidad: true }, x || {});
-const AREAS = [A("ENCOL", "Encolado", 3), A("CORTE", "Corte", 1), A("MOVIM", "Movimientos", 30, { pide_cantidad: false }), A("BANO", "Baño", 31, { pide_cantidad: false })];
+const AREAS = [A("ENCOL", "Encolado", 3), A("CORTE", "Corte", 1), A("MOVIM", "Movimientos", 30, { pide_cantidad: false }), A("BANO", "Baño", 31, { pide_cantidad: false }),
+               A("LIMP", "Limpieza", 32, { pide_cantidad: false })];
 const srv = http.createServer((req, res) => {
   if (req.url.startsWith("/rest/v1/rpc/")) {
     let body = ""; req.on("data", (c) => (body += c)); req.on("end", () => {
@@ -86,6 +87,22 @@ srv.listen(0, async () => {
     await pb.click("#pasoOpts button[data-val='Sí, sigo en Corte']"); await pb.waitForSelector(".termine-btn[data-cod=CORTE]");
     chk(true, "Terminé el movimiento → «¿Seguís con Corte?» Sí → sigue en Corte");
     await pb.close();
+    // b2) 1.54: Corte → Limpieza (pausa, con Baño adentro) → «¿Seguís con Corte?» No → pide las cantidades de Corte
+    const pl = await entrar();
+    await pl.click(".box[data-cod=CORTE]"); await pl.waitForSelector(".pausa-btn[data-pausa=LIMP]");
+    const btnsCorte = await pl.$$eval(".pausa-btn", (bs) => bs.map((b) => b.dataset.pausa).join(","));
+    chk(btnsCorte === "BANO,MOVIM,LIMP", "con Corte abierto: Baño, Movimientos y Limpieza (" + btnsCorte + ")");
+    await pl.click(".pausa-btn[data-pausa=LIMP]"); await pl.waitForSelector(".termine-btn[data-cod=LIMP]");
+    const btnsLimp = await pl.$$eval(".pausa-btn", (bs) => bs.map((b) => b.dataset.pausa).join(","));
+    chk((await pl.textContent(".termine-btn")).includes("Terminé la limpieza") && (await pl.textContent("#abiertaBox")).includes("Corte en pausa") && btnsLimp === "BANO",
+        "Limpieza dentro de Corte: Corte en pausa, «Terminé la limpieza» y sólo Baño (" + btnsLimp + ")");
+    await pl.click(".pausa-btn[data-pausa=BANO]"); await pl.waitForSelector(".termine-btn[data-cod=BANO]");
+    await pl.click(".termine-btn[data-cod=BANO]"); await pl.waitForSelector(".termine-btn[data-cod=LIMP]");
+    chk(true, "Baño dentro de la Limpieza: vuelve a la Limpieza");
+    await pl.click(".termine-btn[data-cod=LIMP]"); await pl.waitForFunction(() => document.getElementById("pasoLabel").textContent.includes("¿Seguís con Corte"));
+    await pl.click("#pasoOpts button[data-val='No, terminé Corte']"); await pl.waitForSelector("#cantScreen:not(.hidden)");
+    chk(true, "Terminé la limpieza → «¿Seguís con Corte?» No → pide la cantidad de Corte");
+    await pl.close();
     // c) el reloj: Corte desde hace 20 min, Movimiento de -15 a -5 con Baño de -12 a -8 adentro → 10 min (no 6)
     const pc = await entrar();
     await pc.evaluate(() => {

@@ -9,8 +9,8 @@ const A = (codigo, nombre, orden, planta) => ({ codigo, nombre, unidad: "u", ord
 const AREAS = [A("CORTE", "Corte", 1, "PELL"), A("GRAMP", "Grampeado", 2, "PELL"), A("ENCOL", "Encolado", 3, "PELL"), A("MONT", "Montaje", 4, "PELL"),
   A("GANCHO", "Gancho", 5, "PELL"), A("EMBL", "Emblistado", 6, "PELL"), A("CONTR", "Contraído", 7, "PELL"), A("PED", "Pedidos", 8, "PELL"),
   A("DECO", "Deco", 9, "PELL"), A("GUARD", "Guardado a góndola", 10, "PELL"), A("RECIB", "Recibir mercadería", 11, "PELL"),
-  A("ALMU", "Almuerzo", 12, "PELL"), A("MOVIM", "Movimientos", 30, "PELL"), A("BANO", "Baño", 31, "PELL"),
-  A("MOLDU", "Moldurado", 21, "ESNA"), A("LIJA", "Lijado", 22, "ESNA"), A("PINT", "Pintado", 23, "ESNA"), A("MOVIM", "Movimientos", 30, "ESNA"), A("BANO", "Baño", 31, "ESNA")];
+  A("ALMU", "Almuerzo", 12, "PELL"), A("MOVIM", "Movimientos", 30, "PELL"), A("BANO", "Baño", 31, "PELL"), A("LIMP", "Limpieza", 32, "PELL"),
+  A("MOLDU", "Moldurado", 21, "ESNA"), A("LIJA", "Lijado", 22, "ESNA"), A("PINT", "Pintado", 23, "ESNA"), A("MOVIM", "Movimientos", 30, "ESNA"), A("BANO", "Baño", 31, "ESNA"), A("LIMP", "Limpieza", 32, "ESNA")];
 const PELL = { codigo: "PELL", nombre: "Pellegrini" }, ESNA = { codigo: "ESNA", nombre: "Esnaola" };
 const srv = http.createServer((req, res) => {
   if (req.url.startsWith("/rest/v1/rpc/")) {
@@ -81,7 +81,7 @@ srv.listen(0, async () => {
       const pg = await br.newPage({ viewport: { width: w, height: h } });
       await entrar(pg, url, 7);
       const m = await medir(pg);
-      chk(ok(m, 13, 3), linea(nom, w, h, m));
+      chk(ok(m, 14, 3), linea(nom, w, h, m));
       if (FOTOS) await pg.screenshot({ path: path.join(FOTOS, `botonera-${w}x${h}.png`) });
       await pg.close();
     }
@@ -89,14 +89,14 @@ srv.listen(0, async () => {
     const pd = await br.newPage({ viewport: { width: 375, height: 553 } });
     await entrar(pd, url, 6);
     const md = await medir(pd);
-    chk(ok(md, 13, 3) && !(await pd.$("#plantaBtn")), "Darío (2 plantas), sin «Cambiar de planta» · " + linea("iPhone SE · Safari", 375, 553, md));
+    chk(ok(md, 14, 3) && !(await pd.$("#plantaBtn")), "Darío (2 plantas), sin «Cambiar de planta» · " + linea("iPhone SE · Safari", 375, 553, md));
     await pd.close();
     // girar el celular con la botonera abierta: se vuelve a acomodar
     const pg = await br.newPage({ viewport: { width: 390, height: 664 } });
     await entrar(pg, url, 7);
     await pg.setViewportSize({ width: 844, height: 340 }); await pg.waitForTimeout(150);
     const m = await medir(pg);
-    chk(ok(m, 13, 3), "al girar el celular · " + linea("acostado", 844, 340, m));
+    chk(ok(m, 14, 3), "al girar el celular · " + linea("acostado", 844, 340, m));
     // con un área abierta sigue estando sólo «Terminé» (sin grilla)
     await pg.setViewportSize({ width: 390, height: 664 });
     await pg.click(".box[data-cod=PED]"); await pg.waitForSelector(".termine-btn");

@@ -245,7 +245,7 @@
   // 1.33 (Elías): Baño y Movimiento tocados con un área abierta son una PAUSA dentro de esa área, no la cierran: la pila
   // del día tiene abajo el área y arriba la pausa. Abrir otra cosa reemplaza todo (como siempre); un cierre saca su área
   // y lo que tenga encima.
-  const PAUSA_DENTRO = ["BANO", "MOVIM"];
+  const PAUSA_DENTRO = ["BANO", "MOVIM", "LIMP"];   // 1.54: Limpieza, igual que Movimientos
   function pilaAbierta() {
     let p = [];
     eventosHoy().forEach((r) => {
@@ -281,7 +281,7 @@
   /* ---------- botonera de áreas ---------- */
   // v1.1: ícono por área (se ve en la tarjeta); un área nueva sin ícono usa 🏷️
   const ICONO = { CORTE: "✂️", GRAMP: "📌", ENCOL: "🧴", MONT: "🛠️", GANCHO: "🪝", EMBL: "📦", CONTR: "🎞️",
-                  PED: "🧾", DECO: "🎨", PAPENC: "🔧", ISIS: "💻", OP: "📝", FACT: "💵", GUARD: "🗄️", RECIB: "🚚", MOVIM: "🔄", BANO: "🚻", ALMU: "🍽️", MOLDU: "🪚", LIJA: "🧽", PINT: "🖌️" };
+                  PED: "🧾", DECO: "🎨", PAPENC: "🔧", ISIS: "💻", OP: "📝", FACT: "💵", GUARD: "🗄️", RECIB: "🚚", MOVIM: "🔄", LIMP: "🧹", BANO: "🚻", ALMU: "🍽️", MOLDU: "🪚", LIJA: "🧽", PINT: "🖌️" };
   // 1.50 (05/10/2026: «dentro de encolado, apenas entrar, un botón que sea puesta a punto encoladora»): un área que vive
   // DENTRO de otra no va en la botonera: es un botón en la pantalla del código de su área. Sin pide_codigo ni cantidad
   // (gt.rubros). Al terminarla se propone seguir en el área madre
@@ -334,12 +334,12 @@
     // abierta, sólo volver de ella
     if (ab) {
       // con un área: Baño y Movimiento · con un Movimiento: sólo Baño (1.36) · con el Baño o el almuerzo: nada
-      const pausas = (ab.rubro === "ALMU" || ab.rubro === "BANO" ? [] : ab.rubro === "MOVIM" ? ["BANO"] : PAUSA_DENTRO)
+      const pausas = (ab.rubro === "ALMU" || ab.rubro === "BANO" ? [] : PAUSA_DENTRO.includes(ab.rubro) ? ["BANO"] : PAUSA_DENTRO)
         .map((c) => st.areas.find((x) => x.codigo === c && deLaPlanta(x))).filter(Boolean);
       $("botonera").innerHTML = ab.rubro === "ALMU" ? "" :
         // 1.47 (Elías: «el que acompaña al que empezó no tiene botón de Terminé, tiene botón de Me fui»)
         '<button class="termine-btn' + (!base && esInvitado(ab) ? " mefui" : "") + '" data-cod="' + esc(ab.rubro) + '">' +
-        (base ? (ab.rubro === "BANO" ? "✅ Volví del baño" : "✅ Terminé el movimiento") : esInvitado(ab) ? "🚪 Me fui" : "✅ Terminé") + "</button>" +
+        (base ? (ab.rubro === "BANO" ? "✅ Volví del baño" : ab.rubro === "LIMP" ? "✅ Terminé la limpieza" : "✅ Terminé el movimiento") : esInvitado(ab) ? "🚪 Me fui" : "✅ Terminé") + "</button>" +
         (pausas.length ? '<div class="pausas">' + pausas.map((x) => '<button class="sec-btn pausa-btn" data-pausa="' + esc(x.codigo) + '">' +
           (ICONO[x.codigo] || "🏷️") + " " + esc(x.nombre) + "</button>").join("") + "</div>" : "");
     } else $("botonera").innerHTML = st.areas.some((a) => a.codigo !== "ALMU" && !DENTRO_DE[a.codigo] && deLaPlanta(a) && delEmp(a)) ?
@@ -425,7 +425,7 @@
     if (ab.rubro === "BANO") { toast("✓ Volviste del baño · seguís en " + b.nombre); show("optionsScreen"); renderBotonera(); return; }
     const inv = esInvitado(base);
     const si = "Sí, sigo en " + b.nombre, no = inv ? "No, me fui de " + b.nombre : "No, terminé " + b.nombre;
-    preguntar("Terminé el movimiento", "¿Seguís con " + b.nombre + (etq(base) ? " · " + etq(base) : "") + "?", [si, no], (v) => {
+    preguntar(ab.rubro === "LIMP" ? "Terminé la limpieza" : "Terminé el movimiento", "¿Seguís con " + b.nombre + (etq(base) ? " · " + etq(base) : "") + "?", [si, no], (v) => {
       if (v === no && inv) { irse(base); return; }   // 1.47: el que se sumó no carga nada: se va sin la pantalla de Terminé
       if (v === no) { abrirTermine(base, b, null, "normal"); return; }
       toast("✓ Seguís en " + b.nombre); show("optionsScreen"); renderBotonera();
@@ -632,7 +632,7 @@
   }
   // 1.28 (D31): Almuerzo y Movimientos son pausas del trabajo; al volver se propone el área productiva anterior (Recibir tampoco cuenta).
   // 1.33: Baño y Movimiento ya no pasan por acá (terminarPausa); queda para el almuerzo, y para no proponer una pausa
-  const PAUSAS = ["ALMU", "MOVIM", "BANO"];   // 1.31 (Elías): Baño, igual que Movimientos
+  const PAUSAS = ["ALMU", "MOVIM", "BANO", "LIMP"];   // 1.31 (Elías): Baño, igual que Movimientos · 1.54: Limpieza
   function areaAntesDelAlmuerzo(ab) {
     const prev = eventosHoy().filter((r) => r.opcion === "AREA" && !PAUSAS.includes(r.rubro) && r.rubro !== "RECIB" && r.ts_inicio && r.ts_cliente <= ab.ts_cliente);
     const r = prev.length ? prev[prev.length - 1].rubro : null;

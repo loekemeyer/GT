@@ -93,6 +93,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 | Recibir mercadería | **no** (1.12, D29) | — ; al terminar no pide cantidad (1.13, D30) |
 | Movimientos (`MOVIM`, 1.28, D31) | no | — ; sin cantidad. En **todas** las plantas. Es una pausa: al terminar propone volver al área productiva anterior |
 | Baño (`BANO`, 1.31, Elías) | no | igual que Movimientos |
+| Limpieza (`LIMP`, 1.54) | no | igual que Movimientos |
 
 Avisos de llegada: van al grupo de Telegram **«GT Avisos»** (`gt.config.telegram_chat = -5397417174`,
 configurado y probado el 01/10/2026). El bot es `@Faltantes_Virgilio_bot`, el mismo que vacía
@@ -210,6 +211,17 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   demás de GT (crear, cambiar, cargar) sí; afuera queda sólo lo del proyecto de Tierra Nativa.
 - Respaldo con RLS: `gt.bkp_registros_pruebas_20261002` (183 eventos, 01/10 13:26 → 02/10 17:22, 9 operarios, 0 de Deco),
   `gt.bkp_parejas_pruebas_20261002` (5) y `gt.bkp_monitor_ingresos_pruebas_20261002` (7).
+
+### 1.54 — «🧹 Limpieza», igual que Movimientos (05/10/2026)
+
+- Pedido: *«agregá botón limpieza»*. Rubro **`LIMP`** 🧹 (sin código ni cantidad, `productivo = false`, `todas_plantas`, orden 32).
+  Desde la botonera es una tarjeta más: «Terminé» la cierra y vuelve la botonera. Con un área abierta es una **pausa** al lado
+  de Baño y Movimientos (`PAUSA_DENTRO`): el área queda en pausa, adentro se puede ir al Baño, y «✅ Terminé la limpieza»
+  pregunta «¿Seguís con Corte?» (si no, pide las cantidades). El tiempo de limpieza se descuenta del área (celular, admin y
+  `gt.pausas_seg`, que mira `productivo`). Se saca con `update gt.rubros set activo = false where codigo = 'LIMP'`.
+- **Sin la fila en `gt.rubros` el botón no aparece**: `sql/gt_v165_limpieza.sql`. `tests/pausas.cjs` (Corte → Limpieza → Baño →
+  «¿Seguís?» No) y `tests/botonera.cjs` (14 áreas en los 16 tamaños). ⚠ Con las 3 de Javier son 17: en 320×480 y 640×300 un
+  nombre largo no entra (pasaba igual con 16, sin Limpieza).
 
 ### 1.53 — Esnaola sin monitor: el encargado entra con su clave y le da el código al compañero (Thomas, 05/10/2026)
 

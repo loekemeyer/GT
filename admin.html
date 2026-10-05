@@ -139,7 +139,7 @@
     <div id="pedLista"></div>
   </section>
 
-  <script src="config.js?v=1.53"></script>
+  <script src="config.js?v=1.54"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -248,7 +248,7 @@
     /* ---------- PRODUCCIÓN ---------- */
     // 1.33 (Elías): filtros por área, operario y familia (valen para las tres tablas), y la duración de cada tramo sin las
     // pausas (Baño, Movimiento) que caen dentro, igual que el ritmo (gt_v147).
-    const PAUSAS = ["BANO", "MOVIM"];
+    const PAUSAS = ["BANO", "MOVIM", "LIMP"];   // 1.54: Limpieza, igual que Movimientos
     let prodDatos = null;
     async function cargarProd() {
       const dia = $("prodDia").value || hoyAR();
