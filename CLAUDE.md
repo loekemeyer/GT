@@ -62,7 +62,9 @@ al terminar pregunta el siguiente código. Va en `gt.tareas` (por rubro); el reg
   `gt_codigos`, `gt_clave_actual`, `gt_tareas()`, `gt_registros_hoy(text)`).
 - **Un código que no está en la lista se pregunta** («¿Lo registro igual?») y, con el segundo toque,
   se registra. **D48 (Elías, 02/10): sigue así, no se rechaza.** El aviso a «GT Avisos» sale sólo si se confirma
-  (sin el segundo toque no se graba nada), uno por área + código + día y entre 07:00 y 21:00. Medido el 02/10: los 2
+  (sin el segundo toque no se graba nada), **uno por cada apertura** (gt_v160, Thomas 05/10: *«que me siga llegando la alerta,
+  no sólo la primera vez»*; antes, uno por área + código + día) con «Ya van N veces en <área> (la primera, el dd/mm hh:mm)», y
+  entre 07:00 y 21:00. `sql/gt_v160_alerta_codigo_cada_vez.sql`. Medido el 02/10: los 2
   códigos fuera de lista de esos días (1000 en Corte, 999 en Gancho) salieron y Telegram los aceptó (mensaje 248).
   El grupo tiene **3 miembros** (el creador, el bot y una persona más): quien no está en el grupo no los ve. **D50 (Elías,
   02/10: «no»):** no se lo suma al grupo. Para identificarlos después: `select * from gt.codigos_no_identificados order by ultima desc;`
@@ -1031,7 +1033,7 @@ Los avisos miden a cada uno contra **su** horario del día y lo muestran entre p
 ### 1.2 — aviso de código no registrado y actualización sola (Thomas, 01/10/2026)
 
 - **Código fuera de la lista → Telegram «GT Avisos»**: trigger `gt_alerta_codigo_nuevo` sobre `gt.registros`
-  (al EMPEZAR un área). Uno por área + código + día. Vive en la base para que avise aunque el celular
+  (al EMPEZAR un área). Uno por cada apertura desde gt_v160 (antes, uno por área + código + día). Vive en la base para que avise aunque el celular
   tenga la app vieja. `sql/gt_alerta_codigo_no_registrado.sql`.
 - **La app se actualiza sola**: cada 2 min lee `version.json`; si hay una más nueva y el operario no está
   cargando nada, recarga con `?v=<nueva>` (saltea la caché de 10 min de GitHub Pages). Si ya recargó con
