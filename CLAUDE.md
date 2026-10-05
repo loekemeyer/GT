@@ -229,6 +229,11 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 - Otro encargado / otra planta: `insert into gt.clave_personal (clave, empleado_id, da_codigo_planta) values ('<6 números>', <id>,
   '<planta>')`. Cambiar la de Darío: `update gt.clave_personal set activo = false where empleado_id = 6` + un insert nuevo.
 - ⚠ No es un candado: quien tenga la clave de Darío ficha como él desde cualquier lado. Es la confianza de Thomas en Darío.
+- **D79 (Thomas: «sí, pero no sé cómo saber si es fija»):** exigirle a Darío el wifi de Esnaola para entrar con su clave.
+  Antes se MIDE si la conexión es fija: **gt_v164** guarda en **`gt.registros.ip`** la IP desde la que llega cada evento (la de
+  la request: `cf-connecting-ip` / `x-forwarded-for`; la que mande el celular se pisa). Revisión el 12/10: si los INGRESO de
+  Esnaola llegan siempre de la misma IP, se carga como la de la planta y la clave de Darío vale sólo desde ahí. ⚠ Un evento
+  que salió de la cola sin red trae la IP de donde estaba el celular al mandarlo. `sql/gt_v164_ip_de_cada_evento.sql`.
 - `sql/gt_v163_esnaola_encargado.sql` · `tests/esnaola.cjs` (dos celulares: clave mala, entrar con la clave, la 🔑 y su
   cambio de minuto, «Entrar como», sin 🔑 en Pellegrini, Luis con el código de Esnaola, Luis con el del monitor; 320 y 360 px).
 
