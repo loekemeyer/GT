@@ -220,9 +220,14 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   pregunta «¿Seguís con Corte?» (si no, pide las cantidades). El tiempo de limpieza se descuenta del área (celular, admin y
   `gt.pausas_seg`, que mira `productivo`). Se saca con `update gt.rubros set activo = false where codigo = 'LIMP'`.
 - **Sin la fila en `gt.rubros` el botón no aparece**: `sql/gt_v165_limpieza.sql`. `tests/pausas.cjs` (Corte → Limpieza → Baño →
-  «¿Seguís?» No) y `tests/botonera.cjs` (14 áreas en los 16 tamaños). ⚠ Con las 3 de Javier son 17: en 320×480 y 640×300 no entra
-  **«Guardado a góndola»** (parte «góndola»; el único, medido; pasaba igual con 16, sin Limpieza). Fila `LIMP` cargada el 05/10
-  (pedido de Tomás, D80 «aplicalo»).
+  «¿Seguís?» No) y `tests/botonera.cjs` (14 áreas en los 16 tamaños). Fila `LIMP` cargada el 05/10 (Thomas, D80 «aplicalo»).
+- **1.55 — la botonera de Javier (17 áreas) en 320×480 y 640×300:** con la tarjeta de 89 px y el ícono al costado no entraban
+  7 nombres de una palabra (Movimientos +10 px, Grampeado +7, Facturación +7, Emblistado +6, Recibir mercadería +5, Contraído +2,
+  Contraído a ISIS +2) y se partían a mitad de palabra; pasaba desde 1.52 (16 áreas). No era «Guardado a góndola»: la
+  lectura de antes estaba mal. Ahora `acomodarAreas()` prueba una forma más, **`sin-ico`** (sólo el nombre, centrado): letra 14 px,
+  todo entero. `tests/botonera.cjs` suma a Javier en 3 tamaños (falla con 1.54, pasa con 1.55). **D82 (Thomas: «sí»)**, sobre
+  esa lectura equivocada: `GUARD` se llama **«Guardar góndola»** (`update gt.rubros set nombre = …`; los eventos ya grabados
+  conservan el nombre viejo en `descripcion`).
 
 ### 1.53 — Esnaola sin monitor: el encargado entra con su clave y le da el código al compañero (Thomas, 05/10/2026)
 

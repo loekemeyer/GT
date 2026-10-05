@@ -8,8 +8,10 @@ const ROOT = path.join(__dirname, ".."), FOTOS = process.argv[2];
 const A = (codigo, nombre, orden, planta) => ({ codigo, nombre, unidad: "u", orden, planta, pide_codigo: false, pide_cantidad: false });
 const AREAS = [A("CORTE", "Corte", 1, "PELL"), A("GRAMP", "Grampeado", 2, "PELL"), A("ENCOL", "Encolado", 3, "PELL"), A("MONT", "Montaje", 4, "PELL"),
   A("GANCHO", "Gancho", 5, "PELL"), A("EMBL", "Emblistado", 6, "PELL"), A("CONTR", "Contraído", 7, "PELL"), A("PED", "Pedidos", 8, "PELL"),
-  A("DECO", "Deco", 9, "PELL"), A("GUARD", "Guardado a góndola", 10, "PELL"), A("RECIB", "Recibir mercadería", 11, "PELL"),
+  A("DECO", "Deco", 9, "PELL"), A("GUARD", "Guardar góndola", 10, "PELL"), A("RECIB", "Recibir mercadería", 11, "PELL"),
   A("ALMU", "Almuerzo", 12, "PELL"), A("MOVIM", "Movimientos", 30, "PELL"), A("BANO", "Baño", 31, "PELL"), A("LIMP", "Limpieza", 32, "PELL"),
+  Object.assign(A("ISIS", "Contraído a ISIS", 13, "PELL"), { solo: [1] }), Object.assign(A("OP", "Hacer OP", 14, "PELL"), { solo: [1] }),
+  Object.assign(A("FACT", "Facturación", 15, "PELL"), { solo: [1] }),
   A("MOLDU", "Moldurado", 21, "ESNA"), A("LIJA", "Lijado", 22, "ESNA"), A("PINT", "Pintado", 23, "ESNA"), A("MOVIM", "Movimientos", 30, "ESNA"), A("BANO", "Baño", 31, "ESNA"), A("LIMP", "Limpieza", 32, "ESNA")];
 const PELL = { codigo: "PELL", nombre: "Pellegrini" }, ESNA = { codigo: "ESNA", nombre: "Esnaola" };
 const srv = http.createServer((req, res) => {
@@ -17,8 +19,8 @@ const srv = http.createServer((req, res) => {
     let body = ""; req.on("data", (c) => (body += c)); req.on("end", () => {
       const fn = req.url.split("/").pop();
       const out = fn === "gt_clave_validar" ? { ok: true, principal: "PELL", empleados: [{ id: 7, nombre: "Ximena Ortiz", plantas: [PELL] },
-          { id: 6, nombre: "Dario Mendez", plantas: [PELL, ESNA] }] }
-        : fn === "gt_botones2" || fn === "gt_botones" ? AREAS
+          { id: 6, nombre: "Dario Mendez", plantas: [PELL, ESNA] }, { id: 1, nombre: "Javier Burgos", plantas: [PELL] }] }
+        : fn === "gt_botones3" || fn === "gt_botones2" || fn === "gt_botones" ? AREAS
         : fn === "gt_registrar" ? { ok: [], rechazados: [] } : [];
       res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify(out));
     }); return;
@@ -53,7 +55,9 @@ async function medir(pg) {
       const arriba = vis[0].top - x.top, abajo = x.bottom - vis[vis.length - 1].bottom, cx = x.left + x.width / 2, cy = x.top + x.height / 2;
       // ícono arriba del nombre: los dos en el centro horizontal y el bloque en el centro vertical; ícono al costado
       // (tarjeta baja): el par en el centro horizontal y cada uno en el centro vertical
-      const centrada = R.classList.contains("fila")
+      const centrada = R.classList.contains("sin-ico")
+        ? Math.abs(tit.left + tit.width / 2 - cx) <= 1.5 && Math.abs(tit.top + tit.height / 2 - cy) <= 2
+        : R.classList.contains("fila")
         ? Math.abs((ico.left - x.left) - (x.right - tit.right)) <= 2 && Math.abs(ico.top + ico.height / 2 - cy) <= 2 && Math.abs(tit.top + tit.height / 2 - cy) <= 2
         : Math.abs(ico.left + ico.width / 2 - cx) <= 1.5 && Math.abs(tit.left + tit.width / 2 - cx) <= 1.5 && Math.abs(arriba - abajo) <= 2;
       return { x, adentro: b.scrollWidth <= b.clientWidth + 1 && b.scrollHeight <= b.clientHeight + 1, centrada };
@@ -65,13 +69,13 @@ async function medir(pg) {
       sinScroll: document.scrollingElement.scrollHeight <= ih + 1 && document.scrollingElement.scrollWidth <= iw,
       alto: Math.min(...cajas.map((c) => c.x.height)), ancho: Math.round(cajas[0].x.width),
       adentro: cajas.every((c) => c.adentro), centrada: cajas.every((c) => c.centrada), parte: R.classList.contains("parte"),
-      cols: cs.getPropertyValue("--cols").trim(), letra: cs.getPropertyValue("--letra").trim(), desc: !R.classList.contains("sin-desc"), fila: R.classList.contains("fila") };
+      cols: cs.getPropertyValue("--cols").trim(), letra: cs.getPropertyValue("--letra").trim(), desc: !R.classList.contains("sin-desc"), fila: R.classList.contains("fila"), sinIco: R.classList.contains("sin-ico") };
   });
 }
 const linea = (nom, w, h, m) => `${nom} ${w}×${h}: ${m.n} áreas + ${m.pie} botones a la vista, sin scroll, centradas, nombre entero` +
   (m.aLaVista ? "" : " [se sale]") + (m.sinScroll ? "" : " [scroll]") + (m.adentro ? "" : " [nombre afuera]") + (m.centrada ? "" : " [no centrada]") +
   (m.parte ? " [parte palabra]" : "") + (m.alto >= 47.5 ? "" : " [chica]") +
-  ` (${m.cols} col · ${m.ancho}×${Math.round(m.alto)} · letra ${m.letra}${m.desc ? " · con «Empezar»" : ""}${m.fila ? " · ícono al costado" : ""})`;
+  ` (${m.cols} col · ${m.ancho}×${Math.round(m.alto)} · letra ${m.letra}${m.desc ? " · con «Empezar»" : ""}${m.fila ? " · ícono al costado" : ""}${m.sinIco ? " · sin ícono" : ""})`;
 const ok = (m, n, pie) => m.n === n && m.pie === pie && m.aLaVista && m.sinScroll && m.adentro && m.centrada && !m.parte && m.alto >= 47.5;
 srv.listen(0, async () => {
   const url = "http://localhost:" + srv.address().port + "/";
@@ -97,6 +101,14 @@ srv.listen(0, async () => {
     await pg.setViewportSize({ width: 844, height: 340 }); await pg.waitForTimeout(150);
     const m = await medir(pg);
     chk(ok(m, 14, 3), "al girar el celular · " + linea("acostado", 844, 340, m));
+    // 1.55: Javier ve 17 áreas (las suyas: ISIS, OP, Facturación); en 320×480 y 640×300 el nombre sólo entra sin el ícono
+    for (const [nom, w, h] of [["celular viejo 320", 320, 480], ["Android acostado", 640, 300], ["iPhone SE · Safari", 375, 553]]) {
+      const pj = await br.newPage({ viewport: { width: w, height: h } });
+      await entrar(pj, url, 1);
+      const mj = await medir(pj);
+      chk(ok(mj, 17, 3), "Javier (17 áreas) · " + linea(nom, w, h, mj));
+      await pj.close();
+    }
     // con un área abierta sigue estando sólo «Terminé» (sin grilla)
     await pg.setViewportSize({ width: 390, height: 664 });
     await pg.click(".box[data-cod=PED]"); await pg.waitForSelector(".termine-btn");

@@ -153,9 +153,11 @@
     const entra = () => cajas.every((b) => b.scrollWidth <= b.clientWidth + 1 && b.scrollHeight <= b.clientHeight + 1);
     const tope = Math.round(Math.max(14, Math.min(19, g.alto * 0.2, g.w * 0.13)));
     R.classList.remove("parte");
-    for (const forma of (g.alto >= 84 ? ["desc"] : []).concat(["", "fila"])) {
+    // 1.55 (17 áreas de Javier en 320 px): si ni con el ícono al costado entra, sin el ícono (el nombre solo, centrado)
+    for (const forma of (g.alto >= 84 ? ["desc"] : []).concat(["", "fila", "sin-ico"])) {
       R.classList.toggle("sin-desc", forma !== "desc");
       R.classList.toggle("fila", forma === "fila");
+      R.classList.toggle("sin-ico", forma === "sin-ico");
       for (let letra = tope; letra >= 12; letra--) {
         R.style.setProperty("--letra", letra + "px");
         if (entra()) return;

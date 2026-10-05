@@ -121,6 +121,8 @@ button:active{transform:scale(.97);}
 .box-desc{font-size:max(11px,calc(var(--letra,16px) * .8));font-weight:600;color:var(--acc);}
 .row.sin-desc .box-desc{display:none;}
 .row.fila .box{flex-direction:row;gap:6px;}   /* tarjeta baja (celular acostado): el ícono al costado del nombre */
+.row.sin-ico .box-ico{display:none;}   /* 1.55: si ni así entra el nombre, sin el ícono */
+.row.sin-ico .box{padding:6px 3px;}
 .box.abierta{background:var(--warn-bg);border-color:var(--warn);}
 .box.abierta .box-desc{color:var(--warn);}
 
