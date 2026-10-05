@@ -220,8 +220,9 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   pregunta «¿Seguís con Corte?» (si no, pide las cantidades). El tiempo de limpieza se descuenta del área (celular, admin y
   `gt.pausas_seg`, que mira `productivo`). Se saca con `update gt.rubros set activo = false where codigo = 'LIMP'`.
 - **Sin la fila en `gt.rubros` el botón no aparece**: `sql/gt_v165_limpieza.sql`. `tests/pausas.cjs` (Corte → Limpieza → Baño →
-  «¿Seguís?» No) y `tests/botonera.cjs` (14 áreas en los 16 tamaños). ⚠ Con las 3 de Javier son 17: en 320×480 y 640×300 un
-  nombre largo no entra (pasaba igual con 16, sin Limpieza).
+  «¿Seguís?» No) y `tests/botonera.cjs` (14 áreas en los 16 tamaños). ⚠ Con las 3 de Javier son 17: en 320×480 y 640×300 no entra
+  **«Guardado a góndola»** (parte «góndola»; el único, medido; pasaba igual con 16, sin Limpieza). Fila `LIMP` cargada el 05/10
+  (pedido de Tomás, D80 «aplicalo»).
 
 ### 1.53 — Esnaola sin monitor: el encargado entra con su clave y le da el código al compañero (Thomas, 05/10/2026)
 
