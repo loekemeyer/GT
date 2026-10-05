@@ -8,7 +8,7 @@ const ROOT = path.join(__dirname, ".."), FOTOS = process.argv[2];
 const A = (codigo, nombre, orden, planta) => ({ codigo, nombre, unidad: "u", orden, planta, pide_codigo: false, pide_cantidad: false });
 const AREAS = [A("CORTE", "Corte", 1, "PELL"), A("GRAMP", "Grampeado", 2, "PELL"), A("ENCOL", "Encolado", 3, "PELL"), A("MONT", "Montaje", 4, "PELL"),
   A("GANCHO", "Gancho", 5, "PELL"), A("EMBL", "Emblistado", 6, "PELL"), A("CONTR", "Contraído", 7, "PELL"), A("PED", "Pedidos", 8, "PELL"),
-  A("DECO", "Deco", 9, "PELL"), A("GUARD", "Guardar góndola", 10, "PELL"), A("RECIB", "Recibir mercadería", 11, "PELL"),
+  A("DECO", "Deco", 9, "PELL"), A("GUARD", "Guardado a góndola", 10, "PELL"), A("RECIB", "Recibir mercadería", 11, "PELL"),
   A("ALMU", "Almuerzo", 12, "PELL"), A("MOVIM", "Movimientos", 30, "PELL"), A("BANO", "Baño", 31, "PELL"), A("LIMP", "Limpieza", 32, "PELL"),
   Object.assign(A("ISIS", "Contraído a ISIS", 13, "PELL"), { solo: [1] }), Object.assign(A("OP", "Hacer OP", 14, "PELL"), { solo: [1] }),
   Object.assign(A("FACT", "Facturación", 15, "PELL"), { solo: [1] }),

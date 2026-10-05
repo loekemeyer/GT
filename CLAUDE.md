@@ -225,9 +225,9 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   7 nombres de una palabra (Movimientos +10 px, Grampeado +7, Facturación +7, Emblistado +6, Recibir mercadería +5, Contraído +2,
   Contraído a ISIS +2) y se partían a mitad de palabra; pasaba desde 1.52 (16 áreas). No era «Guardado a góndola»: la
   lectura de antes estaba mal. Ahora `acomodarAreas()` prueba una forma más, **`sin-ico`** (sólo el nombre, centrado): letra 14 px,
-  todo entero. `tests/botonera.cjs` suma a Javier en 3 tamaños (falla con 1.54, pasa con 1.55). **D82 (Thomas: «sí»)**, sobre
-  esa lectura equivocada: `GUARD` se llama **«Guardar góndola»** (`update gt.rubros set nombre = …`; los eventos ya grabados
-  conservan el nombre viejo en `descripcion`).
+  todo entero. `tests/botonera.cjs` suma a Javier en 3 tamaños (falla con 1.54, pasa con 1.55). D82 (renombrarla «Guardar góndola», sobre
+  esa lectura equivocada) se aplicó y **D83 (Thomas: «ok») lo volvió atrás**: sigue «Guardado a góndola». **D84:** quedó en la
+  auditoría como corregido con 8055262 («Botonera de Javier (16-17 áreas) corta nombres a mitad de palabra…»).
 
 ### 1.53 — Esnaola sin monitor: el encargado entra con su clave y le da el código al compañero (Thomas, 05/10/2026)
 
