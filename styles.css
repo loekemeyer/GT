@@ -289,3 +289,5 @@ body.sin-scroll{overflow:hidden;}
 @media (max-height:340px){
   .cod-pend.junta small{display:none;}
 }
+/* 1.52: modo vista (clave del administrador): no graba nada */
+.sync.vista{background:var(--warn-bg);color:var(--warn);}

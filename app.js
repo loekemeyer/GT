@@ -56,7 +56,8 @@
 
   const $ = (id) => document.getElementById(id);
   const st = { emp: null, nombre: null, areas: [], codigos: [], server: [], pend: null, codPara: null, pendCont: null,
-              planta: null, plantas: [], principal: null, pasos: [], paso: null };
+              planta: null, plantas: [], principal: null, pasos: [], paso: null,
+              vista: false, vistaClave: false, sim: [] };
 
   /* ---------- utilidades ---------- */
   function lsGet(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } }
@@ -178,15 +179,21 @@
   }
 
   /* ---------- cola ---------- */
-  function cola() { return lsGet(LS_QUEUE, []); }
+  // 1.52 (Thomas: «con la clave 1411… ver exactamente la misma visual que los operarios, pero sin registrarle fichadas»):
+  // en MODO VISTA la cola es st.sim, sólo en memoria: lo que se toque se ve igual que en el celular del operario, pero no
+  // sale a la base (ni el INGRESO) y se pierde al salir o recargar
+  function cola() { return st.vista ? st.sim : lsGet(LS_QUEUE, []); }
+  function guardarCola(q) { if (st.vista) st.sim = q; else lsSet(LS_QUEUE, q); }
   function syncBadge() {
     const n = cola().length, b = $("syncBadge");
-    b.textContent = n ? "⏳ " + n + " sin enviar" : "✓ al día";
-    b.classList.toggle("pend", n > 0);
+    b.textContent = st.vista ? "👁 Vista · no graba" : n ? "⏳ " + n + " sin enviar" : "✓ al día";
+    b.classList.toggle("pend", n > 0 && !st.vista);
+    b.classList.toggle("vista", st.vista);
   }
   let flushing = false;
   async function flush() {
     if (flushing) return;
+    if (st.vista) { syncBadge(); return; }   // 1.52: en modo vista no se manda nada
     const q = cola();
     if (!q.length) { syncBadge(); return; }
     flushing = true;
@@ -266,19 +273,21 @@
       ts_cliente: new Date(Date.now() + (offsetMs || 0)).toISOString(), ts_inicio: null,
       dispositivo: dispositivo(), planta: st.planta,
     }, extra || {});
-    const q = cola(); q.push(fila); lsSet(LS_QUEUE, q);
+    const q = cola(); q.push(fila); guardarCola(q);
     return fila;
   }
 
   /* ---------- botonera de áreas ---------- */
   // v1.1: ícono por área (se ve en la tarjeta); un área nueva sin ícono usa 🏷️
   const ICONO = { CORTE: "✂️", GRAMP: "📌", ENCOL: "🧴", MONT: "🛠️", GANCHO: "🪝", EMBL: "📦", CONTR: "🎞️",
-                  PED: "🧾", DECO: "🎨", PAPENC: "🔧", GUARD: "🗄️", RECIB: "🚚", MOVIM: "🔄", BANO: "🚻", ALMU: "🍽️", MOLDU: "🪚", LIJA: "🧽", PINT: "🖌️" };
+                  PED: "🧾", DECO: "🎨", PAPENC: "🔧", ISIS: "💻", OP: "📝", FACT: "💵", GUARD: "🗄️", RECIB: "🚚", MOVIM: "🔄", BANO: "🚻", ALMU: "🍽️", MOLDU: "🪚", LIJA: "🧽", PINT: "🖌️" };
   // 1.50 (05/10/2026: «dentro de encolado, apenas entrar, un botón que sea puesta a punto encoladora»): un área que vive
   // DENTRO de otra no va en la botonera: es un botón en la pantalla del código de su área. Sin pide_codigo ni cantidad
   // (gt.rubros). Al terminarla se propone seguir en el área madre
   const DENTRO_DE = { PAPENC: "ENCOL" };
-  function hijasDe(a) { return st.areas.filter((x) => DENTRO_DE[x.codigo] === a.codigo && deLaPlanta(x)); }
+  function hijasDe(a) { return st.areas.filter((x) => DENTRO_DE[x.codigo] === a.codigo && deLaPlanta(x) && delEmp(x)); }
+  // 1.52 (gt_v162): un área con «solo» (gt.empleado_rubro) es sólo de esos empleados (Javier: ISIS, OP, Facturación)
+  function delEmp(a) { return !Array.isArray(a.solo) || a.solo.includes(Number(st.emp)); }
   // 1.22: un área es de la planta elegida; un área sin planta es de la principal
   function deLaPlanta(a) { return (a.planta || st.principal || null) === (st.planta || st.principal || null); }
   function transcurrido(iso, pausaMs) {
@@ -332,8 +341,8 @@
         (base ? (ab.rubro === "BANO" ? "✅ Volví del baño" : "✅ Terminé el movimiento") : esInvitado(ab) ? "🚪 Me fui" : "✅ Terminé") + "</button>" +
         (pausas.length ? '<div class="pausas">' + pausas.map((x) => '<button class="sec-btn pausa-btn" data-pausa="' + esc(x.codigo) + '">' +
           (ICONO[x.codigo] || "🏷️") + " " + esc(x.nombre) + "</button>").join("") + "</div>" : "");
-    } else $("botonera").innerHTML = st.areas.some((a) => a.codigo !== "ALMU" && !DENTRO_DE[a.codigo] && deLaPlanta(a)) ?
-      '<div class="row">' + st.areas.filter((a) => a.codigo !== "ALMU" && !DENTRO_DE[a.codigo] && deLaPlanta(a)).map((a) => {
+    } else $("botonera").innerHTML = st.areas.some((a) => a.codigo !== "ALMU" && !DENTRO_DE[a.codigo] && deLaPlanta(a) && delEmp(a)) ?
+      '<div class="row">' + st.areas.filter((a) => a.codigo !== "ALMU" && !DENTRO_DE[a.codigo] && deLaPlanta(a) && delEmp(a)).map((a) => {
         const esAb = ab && ab.rubro === a.codigo;
         return '<div class="box' + (esAb ? " abierta" : "") + '" data-cod="' + esc(a.codigo) + '" role="button">' +
           '<div class="box-ico">' + (ICONO[a.codigo] || "🏷️") + '</div><div><div class="box-title">' + esc(a.nombre) +
@@ -632,7 +641,7 @@
     const q = cola();
     q.push({ client_id: uuid(), empleado_id: st.emp, opcion: "FIN", rubro: null, descripcion: "Terminé el día", texto: "",
              cantidad: null, ts_cliente: new Date(Date.now() + 2).toISOString(), ts_inicio: null, dispositivo: dispositivo(), planta: st.planta });
-    lsSet(LS_QUEUE, q);
+    guardarCola(q);
   }
 
   // 1.24: si el área tiene preguntas para el momento de terminar, van antes de la cantidad
@@ -1005,6 +1014,8 @@
     try { r = await rpc("gt_clave_validar", { p_clave: v }); }
     catch { $("claveError").textContent = "Sin conexión. Probá de nuevo."; return; }
     if (!r.ok) { $("claveError").textContent = "Código incorrecto o vencido: mirá el monitor"; return; }
+    st.vistaClave = !!r.vista;   // 1.52: la clave del administrador (gt.config.clave_vista): elegir a quién ver, sin grabar
+    $("nombreLista").classList.toggle("vista", st.vistaClave);
     const emps = r.empleados || [];
     st.principal = r.principal || null;
     st.empsPlantas = {}; emps.forEach((e) => { st.empsPlantas[e.id] = e.plantas || []; });
@@ -1017,11 +1028,13 @@
 
   async function cargarAreas() {
     // 1.22: gt_botones2 trae la planta de cada área; si no está, gt_botones (todas de la principal)
-    try { st.areas = await rpc("gt_botones2", {}); lsSet(LS_AREAS, st.areas); }
+    // 1.52: gt_botones3 trae además de quién es cada área («solo»)
+    try { st.areas = await rpc("gt_botones3", {}); if (!Array.isArray(st.areas) || !st.areas.length) throw new Error("sin lista"); lsSet(LS_AREAS, st.areas); }
+    catch { try { st.areas = await rpc("gt_botones2", {}); lsSet(LS_AREAS, st.areas); }
     catch {
       try { st.areas = await rpc("gt_botones", {}); lsSet(LS_AREAS, st.areas); }
       catch { st.areas = lsGet(LS_AREAS, []); }
-    }
+    } }
     // 1.35 (Elías: «estoy en guardado y no me aparece nada al poner 224»): la API corta en 1.000 filas y la lista tiene
     // 2.273 (ordenada por área): a Gancho, Grampeado, Guardado, Montaje, Recibir y parte de Encolado no les llegaba nada.
     // gt_codigos_area2 manda la lista entera en una sola fila; si no está, la de antes.
@@ -1054,7 +1067,7 @@
   // 1.31 (Elías): sin «Cambiar de planta» en la botonera: para cambiar, ‹ y volver a entrar con el código del monitor
   function elegirEmpleado(id, nombre) {
     const pl = (st.empsPlantas && st.empsPlantas[id]) || [];
-    if (pl.length < 2) { entrar(id, nombre, pl[0] ? pl[0].codigo : null, pl, st.principal, true); return; }
+    if (pl.length < 2) { entrar(id, nombre, pl[0] ? pl[0].codigo : null, pl, st.principal, true, st.vistaClave); return; }
     st.elige = { id, nombre, plantas: pl };
     mostrarPlantas();
   }
@@ -1067,24 +1080,25 @@
   function elegirPlanta(cod) {
     const e = st.elige; if (!e) return;
     st.elige = null;
-    entrar(e.id, e.nombre, cod, e.plantas, st.principal, true);
+    entrar(e.id, e.nombre, cod, e.plantas, st.principal, true, st.vistaClave);
   }
   function nombrePlanta(cod) { const p = st.plantas.find((x) => x.codigo === cod); return p ? p.nombre : cod || ""; }
-  function ponerNombre() { $("opName").textContent = st.nombre + (st.plantas.length > 1 && st.planta ? " · " + nombrePlanta(st.planta) : ""); }
+  function ponerNombre() { $("opName").textContent = (st.vista ? "👁 " : "") + st.nombre + (st.plantas.length > 1 && st.planta ? " · " + nombrePlanta(st.planta) : ""); }
   function guardarSesion() {
-    lsSet(LS_SESION, { id: st.emp, nombre: st.nombre, dia: hoyAR(), planta: st.planta, plantas: st.plantas, principal: st.principal });
+    lsSet(LS_SESION, { id: st.emp, nombre: st.nombre, dia: hoyAR(), planta: st.planta, plantas: st.plantas, principal: st.principal, vista: st.vista });
   }
   // ingreso = true cuando viene de poner el código y elegir el nombre (no al recargar con la sesión del día)
-  async function entrar(id, nombre, planta, plantas, principal, ingreso) {
+  async function entrar(id, nombre, planta, plantas, principal, ingreso, vista) {
     st.emp = Number(id); st.nombre = nombre;
+    st.vista = !!vista; st.sim = [];
     st.planta = planta || null; st.plantas = plantas || []; st.principal = principal || null;
     guardarSesion();
     // 1.33 (Elías): el INGRESO (la hora del código) va aparte del primer trabajo productivo (el primer «Empecé»)
-    if (ingreso) {
+    if (ingreso && !st.vista) {
       const q = cola();
       q.push({ client_id: uuid(), empleado_id: st.emp, opcion: "INGRESO", rubro: null, descripcion: "Ingresó con el código", texto: "",
                cantidad: null, ts_cliente: new Date().toISOString(), ts_inicio: null, dispositivo: dispositivo(), planta: st.planta });
-      lsSet(LS_QUEUE, q);
+      guardarCola(q);
     }
     ponerNombre();
     show("optionsScreen");
@@ -1092,20 +1106,20 @@
     renderBotonera(); flush();
     // 1.21 (D44): si ya había terminado el día, puede seguir, pero la base avisa por Telegram (una vez por «Terminar día»)
     const hoy = eventosHoy().filter((r) => r.opcion !== "INGRESO"), ult = hoy[hoy.length - 1];
-    if (ult && ult.opcion === "FIN") rpc("gt_reingreso", { p_empleado: st.emp }).catch(() => { /* sin red: avisa el primer registro */ });
+    if (ult && ult.opcion === "FIN" && !st.vista) rpc("gt_reingreso", { p_empleado: st.emp }).catch(() => { /* sin red: avisa el primer registro */ });
   }
 
   // 1.20 (Thomas): al terminar el día vuelve a la pantalla del código de la TV (cierra la sesión).
   // La cola sigue mandando lo pendiente: cada fila ya lleva su empleado_id.
   function finDelDia() {
     try { localStorage.removeItem(LS_SESION); } catch { /* nada */ }
-    st.emp = null; st.server = []; $("claveInput").value = ""; $("histPop").classList.add("hidden"); st.aviso = null; $("avisoPop").classList.add("hidden"); document.body.classList.remove("sin-scroll");
+    st.emp = null; st.server = []; st.vista = false; st.vistaClave = false; st.sim = []; $("claveInput").value = ""; $("histPop").classList.add("hidden"); st.aviso = null; $("avisoPop").classList.add("hidden"); document.body.classList.remove("sin-scroll");
     show("claveScreen");
   }
   function salir() {
-    if (abierta() && !confirm("Tenés un área sin terminar. ¿Cambiar de operario igual? (queda abierta)")) return;
+    if (abierta() && !st.vista && !confirm("Tenés un área sin terminar. ¿Cambiar de operario igual? (queda abierta)")) return;
     try { localStorage.removeItem(LS_SESION); } catch { /* nada */ }
-    st.emp = null; st.server = []; $("claveInput").value = ""; $("histPop").classList.add("hidden"); st.aviso = null; $("avisoPop").classList.add("hidden"); document.body.classList.remove("sin-scroll");
+    st.emp = null; st.server = []; st.vista = false; st.vistaClave = false; st.sim = []; $("claveInput").value = ""; $("histPop").classList.add("hidden"); st.aviso = null; $("avisoPop").classList.add("hidden"); document.body.classList.remove("sin-scroll");
     show("claveScreen");
   }
 
@@ -1113,7 +1127,8 @@
   $("verBadge").textContent = "v" + CFG.APP_VERSION;
   $("claveBtn").onclick = validarClave;
   $("claveInput").addEventListener("keydown", (e) => { if (e.key === "Enter") validarClave(); });
-  $("nombreLista").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) confirmarNombre(b.dataset.id, b.dataset.nombre); });
+  // 1.52: en modo vista no se pregunta «¿Sos …?»: no se graba nada a nombre de nadie
+  $("nombreLista").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; if (st.vistaClave) elegirEmpleado(b.dataset.id, b.dataset.nombre); else confirmarNombre(b.dataset.id, b.dataset.nombre); });
   $("plantaOpts").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) elegirPlanta(b.dataset.planta); });
   $("plantaVolver").onclick = () => { st.elige = null; show("nombreScreen"); };
   $("nombreVolver").onclick = () => show("claveScreen");
@@ -1179,7 +1194,7 @@
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 
   const ses = lsGet(LS_SESION, null);
-  if (ses && ses.dia === hoyAR() && ses.id) entrar(ses.id, ses.nombre, ses.planta, ses.plantas, ses.principal);
+  if (ses && ses.dia === hoyAR() && ses.id) entrar(ses.id, ses.nombre, ses.planta, ses.plantas, ses.principal, false, ses.vista);
   else show("claveScreen");
 
   // v1.2: la app se actualiza sola. GitHub Pages deja la página en caché hasta 10 min y nadie avisaba:

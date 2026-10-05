@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) · `node tests/vista.cjs` (el modo vista y las áreas de un solo empleado) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -148,7 +148,7 @@ de **`gt_botones()`** (no de `gt_botonera()`: cambió lo que devuelve y un `DROP
 | `gt.empleados` | id, **nombre** (único), legajo (opcional), activo |
 | `gt.rubros` | las **áreas**: código, nombre, **unidad** (lo que se cuenta al terminar), orden, activo |
 | `gt.tareas` | (etapa 2) los códigos de cada área: código, descripción, `tipo`, `rubro`, `pide_texto` + `etiqueta_texto`, `fila`/`orden` |
-| `gt.empleado_rubro` | (etapa 2) qué áreas tiene cada empleado. **Sin filas, ve todo** |
+| `gt.empleado_rubro` | de quién es un área (1.52): un área con filas la ven sólo esos empleados; sin filas, todos |
 | `gt.registros` | el log de eventos, mismo formato que `Registros_Produccion_Virgilio`: apertura con `ts_inicio` NULL, cierre con `ts_inicio` = hora de la apertura, más `rubro` y `cantidad`. `client_id` único = sin duplicados |
 
 - **El celular NO lee el schema `gt`**: RLS prendida y todo revocado para `anon`/`authenticated`.
@@ -210,6 +210,26 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   demás de GT (crear, cambiar, cargar) sí; afuera queda sólo lo del proyecto de Tierra Nativa.
 - Respaldo con RLS: `gt.bkp_registros_pruebas_20261002` (183 eventos, 01/10 13:26 → 02/10 17:22, 9 operarios, 0 de Deco),
   `gt.bkp_parejas_pruebas_20261002` (5) y `gt.bkp_monitor_ingresos_pruebas_20261002` (7).
+
+### 1.52 — modo VISTA del administrador y áreas sólo de Javier (Thomas, 05/10/2026)
+
+- **Modo vista** (*«si pongo la clave 1411… que nunca aparezca en los códigos aleatorios… para entrar en modo visual… ver la
+  misma visual que los operarios, pero sin registrarle fichadas. Ej.: todavía no fichó Darío, quiero ver cómo se ve la visual
+  de Darío para arreglársela»*). La clave vive en **`gt.config.clave_vista`** (anon no lee `gt.config`; **no se escribe en el
+  repo**). `gt.clave_de` nunca la da (si el azar la da, da la siguiente). `gt_clave_validar` la acepta a cualquier hora y
+  contesta `vista = true`.
+- En el celular: con esa clave se elige a cualquier operario **sin «¿Sos …?»** y se ve lo que él ve (lo de hoy, sus áreas, su
+  planta). Arriba: «👁 Dario Mendez» y «👁 Vista · no graba». Todo se puede tocar, pero va a una cola en memoria (`st.sim`): **no
+  sale a la base** (ni el INGRESO, ni `gt_reingreso`) y se pierde al salir o recargar; al recargar vuelve a lo real del
+  operario. Salir no pide confirmar aunque haya algo abierto. `tests/vista.cjs`.
+- ⚠ No es un candado: quien sepa la clave ve el día de cualquiera (lo mismo que ya lee el celular). Cambiarla es un `update` en
+  `gt.config`.
+- **Áreas de un solo empleado:** *«Javier puede: cargar contraído a ISIS, hacer OP, sector Facturación»* → **Contraído a ISIS**
+  (`ISIS` 💻), **Hacer OP** (`OP` 📝) y **Facturación** (`FACT` 💵), sin código ni cantidad, productivas. **`gt.empleado_rubro`
+  pasa a decir de quién es un área**: con filas, la ven sólo esos empleados; sin filas, todos (hoy sólo las 3 de Javier, id 1).
+  La app lee `gt_botones3()` (= `gt_botones2` + `solo`); si no está, cae a la 2 (y entonces las ve todo el mundo).
+  Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
+  de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
 
 ### 1.50 — «🔧 Puesta a punto encoladora» dentro de Encolado (05/10/2026)
 
