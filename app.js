@@ -273,7 +273,12 @@
   /* ---------- botonera de áreas ---------- */
   // v1.1: ícono por área (se ve en la tarjeta); un área nueva sin ícono usa 🏷️
   const ICONO = { CORTE: "✂️", GRAMP: "📌", ENCOL: "🧴", MONT: "🛠️", GANCHO: "🪝", EMBL: "📦", CONTR: "🎞️",
-                  PED: "🧾", DECO: "🎨", GUARD: "🗄️", RECIB: "🚚", MOVIM: "🔄", BANO: "🚻", ALMU: "🍽️", MOLDU: "🪚", LIJA: "🧽", PINT: "🖌️" };
+                  PED: "🧾", DECO: "🎨", PAPENC: "🔧", GUARD: "🗄️", RECIB: "🚚", MOVIM: "🔄", BANO: "🚻", ALMU: "🍽️", MOLDU: "🪚", LIJA: "🧽", PINT: "🖌️" };
+  // 1.50 (05/10/2026: «dentro de encolado, apenas entrar, un botón que sea puesta a punto encoladora»): un área que vive
+  // DENTRO de otra no va en la botonera: es un botón en la pantalla del código de su área. Sin pide_codigo ni cantidad
+  // (gt.rubros). Al terminarla se propone seguir en el área madre
+  const DENTRO_DE = { PAPENC: "ENCOL" };
+  function hijasDe(a) { return st.areas.filter((x) => DENTRO_DE[x.codigo] === a.codigo && deLaPlanta(x)); }
   // 1.22: un área es de la planta elegida; un área sin planta es de la principal
   function deLaPlanta(a) { return (a.planta || st.principal || null) === (st.planta || st.principal || null); }
   function transcurrido(iso, pausaMs) {
@@ -327,8 +332,8 @@
         (base ? (ab.rubro === "BANO" ? "✅ Volví del baño" : "✅ Terminé el movimiento") : esInvitado(ab) ? "🚪 Me fui" : "✅ Terminé") + "</button>" +
         (pausas.length ? '<div class="pausas">' + pausas.map((x) => '<button class="sec-btn pausa-btn" data-pausa="' + esc(x.codigo) + '">' +
           (ICONO[x.codigo] || "🏷️") + " " + esc(x.nombre) + "</button>").join("") + "</div>" : "");
-    } else $("botonera").innerHTML = st.areas.some((a) => a.codigo !== "ALMU" && deLaPlanta(a)) ?
-      '<div class="row">' + st.areas.filter((a) => a.codigo !== "ALMU" && deLaPlanta(a)).map((a) => {
+    } else $("botonera").innerHTML = st.areas.some((a) => a.codigo !== "ALMU" && !DENTRO_DE[a.codigo] && deLaPlanta(a)) ?
+      '<div class="row">' + st.areas.filter((a) => a.codigo !== "ALMU" && !DENTRO_DE[a.codigo] && deLaPlanta(a)).map((a) => {
         const esAb = ab && ab.rubro === a.codigo;
         return '<div class="box' + (esAb ? " abierta" : "") + '" data-cod="' + esc(a.codigo) + '" role="button">' +
           '<div class="box-ico">' + (ICONO[a.codigo] || "🏷️") + '</div><div><div class="box-title">' + esc(a.nombre) +
@@ -379,6 +384,7 @@
     let sigue = ab.rubro === cod ? cierra : a;
     // v1.3: al volver de almorzar se propone el área en la que estaba antes. 1.28 (D31): lo mismo al terminar Movimientos
     if (ab.rubro === cod && PAUSAS.includes(cod)) sigue = areaAntesDelAlmuerzo(ab);
+    if (ab.rubro === cod && DENTRO_DE[cod]) sigue = areaDe(DENTRO_DE[cod]) || cierra;   // 1.50: de la puesta a punto, a encolar
     abrirTermine(ab, cierra, sigue, "normal");
   }
 
@@ -619,7 +625,8 @@
   const PAUSAS = ["ALMU", "MOVIM", "BANO"];   // 1.31 (Elías): Baño, igual que Movimientos
   function areaAntesDelAlmuerzo(ab) {
     const prev = eventosHoy().filter((r) => r.opcion === "AREA" && !PAUSAS.includes(r.rubro) && r.rubro !== "RECIB" && r.ts_inicio && r.ts_cliente <= ab.ts_cliente);
-    return prev.length ? areaDe(prev[prev.length - 1].rubro) : null;
+    const r = prev.length ? prev[prev.length - 1].rubro : null;
+    return r ? areaDe(DENTRO_DE[r] || r) : null;
   }
   function registrarFin() {
     const q = cola();
@@ -820,6 +827,9 @@
     prepararInput("codInput", "codHint", a); $("codError").textContent = ""; restaurarBtn("codBtn");
     $("codPend").classList.add("hidden"); $("codPend").innerHTML = "";
     if (a.codigo === "GUARD") pendientesContraido("codPend", () => st.codPara && st.codPara.codigo === "GUARD");
+    const hijas = hijasDe(a);   // 1.50: Puesta a punto encoladora
+    $("codHijas").innerHTML = hijas.map((x) => '<button class="sec-btn" data-cod="' + esc(x.codigo) + '">' + (ICONO[x.codigo] || "🏷️") + " " + esc(x.nombre) + "</button>").join("");
+    $("codHijas").classList.toggle("hidden", !hijas.length);
     paraUnirse(a);   // 1.45: Encolado / Contraído, lo que están haciendo los compañeros
     show("codScreen"); $("codInput").focus();
   }
@@ -1140,6 +1150,7 @@
     $(sid).addEventListener("mousedown", (e) => { if (e.target.closest(".suf-btn")) e.preventDefault(); });   // no le saca el foco al campo
     $(sid).addEventListener("click", (e) => { const b = e.target.closest(".suf-btn"); if (b) ponerLetra(iid, b.dataset.l); });
   });
+  $("codHijas").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { st.codPara = null; empezar(areaDe(b.dataset.cod)); } });
   $("codJunta").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b && st.codPara) unirse(st.codPara, (st.unirse || [])[Number(b.dataset.i)]); });
   $("codPend").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("codInput").value = b.dataset.cod; confirmarCod(); } });
   $("histBtn").onclick = () => { renderHist(); $("histPop").classList.remove("hidden"); document.body.classList.add("sin-scroll"); };

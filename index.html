@@ -12,7 +12,7 @@
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=1.49" />
+  <link rel="stylesheet" href="styles.css?v=1.50" />
 </head>
 <body>
   <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
@@ -124,6 +124,8 @@
     <div class="tarjeta">
       <label class="label" id="codLabel" for="codInput"></label>
       <div id="codOpts" class="cod-opts hidden"></div>
+      <!-- 1.50: las áreas que viven dentro de ésta (Encolado → Puesta a punto encoladora) -->
+      <div id="codHijas" class="cod-hijas hidden"></div>
       <!-- 1.45: en Encolado / Contraído, lo que están haciendo los compañeros (tocar = sumarse) -->
       <div id="codJunta" class="cod-pend junta hidden"></div>
       <div id="codPend" class="cod-pend hidden"></div>
@@ -154,7 +156,7 @@
       <div id="avisoBtns" class="aviso-btns"></div>
     </div>
   </div>
-  <script src="config.js?v=1.49"></script>
-  <script src="app.js?v=1.49"></script>
+  <script src="config.js?v=1.50"></script>
+  <script src="app.js?v=1.50"></script>
 </body>
 </html>

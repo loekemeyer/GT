@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -208,6 +208,17 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   demás de GT (crear, cambiar, cargar) sí; afuera queda sólo lo del proyecto de Tierra Nativa.
 - Respaldo con RLS: `gt.bkp_registros_pruebas_20261002` (183 eventos, 01/10 13:26 → 02/10 17:22, 9 operarios, 0 de Deco),
   `gt.bkp_parejas_pruebas_20261002` (5) y `gt.bkp_monitor_ingresos_pruebas_20261002` (7).
+
+### 1.50 — «🔧 Puesta a punto encoladora» dentro de Encolado (05/10/2026)
+
+- Pedido: *«dentro de encolado, apenas entrar, puedan tocar un botón que sea puesta a punto encoladora… se necesita hacer
+  solamente en el encolador»*.
+- Rubro nuevo **`PAPENC`** en `gt.rubros` (sin código ni cantidad, productivo). **No va en la botonera**: `DENTRO_DE = { PAPENC:
+  "ENCOL" }` en `app.js` lo saca de las tarjetas y lo pone como botón en la pantalla del código de Encolado, arriba de «Tocá
+  para sumarte». Al terminarlo, «¿Con qué código seguís en Encolado?»; desde el almuerzo propone Encolado. Otra área dentro
+  de otra es sumar una fila en `gt.rubros` y una entrada en `DENTRO_DE`. Se saca con `update gt.rubros set activo = false
+  where codigo = 'PAPENC'`. Sin cantidad, no entra a Rendimiento ni a movimientos. `sql/gt_v159_puesta_a_punto_encoladora.sql`,
+  `tests/puesta.cjs`.
 
 ### 1.49 — al tocar un nombre, «¿Sos …?» antes de entrar (Thomas, 02/10/2026)
 

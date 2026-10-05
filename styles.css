@@ -184,6 +184,7 @@ body.sin-scroll{overflow:hidden;}
   background:var(--warn-bg);color:var(--txt);font-size:16px;font-weight:700;}
 .cod-pend small{display:block;font-size:12px;font-weight:500;color:var(--mut);margin-top:2px;}
 .cod-pend-t{grid-column:1/-1;text-align:center;font-size:14px;color:var(--mut);}
+.cod-hijas{display:grid;gap:8px;margin-top:12px;}   /* 1.50: Puesta a punto encoladora */
 .cod-pend.junta button{border-color:color-mix(in srgb,var(--acc) 55%,transparent);background:var(--acc-bg);}   /* 1.45: sumarse */
 
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:20;
