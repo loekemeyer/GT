@@ -219,6 +219,10 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   de otra es sumar una fila en `gt.rubros` y una entrada en `DENTRO_DE`. Se saca con `update gt.rubros set activo = false
   where codigo = 'PAPENC'`. Sin cantidad, no entra a Rendimiento ni a movimientos. `sql/gt_v159_puesta_a_punto_encoladora.sql`,
   `tests/puesta.cjs`.
+- **D66 (Thomas: «está bien. Solo se necesita a la mañana»):** queda productiva y sólo al entrar a Encolado (no se ofrece al
+  cambiar de código). El commit 27796c5 dice «Hecho-por: sin confirmar»: lo hizo Thomas (employee_id 3).
+- **425 y 426 (D69, pendiente):** se venden en TN (425: 19,5 cajas/mes · 426: 8,67) pero no tienen ficha ni en TN ni en
+  `gt.codigos`: tipeados entran como código fuera de la lista. Thomas pasa descripción, medida y UxB.
 
 ### 1.49 — al tocar un nombre, «¿Sos …?» antes de entrar (Thomas, 02/10/2026)
 
