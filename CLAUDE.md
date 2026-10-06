@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) · `node tests/vista.cjs` (el modo vista y las áreas de un solo empleado) · `node tests/esnaola.cjs` (Esnaola sin monitor: la clave del encargado y el código para el compañero) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) · `node tests/vista.cjs` (el modo vista y las áreas de un solo empleado) · `node tests/resync.cjs` (el celular recarga con la base caída o con un envío en camino y no pierde lo abierto) · `node tests/esnaola.cjs` (Esnaola sin monitor: la clave del encargado y el código para el compañero) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -189,6 +189,41 @@ insert into gt.rubros (codigo, nombre, unidad, orden) values ('<COD>', '<Área>'
 insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_texto, fila, orden)
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
+
+### 1.56 — el celular no pierde lo que ya hizo cuando recarga sin red o con un envío en camino (06/10/2026)
+
+- **Pedido:** *«Juan Gimenez está teniendo problemas en la app: no le permite finalizar la tarea que estaba realizando en el
+  área de corte… revisá por qué puede pasar este bug»*.
+- **Qué mostraba la base (06/10):** Juan tiene **Corte 307 abierto a las 13:02:31 que nunca se cerró** y **otra apertura del
+  mismo 307 a las 13:47:18** (le siguieron un Movimiento «Corte» a las 13:47:55, un INGRESO nuevo a las 13:48:39 y, recién a las
+  13:53:39, «Terminé» con 114 y «seguir con el 308»). Ningún otro operario tiene una apertura huérfana (medido sobre todo lo
+  cargado desde el lunes 05/10 12:00). El servidor no descarta nada: `gt_registros_hoy3` devuelve las 16 filas del día y los
+  triggers de `gt.registros` no pierden ni rechazan filas (el freno gt_v158 venció el lunes 05/10 12:00).
+- **Causa [Probable]:** la pantalla de áreas se arma con *lo que trajo la base al entrar* (`cargarHoy`) + la cola. Dos huecos:
+  1. **Si esa llamada fallaba** (recarga en el taller con mala señal) el celular quedaba armado sólo con la cola, sin lo de la
+     base: la botonera mostraba las áreas y **no el «✅ Terminé» de su Corte abierto**. Y no lo volvía a pedir nunca hasta
+     volver a ingresar. Juan tocó Corte («empezar»): **abrió otro Corte** y el primero quedó huérfano. Lo que le dijeron en el
+     piso («no me deja finalizar») es eso: no ve el botón. Con el código 307 no pasaba nada raro: no está en la lista de Corte
+     (1 a 168), pide «¿Lo registro igual?» como siempre.
+  2. **Si un envío (`flush`) se cruzaba con esa llamada**, lo que la base acababa de confirmar ya no estaba en la cola y la
+     respuesta (sacada antes del envío) **lo pisaba**: un cierre guardado en la base volvía a verse abierto en el celular.
+  Además `entrar()` esperaba todas las llamadas (cada una hasta 15 s) antes de pintar: hasta 90 s con la botonera vacía.
+  Lo único que no se pudo ver es qué pasó exactamente en el celular de Juan entre las 13:02 y las 13:47 (no queda registro de
+  una recarga ni de una caída de señal): es la explicación que cuadra con la huella en la base, no un hecho medido.
+- **Arreglo (1.56, sin cambios en la base):**
+  - Lo que la base ya tenía de hoy se **guarda en el celular** (`gt_hoy_v1`, por operario y día) y al entrar se usa de arranque:
+    recargar sin red muestra el mismo «✅ Terminé». La botonera se pinta **ya**, con las áreas y códigos guardados, sin esperar
+    la red.
+  - `cargarHoy()` **une** lo de la base con lo que este celular ya confirmó mientras la lectura venía en camino (`_ack`), en vez
+    de pisarlo. Lo que la base ya no tiene (borrado a mano) se va al traer la lectura.
+  - Si no pudo traer lo de hoy, la insignia dice **«⚠ sin conexión»** (no «✓ al día») y **reintenta solo**: cada 30 s, al volver
+    la red y al volver a la app.
+  - Tocar un área sin haber podido traer lo de hoy **vuelve a pedirlo antes de abrir** (espera hasta 2,5 s: sin red se sigue
+    trabajando): si había algo abierto, avisa «Ya tenías Corte abierto: tocá «Terminé»» y no abre otro.
+- `tests/resync.cjs` (recarga con la base caída con y sin lo guardado, tocar con la base de vuelta, volver la red, y el envío
+  cruzado con la lectura): con la 1.55 fallan 5 de 8 controles, con la 1.56 ninguno.
+- **Pendiente de datos de Juan (D86):** su Corte 307 de las 13:02:31 sigue abierto en la base. El cierre automático de las 18:30
+  lo cierra a la hora de salida, sin cantidad.
 
 ### D64 y D65 — Deco: operaciones de artículos discontinuados y Cajas de Té (Thomas, 02/10/2026)
 

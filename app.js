@@ -52,13 +52,14 @@
   const LS_CODS = "gt_codigos_v6";
   const LS_PASOS = "gt_pasos_v1";
   const LS_DISP = "gt_dispositivo";
+  const LS_HOY = "gt_hoy_v1";   // 1.56: lo que la base ya tenía de HOY de este operario, para no depender de la red al recargar
   const LS_LLAVE = "gt_llave_v1";   // 1.53: la clave personal del encargado en SU celular { llave, nombre, da }
   const TIMEOUT_MS = 15000;
 
   const $ = (id) => document.getElementById(id);
   const st = { emp: null, nombre: null, areas: [], codigos: [], server: [], pend: null, codPara: null, pendCont: null,
               planta: null, plantas: [], principal: null, pasos: [], paso: null,
-              vista: false, vistaClave: false, sim: [] };
+              vista: false, vistaClave: false, sim: [], sinc: false };
 
   /* ---------- utilidades ---------- */
   function lsGet(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } }
@@ -188,9 +189,10 @@
   function cola() { return st.vista ? st.sim : lsGet(LS_QUEUE, []); }
   function guardarCola(q) { if (st.vista) st.sim = q; else lsSet(LS_QUEUE, q); }
   function syncBadge() {
-    const n = cola().length, b = $("syncBadge");
-    b.textContent = st.vista ? "👁 Vista · no graba" : n ? "⏳ " + n + " sin enviar" : "✓ al día";
-    b.classList.toggle("pend", n > 0 && !st.vista);
+    const n = cola().length, b = $("syncBadge"), falta = !!st.emp && !st.sinc && !st.vista;
+    // 1.56: «al día» sólo si el celular trajo lo de hoy de la base; si no pudo, lo dice (puede haber algo abierto que no ve)
+    b.textContent = st.vista ? "👁 Vista · no graba" : n ? "⏳ " + n + " sin enviar" : falta ? "⚠ sin conexión" : "✓ al día";
+    b.classList.toggle("pend", (n > 0 || falta) && !st.vista);
     b.classList.toggle("vista", st.vista);
   }
   let flushing = false;
@@ -211,7 +213,10 @@
         lsSet(LS_RECH, viejos.slice(-200));
         toast("⚠ " + rech.length + " registro(s) rechazado(s): " + rech[0].motivo);
       }
-      st.server = st.server.concat(q.filter((x) => ok.has(x.client_id) && x.empleado_id === st.emp));
+      // 1.56: «_ack» = cuándo confirmó la base. cargarHoy no puede pisar lo confirmado después de pedir su lectura
+      const ack = Date.now();
+      st.server = st.server.concat(q.filter((x) => ok.has(x.client_id) && x.empleado_id === st.emp).map((x) => Object.assign({}, x, { _ack: ack })));
+      guardarHoy();
       lsSet(LS_QUEUE, cola().filter((x) => !ok.has(x.client_id) && !rechIds.has(x.client_id)));
     } catch (e) {
       // sin red o base caída: queda en la cola y se reintenta
@@ -219,6 +224,18 @@
   }
 
   /* ---------- estado del día ---------- */
+  // 1.56 (06/10: Juan Gimenez no podía finalizar Corte): lo que la base ya tenía del día se guarda en el celular, así al
+  // recargar sin red (o con la base lenta) se ve lo mismo que antes y no sólo lo que quedó en la cola
+  function guardarHoy() {
+    if (st.vista || !st.emp) return;
+    const vistos = new Set(), rows = [];
+    st.server.forEach((r) => { if (!vistos.has(r.client_id)) { vistos.add(r.client_id); rows.push(r); } });
+    lsSet(LS_HOY, { emp: st.emp, dia: hoyAR(), rows });
+  }
+  function leerHoy() {
+    const h = lsGet(LS_HOY, null);
+    return h && h.emp === st.emp && h.dia === hoyAR() && Array.isArray(h.rows) ? h.rows : [];
+  }
   function eventosHoy() {
     const vistos = new Set(), out = [];
     st.server.concat(cola().filter((x) => x.empleado_id === st.emp)).forEach((r) => {
@@ -384,9 +401,17 @@
   }
   setInterval(() => { const t = document.querySelector(".ab-tiempo"); if (t) t.textContent = transcurrido(t.dataset.desde, Number(t.dataset.pausa) || 0); }, 30000);
 
-  function tocar(cod) {
+  async function tocar(cod) {
     const a = areaDe(cod); if (!a) return;
-    const ab = abierta();
+    let ab = abierta();
+    // 1.56: si el celular no pudo traer lo de hoy, antes de abrir algo lo vuelve a intentar: puede haber un área abierta que
+    // no se ve (Juan Gimenez: Corte 307 abierto a las 13:02 y otro a las 13:47, sin cerrar el primero)
+    // (espera como mucho 2,5 s: sin red se sigue trabajando con lo que hay, la app anda sin conexión)
+    if (!ab && !st.sinc && !st.vista && st.emp) {
+      await Promise.race([resync(), new Promise((ok) => setTimeout(ok, 2500))]);
+      ab = abierta();
+      if (ab) { renderBotonera(); toast("Ya tenías " + (areaDe(ab.rubro) || { nombre: ab.rubro }).nombre + " abierto: tocá «Terminé»"); return; }
+    }
     if (!ab) { empezar(a); return; }
     if (ab.rubro === cod && PAUSA_DENTRO.includes(cod)) { terminarPausa(ab); return; }
     if (ab.rubro === cod && esInvitado(ab)) { meFui(ab); return; }   // 1.47: el que se sumó no termina, se va
@@ -1065,12 +1090,36 @@
     try { st.pasos = await rpc("gt_pasos", {}); lsSet(LS_PASOS, st.pasos); }
     catch { st.pasos = lsGet(LS_PASOS, []); }
   }
+  // 1.56: antes pisaba st.server con lo que devolvía la base. Dos huecos: (a) si fallaba, el celular quedaba armado sólo con la
+  // cola y nunca lo volvía a pedir (no veía su Corte abierto: Juan abrió otro y el primero quedó huérfano); (b) si un envío
+  // se cruzaba, lo que la base acababa de confirmar ya no estaba en la cola y la respuesta (anterior) lo borraba. Ahora devuelve
+  // true si trajo lo de hoy; une lo que trae la base con lo que ya confirmó ESTE celular después de pedirlo (_ack), y lo guarda.
   async function cargarHoy() {
+    const desde = Date.now(), emp = st.emp;
     // 1.24: gt_registros_hoy3 trae el detalle (anilina, color); si no está, gt_registros_hoy2
     let r = null;
-    try { r = await rpc("gt_registros_hoy3", { p_empleado: st.emp }); }
-    catch { try { r = await rpc("gt_registros_hoy2", { p_empleado: st.emp }); } catch { /* sin red: se arma con la cola */ } }
-    if (r) st.server = r.map((x) => Object.assign({ empleado_id: st.emp }, x));
+    try { r = await rpc("gt_registros_hoy3", { p_empleado: emp }); }
+    catch { try { r = await rpc("gt_registros_hoy2", { p_empleado: emp }); } catch { /* sin red: queda lo guardado y la cola */ } }
+    if (!Array.isArray(r) || st.emp !== emp) { st.sinc = false; syncBadge(); return false; }
+    const m = new Map();
+    st.server.forEach((x) => { if (x._ack && x._ack >= desde) m.set(x.client_id, x); });   // confirmado mientras la lectura venía en camino
+    r.forEach((x) => m.set(x.client_id, Object.assign({ empleado_id: emp }, x)));
+    st.server = Array.from(m.values());
+    st.sinc = true; guardarHoy(); syncBadge();
+    return true;
+  }
+  // vuelve a pedir lo de hoy y, si cambió algo de lo abierto, repinta (lo llama el reintento, el volver la red y tocar un área)
+  let resincronizando = false;
+  async function resync() {
+    if (!st.emp || st.vista || resincronizando) return st.sinc;
+    resincronizando = true;
+    try {
+      const firma = () => JSON.stringify(pilaAbierta().map((x) => x.client_id)) + eventosHoy().length;
+      const antes = firma();
+      await cargarHoy();
+      if (firma() !== antes && !$("optionsScreen").classList.contains("hidden") && !st.aviso && !st.paso) renderBotonera();
+    } finally { resincronizando = false; }
+    return st.sinc;
   }
 
   // 1.49 (02/10: «tocó el nombre de Walter y le puso el nombre de Luis… quiero que confirmen que la persona es tal persona»):
@@ -1121,7 +1170,13 @@
       guardarCola(q);
     }
     ponerNombre(); pintarLlave();
+    // 1.56: se pinta YA con lo que el celular sabe (áreas y lo de hoy guardados), sin esperar la red: con la base lenta o caída
+    // la botonera tardaba hasta 90 s (cada llamada espera 15 s) y, sin lo de hoy, no mostraba lo que estaba abierto
+    st.sinc = false;
+    st.server = st.vista ? [] : leerHoy();
+    if (!st.areas.length) { st.areas = lsGet(LS_AREAS, []); st.codigos = lsGet(LS_CODS, []); st.pasos = lsGet(LS_PASOS, []); }
     show("optionsScreen");
+    if (st.areas.length) renderBotonera();
     await Promise.all([cargarAreas(), cargarHoy()]);
     renderBotonera(); flush();
     // 1.21 (D44): si ya había terminado el día, puede seguir, pero la base avisa por Telegram (una vez por «Terminar día»)
@@ -1241,9 +1296,10 @@
     const b = e.target.closest("#avisoBtns button"); if (b) cerrarAviso(Number(b.dataset.i));
   });
   document.addEventListener("keydown", (e) => { if (e.key !== "Escape") return; if (st.aviso) cerrarAviso(); else cerrarHist(); });
-  window.addEventListener("online", flush);
+  window.addEventListener("online", () => { flush(); if (!st.sinc) resync(); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && st.emp && !st.sinc) resync(); });
   window.addEventListener("resize", acomodar);
-  setInterval(flush, 30000);
+  setInterval(() => { flush(); if (st.emp && !st.sinc) resync(); }, 30000);   // 1.56: si no trajo lo de hoy, lo reintenta
   setInterval(revisarParejas, 5000);    // 1.43 (Elías: «cada 5 segundos») · 1.45: el aviso «se sumó» al que empezó
   setInterval(pintarMuerto, 1000);      // 1.43
 
