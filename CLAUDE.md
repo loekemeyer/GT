@@ -222,8 +222,14 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
     trabajando): si había algo abierto, avisa «Ya tenías Corte abierto: tocá «Terminé»» y no abre otro.
 - `tests/resync.cjs` (recarga con la base caída con y sin lo guardado, tocar con la base de vuelta, volver la red, y el envío
   cruzado con la lectura): con la 1.55 fallan 5 de 8 controles, con la 1.56 ninguno.
-- **Pendiente de datos de Juan (D86):** su Corte 307 de las 13:02:31 sigue abierto en la base. El cierre automático de las 18:30
-  lo cierra a la hora de salida, sin cantidad.
+- **Los datos de Juan (D86, Elías: «sí», 06/10 14:30):** su Corte 307 de las 13:02:31.414 se cerró a mano a las 13:47:17.922, **sin
+  cantidad** (`client_id = correccion-juan-20261006-corte307`, `dispositivo = 'sistema:correccion'`: los triggers de celular no
+  lo tocan). Quedó un tramo de 44 min 46 s sin piezas: no se sabe cuántas hizo entre las 13:02 y las 13:47, y las 114 del cierre
+  de las 13:53 pueden incluirlas. Hoy no queda ninguna apertura huérfana en `gt.registros`. **D85:** el bug quedó en la auditoría
+  como corregido con c675f51 («El celular pierde lo abierto al recargar sin red o con un envío en camino»).
+- ⚠ **La 1.56 protege desde la primera carga buena:** `gt_hoy_v1` se arma la primera vez que el celular trae lo de hoy con la 1.56.
+  Un celular que se actualiza y justo recarga sin red esa primera vez sigue sin saber lo que tenía abierto (la insignia lo dice:
+  «⚠ sin conexión»). Un celular que ya trajo lo de hoy con la 1.56 sobrevive a recargar sin red.
 
 ### D64 y D65 — Deco: operaciones de artículos discontinuados y Cajas de Té (Thomas, 02/10/2026)
 
