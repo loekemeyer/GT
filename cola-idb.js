@@ -7,7 +7,6 @@
  *   queue  {client_id}  la cola sin enviar (el espejo)
  *   meta   cfg          { url, key } para que el service worker sepa a dónde mandar (la clave es la PUBLISHABLE, pública a propósito)
  *   acked  {client_id}  lo que el service worker mandó y la base confirmó con la app cerrada (la página lo saca de su cola)
- *   rech   (auto)       lo que el service worker vio rechazado ({ fila, motivo, client_id, ts }): la página lo pasa a sus rechazados
  */
 (function (g) {
   "use strict";
@@ -21,7 +20,6 @@
         const d = r.result;
         if (!d.objectStoreNames.contains("queue")) d.createObjectStore("queue", { keyPath: "client_id" });
         if (!d.objectStoreNames.contains("acked")) d.createObjectStore("acked", { keyPath: "client_id" });
-        if (!d.objectStoreNames.contains("rech")) d.createObjectStore("rech", { autoIncrement: true });
         if (!d.objectStoreNames.contains("meta")) d.createObjectStore("meta");
       };
       r.onsuccess = () => res(r.result);
@@ -49,18 +47,17 @@
       });
     },
     leer() {
-      return correr(["queue", "meta", "acked", "rech"], "readonly", (tx) => {
-        const q = tx.objectStore("queue").getAll(), c = tx.objectStore("meta").get("cfg"), a = tx.objectStore("acked").getAll(), r = tx.objectStore("rech").getAll();
-        return () => ({ queue: q.result || [], cfg: c.result || null, acked: a.result || [], rech: r.result || [] });
+      return correr(["queue", "meta", "acked"], "readonly", (tx) => {
+        const q = tx.objectStore("queue").getAll(), c = tx.objectStore("meta").get("cfg"), a = tx.objectStore("acked").getAll();
+        return () => ({ queue: q.result || [], cfg: c.result || null, acked: a.result || [] });
       });
     },
-    // lo que el service worker mandó: las confirmadas salen de la cola y quedan en `acked` (se podan a los 2 días), las rechazadas
-    // salen de la cola y quedan en `rech`
-    resultado(confirmadas, rechazadas) {
-      return correr(["queue", "acked", "rech"], "readwrite", (tx) => {
-        const q = tx.objectStore("queue"), a = tx.objectStore("acked"), r = tx.objectStore("rech"), ahora = Date.now();
+    // lo que el service worker mandó y la base CONFIRMÓ: sale de la cola y queda en `acked` (se poda a los 2 días). Lo que la base no toma
+    // se queda en la cola (1.58: nada se descarta, se reintenta con su hora original)
+    resultado(confirmadas) {
+      return correr(["queue", "acked"], "readwrite", (tx) => {
+        const q = tx.objectStore("queue"), a = tx.objectStore("acked"), ahora = Date.now();
         (confirmadas || []).forEach((f) => { q.delete(f.client_id); a.put(Object.assign({}, f, { _sw: ahora })); });
-        (rechazadas || []).forEach((x) => { if (x.fila) q.delete(x.fila.client_id); r.put(Object.assign({ ts: new Date().toISOString() }, x)); });
         a.openCursor().onsuccess = (e) => {
           const c = e.target.result; if (!c) return;
           if (ahora - (c.value._sw || 0) > ACK_MS) c.delete();
@@ -68,7 +65,5 @@
         };
       });
     },
-    // la página ya pasó lo rechazado a su lista: se vacía
-    vaciarRech() { return correr(["rech"], "readwrite", (tx) => { tx.objectStore("rech").clear(); }); },
   };
 })(typeof self !== "undefined" ? self : this);

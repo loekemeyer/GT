@@ -299,8 +299,10 @@ srv.listen(0, async () => {
     await pg.evaluate(() => { const q = JSON.parse(localStorage.getItem("gt_queue_v3") || "[]");
       q.push({ client_id: "malo", empleado_id: 7, opcion: "AREA", rubro: "NOEXISTE", ts_cliente: new Date().toISOString() });
       localStorage.setItem("gt_queue_v3", JSON.stringify(q)); return window.__gt.flush(); });
-    const q = await pg.evaluate(() => [JSON.parse(localStorage.getItem("gt_queue_v3")).length, JSON.parse(localStorage.getItem("gt_rechazados_v3")).length]);
-    chk(q[0] === 0 && q[1] === 1, "fila rechazada sale de la cola y queda anotada (no traba)");
+    // 1.58: lo que la base no toma NO se descarta: se queda en la cola (con su hora original), se reintenta con espera creciente y la insignia avisa
+    const q = await pg.evaluate(() => [JSON.parse(localStorage.getItem("gt_queue_v3")).length, JSON.parse(localStorage.getItem("gt_reint_v1") || "{}").malo, document.getElementById("syncBadge").textContent]);
+    chk(q[0] === 1 && q[1] && q[1].n === 1 && q[1].motivo === "área inexistente" && /^⚠ 1 sin enviar/.test(q[2].trim()), "fila rechazada NO se descarta: se queda en la cola con su cuenta de reintentos y la insignia avisa (" + q[2].trim() + ")");
+    await pg.evaluate(() => { localStorage.setItem("gt_queue_v3", "[]"); localStorage.removeItem("gt_reint_v1"); return window.__gt.flush(); });   // se saca a mano para seguir con el resto de la prueba
     await pg.click("#histBtn");
     const nh = (await pg.$$("#hist .hist-row")).length; chk(nh === 17, "resumen de hoy con 16 tramos (Movimientos, Baño y las pausas dentro de Corte) + fin del día (" + nh + ")");
     chk(await pg.isVisible("#histPop") && await pg.evaluate(() => getComputedStyle(document.getElementById("histPop")).position === "fixed"),

@@ -160,8 +160,9 @@ de **`gt_botones()`** (no de `gt_botonera()`: cambió lo que devuelve y un `DROP
   `insert`/`update` en el schema, no un deploy.
 - **Una sola tarea abierta por operario.** La tarea abierta no se guarda: se deduce de los eventos
   del día (servidor + cola local), así sobrevive a una recarga.
-- **Cola offline** en `localStorage` (`gt_queue_v3`), reintento cada 5 s (1.57, antes 30) y al volver la red. Una fila
-  rechazada sale de la cola y queda en `gt_rechazados_v3` (no traba al resto — lección v25.20 de Virgilio).
+- **Cola offline** en `localStorage` (`gt_queue_v3`), reintento cada 5 s (1.57, antes 30) y al volver la red. **Una fila sale de la
+  cola sólo cuando la base la confirma** (1.58): lo que no entra se queda, se reintenta con espera creciente y conserva la hora
+  original del toque. Una fila mala no traba al resto (lección v25.20 de Virgilio).
 
 ### ⚠ El conector de Supabase NO deja correr un `DROP` desde la sesión
 
@@ -190,14 +191,43 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.58 — nada se descarta de la cola: lo que la base no toma se reintenta, con su hora original (Elías, 06/10/2026)
+
+- **Pedido** (sobre D92, que preguntaba si avisar por Telegram las filas rechazadas): *«no debería ser así, si no se envió se tiene que
+  reintentar y la cola tiene que guardar el tiempo (fecha hora original, no de cuando se manda)»*. **D88 retirado** («no es necesario»):
+  no se cargan las piezas del Corte 307 de Juan.
+- **Lo que pasaba (1.57):** una fila que la base rechazaba (dato inválido, área o empleado inexistente) **salía de la cola** del celular y
+  quedaba sólo en `gt.envio_errores`: el operario creía haber cargado un evento que no estaba en `gt.registros`.
+- **Ahora:** una fila sale de la cola **sólo cuando la base la confirma** (`ok`). Lo que vuelve en `rechazados` o `reintentar` **se queda**,
+  con la fila **sin tocar** (su `ts_cliente` es la hora del toque) y se reintenta con espera creciente: 5 s, 5 s, 15 s, 30 s, 1 min, 5 min,
+  15 min y después **cada hora**, sin tope. Cada vez que se abre la app se prueba de nuevo enseguida. La cuenta de reintentos y el motivo
+  viven aparte (`gt_reint_v1` en el celular), no dentro de la fila. La insignia dice **«⚠ N sin enviar»** (en vez de «⏳») si hay algo
+  que la base no tomó. Un error de red o de la base (HTTP 500, timeout) sigue siendo lo de la 1.57: toda la cola se reintenta cada 5 s.
+- **El service worker (D90) hace lo mismo:** de su copia sólo saca lo que la base confirmó; si queda algo sin confirmar, el `sync` falla a
+  propósito para que Chrome lo reintente (hasta 3 veces), y si no, queda para la próxima apertura. Se quitó la lista `rech` de IndexedDB.
+- **La hora original, medido (06/10):** de 246 eventos desde el 05/10 12:00, **6 llegaron más de 1 min tarde** (4 de Federico Realini, que
+  llegaron 3 h 30 min después: tocados 17:14–17:30 y recibidos 20:44, **con la hora del toque**, más 2 cierres del sistema/correcciones),
+  **0 sin hora**, **0 con hora en el futuro** (el celular más adelantado iba 46 s). **Ninguna función ni vista de `gt` usa la hora de
+  llegada (`created_at`)** salvo `gt.sync_pedidos_tn` (pedidos, no eventos): todo lo demás usa `ts_cliente`. El celular fija `ts_cliente`
+  al tocar y nunca lo reescribe. El 18:30 de Federico (cierre automático) fue reemplazado por su cierre real al llegar (`AREAX`).
+- **En la base** (`gt_registrar` sin cambios): las filas que no entran quedan en `gt.envio_errores` con la fila completa y `intentos`
+  (sube con cada reintento). Pendientes de resolver: `select e.* from gt.envio_errores e where e.tipo in ('rechazo','error_fila') and not
+  exists (select 1 from gt.registros r where r.client_id = e.client_id) order by e.ts desc;` (hoy: 0). `definitivo = true` quiere decir
+  «reintentar no lo arregla solo»: hay que corregir el dato, el área o el empleado en la base, y entra en el próximo reintento.
+- ⚠ **Límites [Seguro]:** una fila con un dato imposible (fecha inválida) se reintenta cada hora **para siempre**: no se pierde pero
+  tampoco se arregla sola, y la insignia de ese celular queda en «⚠». Con el app cerrada en un celular sin Background Sync (iPhone), lo
+  que no entró espera a la próxima apertura. Una fila rechazada **sigue contando** en lo que el celular muestra del día (el operario sí la tocó).
+- `tests/cola.cjs` (bloque B: rechazada + error pasajero + dos buenas en un lote, la hora original, la espera de 1 hora, el reintento al abrir;
+  bloque D: el service worker no la saca de su copia y la manda con su hora original) y `tests/smoke.cjs` (la fila rechazada se queda).
+
 ### 1.57 — la cola: errores de envío avisados, una fila mala no traba y envío con la app cerrada (Elías, 06/10/2026: D89 y D90 «sí»)
 
 - **Pedido:** comparar la cola de GT con la de Gestión Virgilio y Registro-Produccion-2.0 y traerle lo que le faltaba. Las tres
   tienen cola en `localStorage`, `client_id` único y reintento por red/timeout; a GT le faltaban cuatro cosas, que son esto.
 - **1) `gt_registrar` aísla la fila que falla (gt_v166).** Antes un error en UNA fila (fecha mal escrita, restricción, un trigger) tiraba
   el lote ENTERO: el celular lo tomaba por «sin red» y reintentaba el mismo lote para siempre, con todo lo que venía detrás trabado.
-  Ahora cada fila va en su propio bloque. Error **de dato** (clase 22 y 23 de Postgres, o un `raise` de un trigger) → la fila se
-  **rechaza** (sale de la cola del celular, va a su lista de rechazados) y queda **entera** en `gt.envio_errores`. Cualquier otro error
+  Ahora cada fila va en su propio bloque. Error **de dato** (clase 22 y 23 de Postgres, o un `raise` de un trigger) → la fila vuelve en
+  `rechazados` y queda **entera** en `gt.envio_errores` (⚠ **1.58: el celular ya no la saca de su cola: la reintenta**). Cualquier otro error
   (bloqueo, timeout, recursos) → la fila **no** se confirma ni se rechaza: vuelve en `reintentar`, se queda en la cola y entra en el
   próximo reintento, y las demás filas del lote entran igual. Respuesta: `{ ok, rechazados, reintentar }` (los celulares viejos ignoran
   la clave nueva). Hoy ningún trigger de `gt.registros` hace `raise`: lo que podía tirar un lote eran los casts de fecha y número.
@@ -212,8 +242,8 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   (1.56) sigue cada 30 s.
 - **4) Copia en IndexedDB y envío con la app cerrada (D90).** Cada cambio de la cola se copia a IndexedDB (`cola-idb.js`, base `gt-cola`,
   compartido por la página y el service worker). **`sw.js`** escucha el evento `sync` (tag `flush-queue`), lee la copia y la manda a
-  `gt_registrar`; si la base responde, las confirmadas quedan en `acked` y las rechazadas en `rech`, y la página (`reconciliar()`, al abrir,
-  al volver a primer plano y cuando el service worker le avisa) las saca de su cola y las pasa a lo de hoy / a rechazados. La página pide
+  `gt_registrar`; las confirmadas quedan en `acked` (las rechazadas se quedan en la copia: 1.58) y la página (`reconciliar()`, al abrir,
+  al volver a primer plano y cuando el service worker le avisa) las saca de su cola y las pasa a lo de hoy. La página pide
   el sync cuando un envío falla y cuando se va a segundo plano con algo sin enviar. Mandar dos veces es seguro (`client_id`).
   Además, si el `localStorage` pierde la cola (la clave desaparece) y la copia tiene filas, se recuperan.
 - ⚠ **Límites [Seguro / Probable]:**

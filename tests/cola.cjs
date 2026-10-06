@@ -1,10 +1,11 @@
-// 1.57 (D89 y D90, Elías 06/10/2026): lo que le faltaba a la cola de GT frente a Gestión Virgilio y Registro-Produccion-2.0.
-//   A) la cola se reintenta cada 5 s (no 30), el celular avisa a la base el error de envío (el primer fallo y el 5.º) y que se recuperó
-//   B) una fila mala no traba a las demás: la rechazada sale de la cola y va a «rechazados», la que la base no pudo guardar por un error
-//      pasajero (`reintentar`) se queda y entra en el reintento siguiente, las buenas entran
+// 1.57 (D89 y D90, Elías 06/10/2026) y 1.58 (Elías: «si no se envió se tiene que reintentar y la cola tiene que guardar el tiempo original»):
+//   A) la cola se reintenta cada 5 s (no 30), el celular avisa a la base el error de envío (el primer fallo y el 5.º) y que se recuperó,
+//      y lo que se manda tarde llega con la hora ORIGINAL del toque, no la de cuando se manda
+//   B) una fila que la base no toma (rechazada por un dato o con un error pasajero) NO se descarta: se queda en la cola sin tocar,
+//      se reintenta con espera creciente, no traba a las demás y, cuando entra, entra con su hora original. «⚠ N sin enviar»
 //   C) el espejo en IndexedDB: lo que se encola queda copiado, y si el localStorage pierde la cola se recupera de la copia
 //   D) el service worker manda la cola SOLO (Background Sync), con la página fallando, y la página lo reconoce: la fila sale de su cola
-//      y no se manda dos veces. Y lo que el service worker ve rechazado llega a «rechazados»
+//      y no se manda dos veces. Lo que la base no toma se queda también en su copia y se reintenta
 //   E) sin IndexedDB (modo privado) la cola sigue andando como en la 1.56
 // Uso: node tests/cola.cjs   (necesita playwright)
 const path = require("path"), http = require("http"), fs = require("fs");
@@ -13,7 +14,7 @@ const ROOT = path.join(__dirname, "..");
 const A = (codigo, nombre, orden, x) => Object.assign({ codigo, nombre, unidad: "unidades cortadas", orden, planta: "PELL", pide_codigo: false, pide_cantidad: false }, x || {});
 const AREAS = [A("MOVIM", "Movimientos", 30), A("BANO", "Baño", 31)];
 let filas = [];
-const ctl = { modo: "ok", reint: false, intentos: [], logs: [] };
+const ctl = { modo: "ok", reint: false, rech: false, intentos: [], logs: [] };
 const srv = http.createServer((req, res) => {
   if (req.url.startsWith("/rest/v1/rpc/")) {
     let body = ""; req.on("data", (c) => (body += c)); req.on("end", () => {
@@ -25,7 +26,7 @@ const srv = http.createServer((req, res) => {
         if (ctl.modo === "500" || (ctl.modo === "soloSW" && !deSW)) { res.writeHead(500, { "Content-Type": "application/json" }); res.end('{"message":"caída simulada"}'); return; }
         const ok = [], rechazados = [], reintentar = [];
         (b.p_filas || []).forEach((f) => {
-          if (f.texto === "RECH") rechazados.push({ client_id: f.client_id, motivo: "error de dato: prueba" });
+          if (f.texto === "RECH" && ctl.rech) rechazados.push({ client_id: f.client_id, motivo: "error de dato: prueba" });
           else if (f.texto === "REINT" && ctl.reint) reintentar.push(f.client_id);
           else { if (!filas.some((x) => x.client_id === f.client_id)) filas.push(f); ok.push(f.client_id); }
         });
@@ -47,7 +48,7 @@ const fallas = [];
 const chk = (c, m) => { if (!c) fallas.push(m); console.log((c ? "✓ " : "✗ ") + m); };
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 async function hasta(fn, ms, paso) { const fin = Date.now() + ms; while (Date.now() < fin) { if (await fn()) return true; await dormir(paso || 200); } return !!(await fn()); }
-const reset = () => { filas = []; ctl.modo = "ok"; ctl.reint = false; ctl.intentos = []; ctl.logs = []; };
+const reset = () => { filas = []; ctl.modo = "ok"; ctl.reint = false; ctl.rech = false; ctl.intentos = []; ctl.logs = []; };
 
 srv.listen(0, async () => {
   const url = "http://localhost:" + srv.address().port + "/";
@@ -71,7 +72,7 @@ srv.listen(0, async () => {
       await pg.evaluate(() => window.__gt.flush()); await pg.waitForTimeout(300);   // el INGRESO sale
       ctl.modo = "500"; ctl.intentos = []; ctl.logs = [];
       await pg.click(".box[data-cod=MOVIM]"); await pg.waitForTimeout(400);
-      const t0 = Date.now();
+      const t0 = Date.now(), tsOriginal = (await cola(pg))[0].ts_cliente;
       chk(/1 sin enviar/.test(await badge(pg)), "A) con la base caída el evento queda en la cola: «" + (await badge(pg)) + "»");
       await dormir(11000);
       const n = ctl.intentos.filter((x) => !x.deSW).length;
@@ -82,31 +83,57 @@ srv.listen(0, async () => {
       chk(await hasta(() => ctl.logs.some((l) => l.p_tipo === "error_envio" && l.p_intentos === 5), 14000), "A) y otra vez al 5.º intento (no en cada uno: " + ctl.logs.filter((l) => l.p_tipo === "error_envio").map((l) => l.p_intentos).join(", ") + ")");
       ctl.modo = "ok";
       chk(await hasta(async () => /al día/.test(await badge(pg)), 8000), "A) vuelve la base: la cola se vacía sola en menos de 8 s sin tocar nada (" + (await badge(pg)) + ")");
-      chk(filas.some((f) => f.rubro === "MOVIM" || f.opcion === "AREA"), "A) y la base tiene el evento");
+      const llegada = filas.find((f) => f.rubro === "MOVIM" || f.opcion === "AREA");
+      chk(!!llegada, "A) y la base tiene el evento");
+      chk(llegada && llegada.ts_cliente === tsOriginal && Date.now() - Date.parse(llegada.ts_cliente) >= 10000,
+          "A) llegó con la hora ORIGINAL del toque (" + tsOriginal.slice(11, 19) + "), " + Math.round((Date.now() - Date.parse(tsOriginal)) / 1000) + " s antes de que se mandara");
       const rec = ctl.logs.filter((l) => l.p_tipo === "envio_recuperado");
       chk(rec.length === 1 && rec[0].p_intentos >= 3 && rec[0].p_pendientes === 1, "A) avisa que se recuperó (" + (rec[0] ? rec[0].p_intentos + " intentos, " + rec[0].p_pendientes + " pendiente" : "no avisó") + ")");
       await ctx.close();
     }
 
-    // ─── B) una fila mala no traba a las demás ───
+    // ─── B) lo que la base no toma NO se descarta ───
     {
       reset();
       const ctx = await br.newContext({ viewport: { width: 390, height: 664 } }), pg = await sesion(ctx);
       await pg.evaluate(() => window.__gt.flush()); await pg.waitForTimeout(300);
-      ctl.reint = true; ctl.modo = "ok";
-      await pg.evaluate(() => {
-        const ts = new Date().toISOString(), base = { empleado_id: 4, opcion: "AREA", rubro: "MOVIM", descripcion: "Movimientos", ts_cliente: ts, ts_inicio: null, dispositivo: "prueba", planta: "PELL" };
+      ctl.reint = true; ctl.rech = true; ctl.modo = "ok";
+      const horas = await pg.evaluate(() => {
+        const base = { empleado_id: 4, opcion: "AREA", rubro: "MOVIM", descripcion: "Movimientos", ts_inicio: null, dispositivo: "prueba", planta: "PELL" }, h = {};
         const q = JSON.parse(localStorage.getItem("gt_queue_v3") || "[]");
-        ["bueno1", "malo", "pasajero", "bueno2"].forEach((id, i) => q.push(Object.assign({}, base, { client_id: "b-" + id, texto: id === "malo" ? "RECH" : id === "pasajero" ? "REINT" : "", ts_cliente: new Date(Date.now() + i).toISOString() })));
-        localStorage.setItem("gt_queue_v3", JSON.stringify(q));
+        ["bueno1", "malo", "pasajero", "bueno2"].forEach((id, i) => {
+          h["b-" + id] = new Date(Date.now() - (20 - i) * 60000).toISOString();            // hace 20, 19, 18 y 17 minutos
+          q.push(Object.assign({}, base, { client_id: "b-" + id, texto: id === "malo" ? "RECH" : id === "pasajero" ? "REINT" : "", ts_cliente: h["b-" + id] }));
+        });
+        localStorage.setItem("gt_queue_v3", JSON.stringify(q)); return h;
       });
       await pg.evaluate(() => window.__gt.flush()); await pg.waitForTimeout(500);
-      const q = await cola(pg), rech = await pg.evaluate(() => JSON.parse(localStorage.getItem("gt_rechazados_v3") || "[]"));
-      chk(filas.some((f) => f.client_id === "b-bueno1") && filas.some((f) => f.client_id === "b-bueno2"), "B) las dos filas buenas entraron aunque había una mala y una con error pasajero en el mismo lote");
-      chk(rech.some((r) => r.client_id === "b-malo" && /error de dato/.test(r.motivo)) && !q.some((x) => x.client_id === "b-malo"), "B) la fila con error de dato salió de la cola y quedó en «rechazados» con su motivo");
-      chk(q.length === 1 && q[0].client_id === "b-pasajero", "B) la del error pasajero SE QUEDA en la cola, ni confirmada ni rechazada (cola: " + q.map((x) => x.client_id).join(",") + ")");
-      ctl.reint = false;
-      chk(await hasta(async () => (await cola(pg)).length === 0, 8000) && filas.some((f) => f.client_id === "b-pasajero"), "B) pasado el error, entra en el reintento siguiente (5 s) sin que nadie toque nada");
+      const q = await cola(pg), reint = await pg.evaluate(() => JSON.parse(localStorage.getItem("gt_reint_v1") || "{}"));
+      chk(filas.some((f) => f.client_id === "b-bueno1") && filas.some((f) => f.client_id === "b-bueno2"), "B) las dos filas buenas entraron aunque había una rechazada y una con error pasajero en el mismo lote");
+      chk(q.map((x) => x.client_id).sort().join() === "b-malo,b-pasajero", "B) la rechazada y la del error pasajero SE QUEDAN en la cola, no se descartan (cola: " + q.map((x) => x.client_id).join(",") + ")");
+      chk(reint["b-malo"] && reint["b-malo"].n === 1 && /error de dato/.test(reint["b-malo"].motivo) && reint["b-pasajero"] && reint["b-pasajero"].n === 1,
+          "B) cada una lleva su cuenta de reintentos y el motivo, aparte de la fila (la fila no se toca)");
+      chk(q.every((x) => x.ts_cliente === horas[x.client_id]), "B) las filas guardadas conservan la hora ORIGINAL de cuando se tocó");
+      chk(/⚠ 2 sin enviar/.test(await badge(pg)), "B) la insignia lo dice: «" + (await badge(pg)) + "»");
+      ctl.reint = false; ctl.rech = false;       // la causa se arregla
+      chk(await hasta(async () => (await cola(pg)).length === 0, 14000) && filas.some((f) => f.client_id === "b-malo") && filas.some((f) => f.client_id === "b-pasajero"),
+          "B) arreglada la causa, entran solas en el reintento siguiente, sin que nadie toque nada");
+      chk(["b-malo", "b-pasajero"].every((id) => filas.find((f) => f.client_id === id).ts_cliente === horas[id]),
+          "B) y entran con la hora ORIGINAL (hace 19 y 18 minutos), no con la de cuando se mandaron");
+      chk(/al día/.test(await badge(pg)) && Object.keys(await pg.evaluate(() => JSON.parse(localStorage.getItem("gt_reint_v1") || "{}"))).length === 0, "B) la cuenta de reintentos se limpia: «" + (await badge(pg)) + "»");
+
+      // la espera crece: una fila que ya falló muchas veces espera 1 hora entre intentos, pero al abrir la app se prueba enseguida
+      ctl.rech = true; filas.length = 0;
+      await pg.evaluate(() => {
+        const q = JSON.parse(localStorage.getItem("gt_queue_v3") || "[]");
+        q.push({ client_id: "b-vieja", empleado_id: 4, opcion: "AREA", rubro: "MOVIM", descripcion: "Movimientos", texto: "", ts_cliente: new Date(Date.now() - 600000).toISOString(), ts_inicio: null, dispositivo: "prueba", planta: "PELL" });
+        localStorage.setItem("gt_queue_v3", JSON.stringify(q));
+        localStorage.setItem("gt_reint_v1", JSON.stringify({ "b-vieja": { n: 8, prox: Date.now() + 3600e3, motivo: "prueba" } }));
+      });
+      ctl.intentos = []; await pg.waitForTimeout(7000);
+      chk(!ctl.intentos.some((x) => x.n > 0), "B) una fila con 8 fallos espera su turno (1 hora): en 7 s no se la vuelve a mandar");
+      await pg.reload(); await pg.waitForSelector("#optionsScreen:not(.hidden)"); await pg.waitForTimeout(1500);
+      chk(filas.some((f) => f.client_id === "b-vieja"), "B) al abrir la app se prueba de nuevo enseguida, sin esperar la hora");
       await ctx.close();
     }
 
@@ -162,19 +189,23 @@ srv.listen(0, async () => {
       ctl.modo = "ok"; ctl.intentos = []; await pg.waitForTimeout(6000);
       chk(filas.filter((f) => f.client_id === id).length === 1 && !ctl.intentos.some((x) => x.n > 0), "D) con la base de vuelta no se manda otra vez (1 fila en la base, ningún envío más)");
       chk(/al día/.test(await badge(pg)), "D) la insignia dice «" + (await badge(pg)) + "»");
-      // lo que el service worker ve rechazado llega a «rechazados»
-      ctl.modo = "soloSW"; ctl.intentos = [];
+      // lo que la base no toma se queda también en la copia del service worker y se reintenta (no se descarta)
+      ctl.modo = "soloSW"; ctl.intentos = []; ctl.rech = true;
       await pg.evaluate(() => {
         const q = JSON.parse(localStorage.getItem("gt_queue_v3") || "[]");
-        q.push({ client_id: "sw-malo", empleado_id: 4, opcion: "AREA", rubro: "MOVIM", descripcion: "Movimientos", texto: "RECH", ts_cliente: new Date().toISOString(), ts_inicio: null, dispositivo: "prueba", planta: "PELL" });
+        q.push({ client_id: "sw-malo", empleado_id: 4, opcion: "AREA", rubro: "MOVIM", descripcion: "Movimientos", texto: "RECH", ts_cliente: "2026-01-02T03:04:05.000Z", ts_inicio: null, dispositivo: "prueba", planta: "PELL" });
         localStorage.setItem("gt_queue_v3", JSON.stringify(q));
       });
       await pg.reload(); await pg.waitForSelector("#optionsScreen:not(.hidden)"); await pg.waitForTimeout(600);   // al abrir, la copia se pone igual a la cola
       chk((await espejo(pg)).queue.some((x) => x.client_id === "sw-malo"), "D) al abrir, la copia de IndexedDB se iguala a la cola (un celular recién actualizado a la 1.57 con cola pendiente)");
       await dispararSync();
-      chk(await hasta(async () => (await pg.evaluate(() => JSON.parse(localStorage.getItem("gt_rechazados_v3") || "[]"))).some((r) => r.client_id === "sw-malo" && /error de dato/.test(r.motivo)), 8000),
-          "D) lo que el service worker vio rechazado llega a «rechazados» de la página con su motivo");
-      chk(!(await cola(pg)).some((x) => x.client_id === "sw-malo"), "D) y sale de la cola");
+      await hasta(() => ctl.intentos.some((x) => x.deSW), 5000); await pg.waitForTimeout(600);
+      chk(!filas.some((f) => f.client_id === "sw-malo") && (await cola(pg)).some((x) => x.client_id === "sw-malo") && (await espejo(pg)).queue.some((x) => x.client_id === "sw-malo"),
+          "D) el service worker mandó y la base no la tomó: la fila SE QUEDA en la cola de la página y en la copia");
+      ctl.rech = false; await dispararSync();
+      chk(await hasta(() => filas.some((f) => f.client_id === "sw-malo"), 5000) && filas.find((f) => f.client_id === "sw-malo").ts_cliente === "2026-01-02T03:04:05.000Z",
+          "D) arreglada la causa, el siguiente sync la manda con su hora ORIGINAL");
+      chk(await hasta(async () => !(await cola(pg)).some((x) => x.client_id === "sw-malo"), 4000), "D) y la página la saca de su cola");
       // se va a segundo plano con algo pendiente: pide el envío
       await pg.evaluate(() => { window.__syncPedidos.length = 0; const q = JSON.parse(localStorage.getItem("gt_queue_v3") || "[]"); q.push({ client_id: "bg-1", empleado_id: 4, opcion: "AREA", rubro: "MOVIM", descripcion: "Movimientos", ts_cliente: new Date().toISOString(), ts_inicio: null, dispositivo: "prueba", planta: "PELL" }); localStorage.setItem("gt_queue_v3", JSON.stringify(q)); Object.defineProperty(document, "hidden", { configurable: true, get: () => true }); document.dispatchEvent(new Event("visibilitychange")); });
       await pg.waitForTimeout(500);

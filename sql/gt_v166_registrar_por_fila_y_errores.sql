@@ -1,3 +1,4 @@
+-- ⚠ 1.58 (Elías, 06/10/2026): el celular ya NO saca de su cola lo rechazado: lo reintenta con su hora original (CLAUDE.md, 1.58). Esta función no cambió.
 -- gt_v166 · 1.57 (Elías, 06/10/2026: «d89 sí»). Lo que le faltaba a la cola de GT frente a Gestión Virgilio y Registro-Produccion-2.0.
 --
 -- 1) gt_registrar aísla la fila que falla (lección v25.20 de Virgilio, ahora del lado de la base). Antes, una fila que rompía

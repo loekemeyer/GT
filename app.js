@@ -40,14 +40,15 @@
  * que estar ahí (del área o sin área); vacía, acepta cualquiera.
  *
  * Los eventos van a una cola en localStorage y se mandan en lote; la base contesta fila por
- * fila qué entró y qué rechazó, así una fila mala no traba al resto.
+ * fila qué entró y qué no, así una fila mala no traba al resto. Una fila sale de la cola sólo
+ * cuando la base la confirma: lo que no entra se reintenta (1.58) con su hora original.
  */
 (function () {
   "use strict";
   const CFG = window.GT_CFG;
   const LS_SESION = "gt_sesion_v2";
   const LS_QUEUE = "gt_queue_v3";
-  const LS_RECH = "gt_rechazados_v3";
+  const LS_REINT = "gt_reint_v1";   // 1.58: lo que la base no tomó, para reintentarlo con espera creciente { client_id: { n, prox, motivo } }
   const LS_AREAS = "gt_areas_v5";
   const LS_CODS = "gt_codigos_v6";
   const LS_PASOS = "gt_pasos_v1";
@@ -225,55 +226,69 @@
     if (s.tries >= 3) avisarEnvio("envio_recuperado", s, pendientes);   // 3 fallos seguidos o más: no un parpadeo de la red
   }
   function syncBadge() {
-    const n = cola().length, b = $("syncBadge"), falta = !!st.emp && !st.sinc && !st.vista;
+    const q = cola(), n = q.length, b = $("syncBadge"), falta = !!st.emp && !st.sinc && !st.vista;
+    // 1.58: ⚠ si hay algo que la base no tomó (se reintenta solo, con la hora original): se ve, no se descarta
+    const reint = n && !st.vista ? lsGet(LS_REINT, {}) : {}, traba = q.some((x) => reint[x.client_id]);
     // 1.56: «al día» sólo si el celular trajo lo de hoy de la base; si no pudo, lo dice (puede haber algo abierto que no ve)
-    b.textContent = st.vista ? "👁 Vista · no graba" : n ? "⏳ " + n + " sin enviar" : falta ? "⚠ sin conexión" : "✓ al día";
+    b.textContent = st.vista ? "👁 Vista · no graba" : n ? (traba ? "⚠ " : "⏳ ") + n + " sin enviar" : falta ? "⚠ sin conexión" : "✓ al día";
+    b.title = traba ? "Hay eventos que la base no tomó: se reintentan solos y conservan la hora original" : "";
     b.classList.toggle("pend", (n > 0 || falta) && !st.vista);
     b.classList.toggle("vista", st.vista);
   }
   let flushing = false;
+  // 1.58 (Elías, 06/10: «si no se envió se tiene que reintentar y la cola tiene que guardar el tiempo, la fecha y hora originales,
+  // no la de cuando se manda»): NADA se descarta de la cola por un error. Una fila sale sólo cuando la base la confirma. Lo que la
+  // base no toma (rechazado por un dato, o un error pasajero) se queda, SIN tocar la fila (conserva su ts_cliente: la hora del toque)
+  // y se reintenta con espera creciente: 5 s, 5 s, 15 s, 30 s, 1 min, 5 min, 15 min y después cada hora. Cada vez que se abre la app
+  // se prueba de nuevo enseguida. Los reintentos viven aparte (LS_REINT) para no ensuciar la fila.
+  function esperaReintento(n) { return n <= 2 ? 5e3 : n === 3 ? 15e3 : n === 4 ? 30e3 : n === 5 ? 60e3 : n === 6 ? 300e3 : n === 7 ? 900e3 : 3600e3; }
   async function flush() {
     if (flushing) return;
     if (st.vista) { syncBadge(); return; }   // 1.52: en modo vista no se manda nada
-    const q = cola();
-    if (!q.length) { syncBadge(); return; }
+    const q = cola(), reint = lsGet(LS_REINT, {}), ahora = Date.now();
+    const toca = q.filter((x) => !reint[x.client_id] || reint[x.client_id].prox <= ahora);   // lo que está esperando su turno no se manda todavía
+    if (!toca.length) { syncBadge(); return; }
     flushing = true;
     try {
-      const res = await rpc("gt_registrar", { p_filas: q });
+      const res = await rpc("gt_registrar", { p_filas: toca });
       const ok = new Set(res.ok || []);
-      const rech = res.rechazados || [];
-      const rechIds = new Set(rech.map((r) => r.client_id));
-      if (rech.length) {
-        const viejos = lsGet(LS_RECH, []);
-        rech.forEach((r) => viejos.push(Object.assign({ fila: q.find((x) => x.client_id === r.client_id) || null, ts: new Date().toISOString() }, r)));
-        lsSet(LS_RECH, viejos.slice(-200));
-        toast("⚠ " + rech.length + " registro(s) rechazado(s): " + rech[0].motivo);
-      }
+      const motivos = new Map((res.rechazados || []).map((r) => [r.client_id, r.motivo]));
+      (res.reintentar || []).forEach((id) => motivos.set(id, "error pasajero de la base"));
       // 1.56: «_ack» = cuándo confirmó la base. cargarHoy no puede pisar lo confirmado después de pedir su lectura
       const ack = Date.now();
-      st.server = st.server.concat(q.filter((x) => ok.has(x.client_id) && x.empleado_id === st.emp).map((x) => Object.assign({}, x, { _ack: ack })));
+      st.server = st.server.concat(toca.filter((x) => ok.has(x.client_id) && x.empleado_id === st.emp).map((x) => Object.assign({}, x, { _ack: ack })));
       guardarHoy();
-      escribirCola(cola().filter((x) => !ok.has(x.client_id) && !rechIds.has(x.client_id)));
-      envioRecuperado(q.length);
-      // 1.57 (D89): lo que la base no pudo guardar por un error pasajero (`reintentar`) NO se confirma ni se rechaza: queda en la
-      // cola y entra en el próximo reintento, sin trabar a las demás filas del lote
+      const sigue = cola().filter((x) => !ok.has(x.client_id));   // sólo sale lo que la base confirmó
+      escribirCola(sigue);
+      const nuevo = {}, mandadas = new Set(toca.map((x) => x.client_id));
+      sigue.forEach((x) => {
+        const prev = reint[x.client_id];
+        if (mandadas.has(x.client_id)) {   // se mandó en esta vuelta y no entró
+          const n = (prev ? prev.n : 0) + 1;
+          nuevo[x.client_id] = { n, prox: Date.now() + esperaReintento(n), motivo: motivos.get(x.client_id) || "la base no lo confirmó" };
+        } else if (prev) nuevo[x.client_id] = prev;
+      });
+      lsSet(LS_REINT, nuevo);
+      envioRecuperado(toca.length);
     } catch (e) {
       // sin red o base caída: queda en la cola y se reintenta (cada 5 s) · 1.57: se cuenta, se avisa a la base y se pide el envío en segundo plano
-      envioFallo(e, q.length); pedirSync();
+      envioFallo(e, toca.length); pedirSync();
     } finally { flushing = false; syncBadge(); }
   }
 
+  // cada vez que se abre la app, lo que estaba esperando su turno se prueba de nuevo enseguida (se conserva cuántas veces falló)
+  (function () { const r = lsGet(LS_REINT, {}); Object.keys(r).forEach((k) => { r[k].prox = 0; }); lsSet(LS_REINT, r); })();
+
   // 1.57 (D90): lo que el service worker hizo con la app cerrada (mandar la cola) o lo que se perdió del localStorage.
   //   · filas que el SW ya mandó y la base confirmó → salen de la cola (si no, se mandarían de nuevo) y entran a lo de hoy
-  //   · filas que el SW vio rechazadas → a la lista de rechazados
   //   · si el localStorage perdió la cola (la clave no existe) y la copia tiene filas sin confirmar → se recuperan
   async function reconciliar() {
     if (st.vista || !window.GT_COLA) return;
     let d; try { d = await Promise.race([window.GT_COLA.leer(), new Promise((_, no) => setTimeout(() => no(new Error("IndexedDB tarda")), 3000))]); } catch { return; }
     let cambio = false;
-    const ackIds = new Set(d.acked.map((x) => x.client_id)), rechIds = new Set(d.rech.map((x) => x.client_id));
-    if (ackIds.size || rechIds.size) {
-      const q = lsGet(LS_QUEUE, []), resto = q.filter((x) => !ackIds.has(x.client_id) && !rechIds.has(x.client_id));
+    const ackIds = new Set(d.acked.map((x) => x.client_id));
+    if (ackIds.size) {
+      const q = lsGet(LS_QUEUE, []), resto = q.filter((x) => !ackIds.has(x.client_id));
       if (resto.length !== q.length) { escribirCola(resto); cambio = true; }
       if (st.emp) {
         const ack = Date.now(), vistos = new Set(st.server.map((x) => x.client_id));
@@ -284,16 +299,9 @@
         guardarHoy();
       }
     }
-    if (d.rech.length) {
-      const viejos = lsGet(LS_RECH, []);
-      d.rech.forEach((x) => viejos.push(x));
-      lsSet(LS_RECH, viejos.slice(-200));
-      try { await window.GT_COLA.vaciarRech(); } catch { /* se repite en la próxima */ }
-      toast("⚠ " + d.rech.length + " registro(s) rechazado(s): " + d.rech[0].motivo); cambio = true;
-    }
     let raw = null; try { raw = localStorage.getItem(LS_QUEUE); } catch { /* sin storage */ }
     if (raw === null && d.queue.length) {
-      const q = d.queue.filter((x) => !ackIds.has(x.client_id) && !rechIds.has(x.client_id));
+      const q = d.queue.filter((x) => !ackIds.has(x.client_id));
       if (q.length) { escribirCola(q); cambio = true; }
     } else if (raw !== null) espejar(lsGet(LS_QUEUE, []));   // la copia arranca igual a la cola (también en un celular que se acaba de actualizar a la 1.57)
     if (cambio) {
@@ -1396,7 +1404,7 @@
 
   const ses = lsGet(LS_SESION, null);
   pintarLlave();
-  if (!(ses && ses.dia === hoyAR() && ses.id)) reconciliar();   // sin sesión del día no pasa por entrar(): igual se ponen al día la cola y los rechazados
+  if (!(ses && ses.dia === hoyAR() && ses.id)) reconciliar();   // sin sesión del día no pasa por entrar(): igual se pone al día la cola
   if (ses && ses.dia === hoyAR() && ses.id) entrar(ses.id, ses.nombre, ses.planta, ses.plantas, ses.principal, false, ses.vista);
   else show("claveScreen");
 
