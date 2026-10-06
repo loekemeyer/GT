@@ -54,7 +54,9 @@
   const LS_DISP = "gt_dispositivo";
   const LS_HOY = "gt_hoy_v1";   // 1.56: lo que la base ya tenía de HOY de este operario, para no depender de la red al recargar
   const LS_LLAVE = "gt_llave_v1";   // 1.53: la clave personal del encargado en SU celular { llave, nombre, da }
+  const LS_ENVIO = "gt_envio_v1";   // 1.57: desde cuándo no puede enviar { desde, tries, ultimo } (para avisar a la base al recuperarse)
   const TIMEOUT_MS = 15000;
+  const REINTENTO_MS = 5000;        // 1.57 (D89): la cola se reintenta cada 5 s (antes 30)
 
   const $ = (id) => document.getElementById(id);
   const st = { emp: null, nombre: null, areas: [], codigos: [], server: [], pend: null, codPara: null, pendCont: null,
@@ -187,7 +189,41 @@
   // en MODO VISTA la cola es st.sim, sólo en memoria: lo que se toque se ve igual que en el celular del operario, pero no
   // sale a la base (ni el INGRESO) y se pierde al salir o recargar
   function cola() { return st.vista ? st.sim : lsGet(LS_QUEUE, []); }
-  function guardarCola(q) { if (st.vista) st.sim = q; else lsSet(LS_QUEUE, q); }
+  function guardarCola(q) { if (st.vista) st.sim = q; else escribirCola(q); }
+  // 1.57 (D90): cada cambio de la cola se copia a IndexedDB (cola-idb.js), para que el service worker la pueda mandar con la
+  // app cerrada y para recuperarla si el localStorage se pierde. Las copias salen en orden (la última gana).
+  let espejoP = Promise.resolve();
+  function espejar(q) {
+    if (!window.GT_COLA) return;
+    espejoP = espejoP.then(() => window.GT_COLA.espejar(q, { url: CFG.SUPABASE_URL, key: CFG.SUPABASE_KEY })).catch(() => { /* sin IndexedDB: sigue con localStorage */ });
+  }
+  function escribirCola(q) { lsSet(LS_QUEUE, q); espejar(q); }
+  // pide un envío en segundo plano (Android / Chrome). Se pide cuando un envío falla o cuando se cierra la app con algo pendiente
+  function pedirSync() {
+    try {
+      if (!("serviceWorker" in navigator)) return;
+      navigator.serviceWorker.ready.then((reg) => reg.sync && reg.sync.register("flush-queue")).catch(() => { /* sin Background Sync (iPhone) */ });
+    } catch { /* idem */ }
+  }
+  // 1.57 (D89): el celular avisa a la base los errores de envío que él ve (gt.envio_errores, ≡ ERROR_ENVIO de Registro-Produccion-2.0)
+  function avisarEnvio(tipo, s, pendientes) {
+    rpc("gt_log_envio", { p_tipo: tipo, p_dispositivo: dispositivo(), p_empleado: st.emp, p_motivo: tipo === "error_envio" ? s.ultimo : null,
+                          p_intentos: s.tries, p_pendientes: pendientes, p_desde: s.desde }).catch(() => { /* si tampoco puede avisar, queda contado */ });
+  }
+  function envioFallo(e, pendientes) {
+    const s = lsGet(LS_ENVIO, null) || { desde: new Date().toISOString(), tries: 0, ultimo: "" };
+    s.tries++;
+    s.ultimo = e && e.name === "AbortError" ? "timeout de " + TIMEOUT_MS / 1000 + " s" : String((e && e.message) || e).slice(0, 200);
+    lsSet(LS_ENVIO, s);
+    // el primer fallo y, después, el 5.º, el 20.º y uno cada 10 minutos: un corte largo no llena la tabla
+    if (s.tries === 1 || s.tries === 5 || s.tries === 20 || s.tries % 120 === 0) avisarEnvio("error_envio", s, pendientes);
+  }
+  function envioRecuperado(pendientes) {
+    const s = lsGet(LS_ENVIO, null);
+    if (!s) return;
+    try { localStorage.removeItem(LS_ENVIO); } catch { /* sin storage */ }
+    if (s.tries >= 3) avisarEnvio("envio_recuperado", s, pendientes);   // 3 fallos seguidos o más: no un parpadeo de la red
+  }
   function syncBadge() {
     const n = cola().length, b = $("syncBadge"), falta = !!st.emp && !st.sinc && !st.vista;
     // 1.56: «al día» sólo si el celular trajo lo de hoy de la base; si no pudo, lo dice (puede haber algo abierto que no ve)
@@ -217,10 +253,54 @@
       const ack = Date.now();
       st.server = st.server.concat(q.filter((x) => ok.has(x.client_id) && x.empleado_id === st.emp).map((x) => Object.assign({}, x, { _ack: ack })));
       guardarHoy();
-      lsSet(LS_QUEUE, cola().filter((x) => !ok.has(x.client_id) && !rechIds.has(x.client_id)));
+      escribirCola(cola().filter((x) => !ok.has(x.client_id) && !rechIds.has(x.client_id)));
+      envioRecuperado(q.length);
+      // 1.57 (D89): lo que la base no pudo guardar por un error pasajero (`reintentar`) NO se confirma ni se rechaza: queda en la
+      // cola y entra en el próximo reintento, sin trabar a las demás filas del lote
     } catch (e) {
-      // sin red o base caída: queda en la cola y se reintenta
+      // sin red o base caída: queda en la cola y se reintenta (cada 5 s) · 1.57: se cuenta, se avisa a la base y se pide el envío en segundo plano
+      envioFallo(e, q.length); pedirSync();
     } finally { flushing = false; syncBadge(); }
+  }
+
+  // 1.57 (D90): lo que el service worker hizo con la app cerrada (mandar la cola) o lo que se perdió del localStorage.
+  //   · filas que el SW ya mandó y la base confirmó → salen de la cola (si no, se mandarían de nuevo) y entran a lo de hoy
+  //   · filas que el SW vio rechazadas → a la lista de rechazados
+  //   · si el localStorage perdió la cola (la clave no existe) y la copia tiene filas sin confirmar → se recuperan
+  async function reconciliar() {
+    if (st.vista || !window.GT_COLA) return;
+    let d; try { d = await Promise.race([window.GT_COLA.leer(), new Promise((_, no) => setTimeout(() => no(new Error("IndexedDB tarda")), 3000))]); } catch { return; }
+    let cambio = false;
+    const ackIds = new Set(d.acked.map((x) => x.client_id)), rechIds = new Set(d.rech.map((x) => x.client_id));
+    if (ackIds.size || rechIds.size) {
+      const q = lsGet(LS_QUEUE, []), resto = q.filter((x) => !ackIds.has(x.client_id) && !rechIds.has(x.client_id));
+      if (resto.length !== q.length) { escribirCola(resto); cambio = true; }
+      if (st.emp) {
+        const ack = Date.now(), vistos = new Set(st.server.map((x) => x.client_id));
+        d.acked.forEach((x) => {
+          if (x.empleado_id !== st.emp || vistos.has(x.client_id) || !x.ts_cliente || diaAR(x.ts_cliente) !== hoyAR()) return;
+          const { _sw, ...fila } = x; st.server.push(Object.assign(fila, { _ack: ack })); cambio = true;
+        });
+        guardarHoy();
+      }
+    }
+    if (d.rech.length) {
+      const viejos = lsGet(LS_RECH, []);
+      d.rech.forEach((x) => viejos.push(x));
+      lsSet(LS_RECH, viejos.slice(-200));
+      try { await window.GT_COLA.vaciarRech(); } catch { /* se repite en la próxima */ }
+      toast("⚠ " + d.rech.length + " registro(s) rechazado(s): " + d.rech[0].motivo); cambio = true;
+    }
+    let raw = null; try { raw = localStorage.getItem(LS_QUEUE); } catch { /* sin storage */ }
+    if (raw === null && d.queue.length) {
+      const q = d.queue.filter((x) => !ackIds.has(x.client_id) && !rechIds.has(x.client_id));
+      if (q.length) { escribirCola(q); cambio = true; }
+    } else if (raw !== null) espejar(lsGet(LS_QUEUE, []));   // la copia arranca igual a la cola (también en un celular que se acaba de actualizar a la 1.57)
+    if (cambio) {
+      syncBadge();
+      if (st.emp && !$("optionsScreen").classList.contains("hidden") && !st.aviso && !st.paso) renderBotonera();
+      flush();
+    }
   }
 
   /* ---------- estado del día ---------- */
@@ -1177,6 +1257,7 @@
     if (!st.areas.length) { st.areas = lsGet(LS_AREAS, []); st.codigos = lsGet(LS_CODS, []); st.pasos = lsGet(LS_PASOS, []); }
     show("optionsScreen");
     if (st.areas.length) renderBotonera();
+    reconciliar();   // 1.57: lo que el service worker mandó con la app cerrada (sin esperarlo: IndexedDB puede tardar y la botonera no)
     await Promise.all([cargarAreas(), cargarHoy()]);
     renderBotonera(); flush();
     // 1.21 (D44): si ya había terminado el día, puede seguir, pero la base avisa por Telegram (una vez por «Terminar día»)
@@ -1297,9 +1378,17 @@
   });
   document.addEventListener("keydown", (e) => { if (e.key !== "Escape") return; if (st.aviso) cerrarAviso(); else cerrarHist(); });
   window.addEventListener("online", () => { flush(); if (!st.sinc) resync(); });
-  document.addEventListener("visibilitychange", () => { if (!document.hidden && st.emp && !st.sinc) resync(); });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && st.emp && !st.sinc) resync();
+    if (!document.hidden) reconciliar();                       // 1.57: el service worker pudo haber mandado la cola con la app en segundo plano
+    else if (!st.vista && cola().length) pedirSync();          // 1.57: se va a segundo plano con algo sin enviar: que el service worker lo mande
+  });
   window.addEventListener("resize", acomodar);
-  setInterval(() => { flush(); if (st.emp && !st.sinc) resync(); }, 30000);   // 1.56: si no trajo lo de hoy, lo reintenta
+  // 1.57 (D89, Elías: «que el reintento sea cada pocos segundos»): la cola se reintenta cada 5 s (antes 30) y, si no trajo lo de hoy,
+  // lo reintenta cada 30 s (1.56). flush() sin nada en la cola no hace nada: este ritmo sólo se nota cuando hay algo pendiente
+  let vuelta = 0;
+  setInterval(() => { flush(); if (st.emp && !st.sinc && ++vuelta % 6 === 0) resync(); }, REINTENTO_MS);
+  if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.tipo === "gt-cola") reconciliar(); });
   setInterval(revisarParejas, 5000);    // 1.43 (Elías: «cada 5 segundos») · 1.45: el aviso «se sumó» al que empezó
   setInterval(pintarMuerto, 1000);      // 1.43
 
@@ -1307,6 +1396,7 @@
 
   const ses = lsGet(LS_SESION, null);
   pintarLlave();
+  if (!(ses && ses.dia === hoyAR() && ses.id)) reconciliar();   // sin sesión del día no pasa por entrar(): igual se ponen al día la cola y los rechazados
   if (ses && ses.dia === hoyAR() && ses.id) entrar(ses.id, ses.nombre, ses.planta, ses.plantas, ses.principal, false, ses.vista);
   else show("claveScreen");
 

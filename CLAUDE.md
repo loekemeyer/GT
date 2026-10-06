@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) · `node tests/vista.cjs` (el modo vista y las áreas de un solo empleado) · `node tests/resync.cjs` (el celular recarga con la base caída o con un envío en camino y no pierde lo abierto) · `node tests/esnaola.cjs` (Esnaola sin monitor: la clave del encargado y el código para el compañero) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) · `node tests/vista.cjs` (el modo vista y las áreas de un solo empleado) · `node tests/resync.cjs` (el celular recarga con la base caída o con un envío en camino y no pierde lo abierto) · `node tests/esnaola.cjs` (Esnaola sin monitor: la clave del encargado y el código para el compañero) · `node tests/cola.cjs` (la cola: reintento cada 5 s, aviso de errores de envío, una fila mala que no traba, la copia en IndexedDB y el service worker que manda con la app cerrada) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -160,7 +160,7 @@ de **`gt_botones()`** (no de `gt_botonera()`: cambió lo que devuelve y un `DROP
   `insert`/`update` en el schema, no un deploy.
 - **Una sola tarea abierta por operario.** La tarea abierta no se guarda: se deduce de los eventos
   del día (servidor + cola local), así sobrevive a una recarga.
-- **Cola offline** en `localStorage` (`gt_queue_v3`), reintento cada 30 s y al volver la red. Una fila
+- **Cola offline** en `localStorage` (`gt_queue_v3`), reintento cada 5 s (1.57, antes 30) y al volver la red. Una fila
   rechazada sale de la cola y queda en `gt_rechazados_v3` (no traba al resto — lección v25.20 de Virgilio).
 
 ### ⚠ El conector de Supabase NO deja correr un `DROP` desde la sesión
@@ -189,6 +189,50 @@ insert into gt.rubros (codigo, nombre, unidad, orden) values ('<COD>', '<Área>'
 insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_texto, fila, orden)
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
+
+### 1.57 — la cola: errores de envío avisados, una fila mala no traba y envío con la app cerrada (Elías, 06/10/2026: D89 y D90 «sí»)
+
+- **Pedido:** comparar la cola de GT con la de Gestión Virgilio y Registro-Produccion-2.0 y traerle lo que le faltaba. Las tres
+  tienen cola en `localStorage`, `client_id` único y reintento por red/timeout; a GT le faltaban cuatro cosas, que son esto.
+- **1) `gt_registrar` aísla la fila que falla (gt_v166).** Antes un error en UNA fila (fecha mal escrita, restricción, un trigger) tiraba
+  el lote ENTERO: el celular lo tomaba por «sin red» y reintentaba el mismo lote para siempre, con todo lo que venía detrás trabado.
+  Ahora cada fila va en su propio bloque. Error **de dato** (clase 22 y 23 de Postgres, o un `raise` de un trigger) → la fila se
+  **rechaza** (sale de la cola del celular, va a su lista de rechazados) y queda **entera** en `gt.envio_errores`. Cualquier otro error
+  (bloqueo, timeout, recursos) → la fila **no** se confirma ni se rechaza: vuelve en `reintentar`, se queda en la cola y entra en el
+  próximo reintento, y las demás filas del lote entran igual. Respuesta: `{ ok, rechazados, reintentar }` (los celulares viejos ignoran
+  la clave nueva). Hoy ningún trigger de `gt.registros` hace `raise`: lo que podía tirar un lote eran los casts de fecha y número.
+- **2) Aviso de errores de envío (≡ `ERROR_ENVIO` de Registro-Produccion-2.0).** `gt.envio_errores` (RLS, anon no la lee):
+  `rechazo` / `error_fila` (lo ve la base: motivo, SQLSTATE, la fila completa, `intentos`) y `error_envio` / `envio_recuperado` (lo ve el
+  celular por `gt_log_envio`: primer fallo, 5.º, 20.º y uno cada 10 min, con el motivo `HTTP 500 …` o `timeout de 15 s`, cuántos
+  pendientes y desde cuándo; y al recuperarse, si hubo 3 fallos o más, cuánto estuvo caído). Tope de 500 avisos por hora entre todos.
+  Un celular **sin red** no puede avisar en ese momento: avisa al volver (`envio_recuperado`). Consulta:
+  `select * from gt.envio_errores order by ts desc;` · lo que quedó sin resolver: `where tipo in ('rechazo','error_fila') and definitivo`
+  (la fila entera está en `fila`: se puede reinsertar a mano) o `definitivo = false` (error pasajero que se sigue reintentando).
+- **3) Reintento cada 5 s (antes 30).** `REINTENTO_MS` en `app.js`. Sin nada en la cola no hace nada; el reintento de «traer lo de hoy»
+  (1.56) sigue cada 30 s.
+- **4) Copia en IndexedDB y envío con la app cerrada (D90).** Cada cambio de la cola se copia a IndexedDB (`cola-idb.js`, base `gt-cola`,
+  compartido por la página y el service worker). **`sw.js`** escucha el evento `sync` (tag `flush-queue`), lee la copia y la manda a
+  `gt_registrar`; si la base responde, las confirmadas quedan en `acked` y las rechazadas en `rech`, y la página (`reconciliar()`, al abrir,
+  al volver a primer plano y cuando el service worker le avisa) las saca de su cola y las pasa a lo de hoy / a rechazados. La página pide
+  el sync cuando un envío falla y cuando se va a segundo plano con algo sin enviar. Mandar dos veces es seguro (`client_id`).
+  Además, si el `localStorage` pierde la cola (la clave desaparece) y la copia tiene filas, se recuperan.
+- ⚠ **Límites [Seguro / Probable]:**
+  1. **Background Sync es sólo Chrome / Android.** En iPhone (Safari) no existe [Probable]: ahí la cola sólo sale con la app abierta (cada 5 s,
+     al volver la red y al volver a primer plano). GT tiene operarios con iPhone: para ellos la ganancia es el reintento de 5 s, la fila mala
+     que no traba y el aviso de errores, no el envío con la app cerrada.
+  2. **El navegador decide cuándo corre el sync** (Chrome reintenta con espera creciente, hasta 3 veces). No es instantáneo.
+  3. **Lo que NO se pudo probar acá:** el Chromium de las pruebas trae Background Sync apagado (`reg.sync.register` falla con «Background
+     Sync is disabled»). `tests/cola.cjs` reemplaza `reg.sync` para ver qué pide la página y dispara el evento `sync` por CDP
+     (`ServiceWorker.dispatchSyncEvent`): prueba el manejador, la copia, el envío y la reconciliación, **no** que Chrome lo programe solo
+     con la app cerrada. Eso se ve en un Android real: con el celular sin red, tocar algo, cerrar la app, volver la red.
+  4. El service worker **sigue sin cachear la app** (como Virgilio y 2.0): con un celular sin red que abre la app en frío, la página no
+     carga. La cola ya guardada no se pierde.
+  5. Una fila en `reintentar` se reintenta sin límite (no hay tope de edad): se ve en «⏳ N sin enviar» y en `gt.envio_errores`
+     (`definitivo = false`, `intentos`).
+- **Sin cambios para los celulares viejos:** la respuesta de `gt_registrar` sigue trayendo `ok` y `rechazados`. Probado en transacción
+  abortada con 9 filas (3 buenas, fecha inválida, empleado inexistente, `raise` de un trigger, falta la opción, cantidad inválida y una
+  con error pasajero 40001): entran 3, se rechazan 5 con su motivo, 1 queda para reintentar y su contador sube a 2 al repetirla.
+- `sql/gt_v166_registrar_por_fila_y_errores.sql` (rollback: `sql/gt_v166_rollback.sql`) · `cola-idb.js` · `sw.js` · `tests/cola.cjs`.
 
 ### 1.56 — el celular no pierde lo que ya hizo cuando recarga sin red o con un envío en camino (06/10/2026)
 
