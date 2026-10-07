@@ -409,6 +409,11 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   de producto. **D73 (Thomas: «va x16 · Aro Natural»):** UxB 16 y marco Natural → aro 078 (03 Nat 27.5*40, como el 248). Mold 03 queda
   [Probable] (no se confirmó aparte; el aro Natural de 27,5×40 es de la 03).
   Entran a la demanda: 30 y 14 cajas. `sql/gt_v161_codigos_425_426.sql`.
+- **Artículos de Easy (gt_v167, Thomas: «agregá todos estos», lista de venta jun-26 a sep-26):** de 34, 28 ya estaban. Entraron
+  **257** Bauhaus Verde, **299** Música, **458** Infantil F, **469** Velvet (Mold 03 30*40 x16), **470** Set x2 Bauhaus Studio
+  (30*40 + 30*40, x8 [Adivinando]) y **471** Set x3 Bauhaus Blue (3 × 30*40, x8), en las 6 áreas de producto, sin color de
+  marco. Todos con venta en TN: entran a la demanda (294 cajas sin conteo). **D93:** la lista dice 420 = «Coral 30*40» y
+  457 = «Infantil M 30*40»; la base, 420 = Wine 20*30 y 457 = Back to School 30*40: no se tocaron. `sql/gt_v167_codigos_easy.sql`.
 - **1.51 (D72, Thomas: «sí»):** también en la pantalla de **Terminé de Encolado**: «🔧 Terminar e ir a Puesta a punto
   encoladora» cierra Encolado con sus cajas (las pide igual) y abre la puesta a punto; al terminarla, «¿Con qué código seguís en
   Encolado?». No sale al terminar la propia puesta a punto. Con 520 px de alto o menos va al lado de «Terminar y seguir», con
