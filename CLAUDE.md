@@ -191,6 +191,23 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.62 — en Encolado el DECO se anota en unidades y los CUADROS en cajas (Thomas, 08/10/2026)
+
+- Pedido: *«cuando encolan artículos de deco se anotan unidades y cuando encolan artículos de cuadro se encolan cajas. Hay que
+  hacer esa norma de separación»*.
+- **`gt.codigo_area.unidad`** (gt_v170): la unidad de ESE código en ESA área; vacía = la del área. Los **47 de deco activos** de
+  Encolado (todo lo que no es Cuadro / Cuadros / Porta / Diploma: la misma separación de gt_v154; 106 filas contando las inactivas)
+  quedan en **«unidades encoladas»**; cuadros, portas 220 a 224 y diplomas siguen en «cajas encoladas». En Montaje y el resto,
+  el deco sigue en cajas. Otro código: `update gt.codigo_area set unidad = '…' where rubro = '…' and codigo = '…'`.
+- **`gt.unidad_area(área, código)`** la resuelve para todos: el celular (`gt_codigos_area2` manda `unidad`: «¿Cuántas unidades
+  encoladas del 456?», sin el aviso de más de 10 cajas), Producción (`gt_admin_produccion3`), Ritmo (`gt_admin_ritmo2`),
+  Rendimiento (`gt_admin_rendimiento`), `gt.produccion` y `gt.movimientos` (un tramo en unidades **no** se multiplica por la UxB).
+  Las 5 se cambiaron sobre la definición viva, con control de que cada reemplazo apareciera las veces esperadas.
+- Medido al aplicarlo: 4 tramos de deco en Encolado (456 de Walter con 5 y de Ximena con **136**, 547 de los dos con 1). El 136
+  de Ximena pasa de leerse 1.088 unidades (136 cajas × 8) a **136 unidades** = 17 cajas: era un dato bueno anotado en la unidad
+  que se usa en el piso (D105 se retira para ese tramo). En `gt.movimientos` el 456 encolado quedó 5 y 136.
+- `sql/gt_v170_encolado_deco_en_unidades.sql` · `tests/codigos.cjs` (456 en unidades sin aviso · 002 en cajas con aviso).
+
 ### 1.61 — sumarse desde «¿Con qué código seguís?» y aviso de más de 10 cajas (Thomas, 08/10/2026: D100 «sí», D101)
 
 - **D100:** la Oficina Pellegrini: *«me dice Xime que no le aparece para agregar a Walter a encolado»*. «Tocá para sumarte» sólo

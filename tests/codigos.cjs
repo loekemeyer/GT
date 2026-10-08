@@ -23,10 +23,11 @@ const LISTA = ["CONTR", "EMBL", "ENCOL", "GANCHO", "GUARD", "MONT"].flatMap((rub
 // 1.59: el 3080 de Deco sirve para 4 bandejas y pregunta cuál (gt.codigos_rubro.articulos)
 Object.assign(LISTA.find((x) => x.rubro === "DECO" && x.codigo === "071"),
   { codigo: "3080", descripcion: "Armado Bandeja — 456/536/818/534 Bandeja 13x30", articulos: ["456", "536", "818", "534"] });
-Object.assign(LISTA.find((x) => x.rubro === "ENCOL" && x.codigo === "317"), { codigo: "456", descripcion: "Bandeja manija/mad Mold 012 Colores", medida: "13*30" });
+Object.assign(LISTA.find((x) => x.rubro === "ENCOL" && x.codigo === "317"), { codigo: "456", descripcion: "Bandeja manija/mad Mold 012 Colores", medida: "13*30",
+  unidad: "unidades encoladas" });   // 1.62 (gt_v170): deco en Encolado se cuenta en unidades
 const FILAS = [];
 const A = (codigo, nombre, orden) => ({ codigo, nombre, unidad: "cajas", orden, planta: "PELL", pide_codigo: true, pide_cantidad: true });
-const AREAS = [Object.assign(A("DECO", "Deco", 9), { unidad: "unidades fabricadas" }), A("GRAMP", "Grampeado", 2), A("MONT", "Montaje", 4), A("GUARD", "Guardado a góndola", 10), A("CONTR", "Contraído", 7)];
+const AREAS = [Object.assign(A("ENCOL", "Encolado", 3), { unidad: "cajas encoladas" }), Object.assign(A("DECO", "Deco", 9), { unidad: "unidades fabricadas" }), A("GRAMP", "Grampeado", 2), A("MONT", "Montaje", 4), A("GUARD", "Guardado a góndola", 10), A("CONTR", "Contraído", 7)];
 let conV2 = true;
 const srv = http.createServer((req, res) => {
   if (req.url.startsWith("/rest/v1/rpc/")) {
@@ -107,6 +108,18 @@ srv.listen(0, async () => {
     chk(!otro && FILAS.filter((f) => f.rubro === "DECO").pop().texto === "001", "un código de Deco sin artículos no pregunta");
     await pg.click(".termine-btn[data-cod=DECO]"); await pg.waitForSelector("#cantScreen:not(.hidden)");
     await pg.fill("#cantInput", "1"); await pg.click("#cambioBtn"); await pg.waitForSelector("#optionsScreen:not(.hidden)");
+    // 1.62 (gt_v170): en Encolado el deco se anota en UNIDADES (sin el aviso de cajas) y los cuadros en cajas
+    await pg.click(".box[data-cod=ENCOL]"); await pg.waitForSelector("#codScreen:not(.hidden)");
+    await pg.fill("#codInput", "456"); await pg.click("#codBtn"); await pg.waitForSelector(".termine-btn[data-cod=ENCOL]");
+    await pg.click(".termine-btn[data-cod=ENCOL]"); await pg.waitForSelector("#cantScreen:not(.hidden)");
+    chk((await pg.textContent("#cantLabel")).startsWith("¿Cuántas unidades encoladas del 456"), "Encolado del 456 (deco): «" + (await pg.textContent("#cantLabel")) + "»");
+    await pg.fill("#cantInput", "136"); await pg.fill("#sigueInput", "002"); await pg.click("#cantBtn");
+    chk(await pg.waitForSelector(".termine-btn[data-cod=ENCOL]", { timeout: 3000 }).then(() => true, () => false), "136 unidades de deco cierra sin el aviso de cajas");
+    await pg.click(".termine-btn[data-cod=ENCOL]"); await pg.waitForSelector("#cantScreen:not(.hidden)");
+    chk((await pg.textContent("#cantLabel")).startsWith("¿Cuántas cajas encoladas del 002"), "Encolado del 002 (cuadro): en cajas");
+    await pg.fill("#cantInput", "136"); await pg.click("#cambioBtn");
+    chk((await pg.textContent("#cantError")).includes("¿Son 136 CAJAS?"), "136 cajas de un cuadro sí avisa");
+    await pg.click("#cambioBtn"); await pg.waitForSelector("#optionsScreen:not(.hidden)");
     // 1.60 (Thomas: «en guardado a góndola puede mandarse directo a pedidos o guardarse en góndola»): al terminar, ¿a dónde fue?
     await pg.click(".box[data-cod=GUARD]"); await pg.waitForSelector("#codScreen:not(.hidden)");
     await pg.fill("#codInput", "224"); await pg.click("#codBtn"); await pg.waitForTimeout(200);

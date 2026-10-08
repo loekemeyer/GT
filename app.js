@@ -574,12 +574,21 @@
   function esInvitado(r) { return !!(r && r.detalle && (r.detalle._invitado || r.detalle._une)); }
   function companero(r) { return String((r && r.detalle && r.detalle.pareja) || "").replace(/^con\s+/, ""); }
   // «las cajas encoladas», «los metros»: la unidad del área con su artículo
+  // 1.62 (gt_v170, Thomas: «cuando encolan artículos de deco se anotan unidades y cuando encolan cuadros, cajas»): la unidad
+  // del CÓDIGO en esa área (gt_codigos_area2 manda «unidad»); sin dato, la del área
+  function unidadDe(a, texto) {
+    if (!a) return "";
+    const sin0 = (x) => String(x || "").toUpperCase().replace(/^0+(?=\d)/, "");
+    const c = texto ? st.codigos.find((x) => x.rubro === a.codigo && x.unidad && sin0(x.codigo) === sin0(texto)) : null;
+    return (c && c.unidad) || a.unidad || "";
+  }
+  function conUnidad(a, texto) { return a ? Object.assign({}, a, { unidad: unidadDe(a, texto) }) : a; }
   function lasUnidades(a) { return a && a.pide_cantidad !== false ? (cuantas(a.unidad) === "¿Cuántos " ? "los " : "las ") + (a.unidad || "cantidades") : ""; }
   // 1.47: en la botonera, quién carga las cantidades de un tramo de a dos
   // 1.48 (D58): si los que se sumaron ya se fueron todos, «todas las del tramo» y quién se fue a qué hora
   function quienCarga(ab) {
     if (!ab || !companero(ab)) return "";
-    const u = lasUnidades(areaDe(ab.rubro));
+    const u = lasUnidades(conUnidad(areaDe(ab.rubro), ab.texto));
     if (esInvitado(ab)) return (u ? u + " las carga " : "lo que haya que cargar lo carga ") + companero(ab);
     const idos = seFueron(ab);
     if (idos) return idos + " · " + (u ? u + " las cargás vos: todas las del tramo" : "lo que haya que cargar lo cargás vos");
@@ -648,7 +657,7 @@
     st.codPara = null;
     registrar(a, { texto: x.texto || "", medida: x.medida || "", detalle: { pareja: "con " + x.de, _une: x.client_id } }, 1); flush();
     show("optionsScreen"); renderBotonera();
-    const u = lasUnidades(a), d = [x.descripcion, x.medida || x.medida_cod].filter(Boolean).join(" · ");
+    const u = lasUnidades(conUnidad(a, x.texto)), d = [x.descripcion, x.medida || x.medida_cod].filter(Boolean).join(" · ");
     aviso({ ico: "🤝", tit: "Te sumaste a " + x.de,
       txt: "<b>" + esc(a.nombre + (x.texto ? " · " + x.texto : "")) + "</b>" + (d ? "<br>" + esc(d) : ""),
       nota: "📝 <b>" + esc(u ? cap(u) + " las carga " + x.de : "Lo que haya que cargar lo carga " + x.de) + "</b>: vos no cargás nada." +
@@ -788,7 +797,8 @@
     $("cantSub").textContent = "desde " + hhmm(ab.ts_cliente) + (invitado ? " · " + quienCarga(ab) + ": vos no cargás nada" : "") +
       (idos ? " · 🤝 todas las del tramo (" + idos + ")" : dos ? " · 🤝 las de " + (companero(ab).includes(" y ") ? "todos" : "los dos") + ", no sólo las tuyas" : "");
     $("cantBox").classList.toggle("hidden", !pideCant);
-    $("cantLabel").textContent = cuantas(cierra.unidad) + cierra.unidad + (ab.texto ? (esMoldura(cierra) ? " de moldura " : " del ") + ab.texto : "") +
+    const uni = unidadDe(cierra, ab.texto);   // 1.62: deco en Encolado se cuenta en unidades
+    $("cantLabel").textContent = cuantas(uni) + uni + (ab.texto ? (esMoldura(cierra) ? " de moldura " : " del ") + ab.texto : "") +
       (ab.detalle && ab.detalle.articulo ? " · " + ab.detalle.articulo : "") +
       (dos ? " hicieron " + entreVos(ab) : "") + "?";
     $("cantInput").value = ""; $("cantError").textContent = ""; st.cantOk = null;
@@ -833,7 +843,7 @@
     }
     // 1.61 (D101, Thomas: «están anotando unidades en lugar de cajas… si fabrican más de 10 cajas, que se les marque una
     // alerta»): en un área que cuenta cajas, más de 10 pide confirmar ese número con un segundo toque (cualquier botón)
-    if (cant != null && cant > CAJAS_AVISO && /^cajas\b/i.test(p.cierra.unidad || "") && st.cantOk !== cant) {
+    if (cant != null && cant > CAJAS_AVISO && /^cajas\b/i.test(unidadDe(p.cierra, p.ab.texto)) && st.cantOk !== cant) {
       st.cantOk = cant;
       $("cantError").textContent = "⚠ ¿Son " + num(cant) + " CAJAS? Se anotan cajas, no unidades. Si son " + num(cant) +
         " cajas, tocá de nuevo para confirmar.";
@@ -858,7 +868,7 @@
     if (sigue && p.modo !== "fin" && pasosDe(sigue, "empezar").length) {
       flush(); st.pend = null; restaurarBtn("cantBtn");
       toast((p.cierra.codigo === "ALMU" ? "✓ Volviste de almorzar" : "✓ Terminaste " + p.cierra.nombre) +
-            (cant != null ? " · " + num(cant) + " " + p.cierra.unidad : ""));
+            (cant != null ? " · " + num(cant) + " " + unidadDe(p.cierra, p.ab.texto) : ""));
       empezarConPasos(sigue, "Seguís en " + sigue.nombre); return;
     }
     // 1.17: si sigue con un set de 3 en Montaje / Gancho, primero cierra y después pregunta la medida
@@ -876,7 +886,7 @@
     flush();
     toast(p.modo === "fin" ? "🏁 Terminaste el día. ¡Hasta mañana!" :
           (p.cierra.codigo === "ALMU" ? "✓ Volviste de almorzar" : "✓ Terminaste " + p.cierra.nombre) +
-          (cant != null ? " · " + num(cant) + " " + p.cierra.unidad : "") +
+          (cant != null ? " · " + num(cant) + " " + unidadDe(p.cierra, p.ab.texto) : "") +
           (sigue ? (sigue.codigo === "ALMU" ? " · buen provecho 🍽️" : " · seguís en " + sigue.nombre + (nuevo ? " · " + nuevo.guardo : "")) : ""));
     st.pend = null; restaurarBtn("cantBtn");
     if (p.modo === "fin") { finDelDia(); return; }
