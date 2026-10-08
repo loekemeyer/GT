@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API, y el 3080 de Deco que pregunta el artículo) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) · `node tests/vista.cjs` (el modo vista y las áreas de un solo empleado) · `node tests/resync.cjs` (el celular recarga con la base caída o con un envío en camino y no pierde lo abierto) · `node tests/esnaola.cjs` (Esnaola sin monitor: la clave del encargado y el código para el compañero) · `node tests/cola.cjs` (la cola: reintento cada 5 s, aviso de errores de envío, una fila mala que no traba, la copia en IndexedDB y el service worker que manda con la app cerrada) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API, y el 3080 de Deco que pregunta el artículo) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse —también desde «¿Con qué seguís?»—, el aviso de más de 10 cajas, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) · `node tests/vista.cjs` (el modo vista y las áreas de un solo empleado) · `node tests/resync.cjs` (el celular recarga con la base caída o con un envío en camino y no pierde lo abierto) · `node tests/esnaola.cjs` (Esnaola sin monitor: la clave del encargado y el código para el compañero) · `node tests/cola.cjs` (la cola: reintento cada 5 s, aviso de errores de envío, una fila mala que no traba, la copia en IndexedDB y el service worker que manda con la app cerrada) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -191,6 +191,24 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.61 — sumarse desde «¿Con qué código seguís?» y aviso de más de 10 cajas (Thomas, 08/10/2026: D100 «sí», D101)
+
+- **D100:** la Oficina Pellegrini: *«me dice Xime que no le aparece para agregar a Walter a encolado»*. «Tocá para sumarte» sólo
+  salía en «Empecé Encolado» (tocando el área en la botonera); Ximena y Walter pasaban de un código a otro con «Terminar y seguir» y
+  nunca llegaban ahí: cada uno abría su propio tramo, con el mismo código, al mismo segundo. Ahora la pantalla de **Terminé** de
+  Encolado / Contraído también muestra lo que están haciendo los compañeros (`#sigueJunta`, `paraUnirse(área, caja, vigente)`):
+  el toque cierra el tramo propio **con sus cajas** (las pide igual) y se suma al del compañero (`unirse`). Sumarse sigue siendo
+  del que llega: el que empezó no «agrega» a nadie.
+- **D101 (Thomas: *«están anotando unidades en lugar de cajas… si fabrican más de 10 cajas, se les marca una alerta»*):** en un
+  área que cuenta **cajas** (`gt.rubros.unidad` empieza con «cajas»: Encolado, Montaje, Gancho, Emblistado, Contraído, Guardado),
+  más de **10** (`CAJAS_AVISO`) al terminar dice «⚠ ¿Son 136 CAJAS? Se anotan cajas, no unidades. Si son 136 cajas, tocá de nuevo
+  para confirmar» y no cierra; el segundo toque con el mismo número (cualquier botón: seguir, cambiar, almorzar, terminar el día,
+  sumarse) lo graba. Deco («unidades fabricadas») y Corte / Grampeado no preguntan. Lo que lo originó: Ximena cerró el 456 de las
+  09:02 con **136** (D105).
+- `tests/parejas.cjs` (12 cajas pide confirmar · Walter termina su 173 y se suma a Luis desde «¿Con qué seguís?», sin cajas no
+  se suma, 15 pide confirmar · 10 no pregunta). Sin cambios en la base. ⚠ No se midió la pantalla de Terminé con los botones de
+  sumarse en los celulares más chicos (320×480): puede pedir bajar.
+
 ### 1.60 — más códigos de Deco por artículo, «¿Con quién?» en la Puesta a punto y Guardado → Góndola o Pedidos (Thomas, 08/10/2026)
 
 - **Deco (gt_v169), con `articulos` como el 3080:** **3004** Patas c/Trav, **3001** Armado Bastidor y **3061** Bastidor + Patas
@@ -203,7 +221,8 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 - **Guardado a góndola pregunta al terminar «¿A dónde fue?» Góndola / Pedidos** (`gt.rubro_pasos`, momento `terminar`,
   `detalle.destino`). En `gt.movimientos` lo que va a Pedidos suma en **`armado`** (lo armado para pedidos) en vez de `gondola`;
   contraído se descuenta igual. Probado en transacción abortada (183 × 2 cajas a Pedidos: armado +32 · contraído −32; × 1 a Góndola:
-  gondola +16). Sin la pregunta (cierre automático, celular viejo sin la fila) va a góndola, como antes. No dice a QUÉ pedido: D104.
+  gondola +16). Sin la pregunta (cierre automático, celular viejo sin la fila) va a góndola, como antes. No dice a QUÉ pedido
+  (D104, Thomas: «por ahora no»).
 - ⚠ Las dos preguntas viven en la base: salieron en los celulares apenas se aplicó gt_v169 (también con la 1.58).
 - `sql/gt_v169_deco_articulos_puesta_con_quien_guardado_destino.sql` · `tests/puesta.cjs` (con quién, sin uno mismo, Solo) ·
   `tests/codigos.cjs` (Guardado a Pedidos).

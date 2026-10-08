@@ -568,6 +568,7 @@
   //    Encolado · 173 … Al terminar, las cajas encoladas las cargás vos: las de los dos», y su área pasa a decir «con Walter».
   //  · El que se sumó no tiene «Terminé» sino «🚪 Me fui» (1.47): cierra sin cajas (las carga Ximena) y vuelve la botonera.
   const DE_A_DOS = ["ENCOL", "CONTR"];
+  const CAJAS_AVISO = 10;   // 1.61 (D101): más cajas que esto al terminar pide confirmar el número
   const LS_AVISOS = "gt_parejas_avisos_v1";   // avisos de «se sumó» ya mostrados en este celular (del día)
   const LS_SOCIO = "gt_pareja_socio_v1";      // 1.48: con quién terminó su último tramo de a dos (para no repetir la ventana)
   function esInvitado(r) { return !!(r && r.detalle && (r.detalle._invitado || r.detalle._une)); }
@@ -622,17 +623,21 @@
     if (b && b.fn) b.fn();
   }
   // en la pantalla del código: lo que están haciendo los compañeros, para sumarse
-  async function paraUnirse(a) {
-    const box = $("codJunta");
-    box.classList.add("hidden"); box.innerHTML = ""; st.unirse = [];
+  // 1.61 (D100, Thomas: «sí»): también en «¿Con qué código seguís?» de la pantalla de Terminé (boxId «sigueJunta»): Ximena y
+  // Walter pasaban de un código a otro con «Terminar y seguir» y nunca veían el botón (08/10)
+  async function paraUnirse(a, boxId, vigente) {
+    boxId = boxId || "codJunta";
+    vigente = vigente || (() => st.codPara && st.codPara.codigo === a.codigo);
+    const box = $(boxId), clave = boxId === "codJunta" ? "unirse" : "unirseS";
+    box.classList.add("hidden"); box.innerHTML = ""; st[clave] = [];
     if (!DE_A_DOS.includes(a.codigo)) return;
     let l = [];
     try { l = await rpc("gt_pareja_abiertos", { p_empleado: st.emp, p_rubro: a.codigo }); } catch { return; }   // sin red: arranca solo
-    if (!st.codPara || st.codPara.codigo !== a.codigo) return;   // ya salió de la pantalla
+    if (!vigente()) return;   // ya salió de la pantalla
     const pl = st.planta || st.principal;
     l = (Array.isArray(l) ? l : []).filter((x) => !pl || !x.planta || x.planta === pl);
     if (!l.length) return;
-    st.unirse = l;
+    st[clave] = l;
     box.innerHTML = '<div class="cod-pend-t">Tocá para sumarte a un compañero</div>' + l.map((x, i) =>
       '<button data-i="' + i + '">🤝 ' + esc(x.de) + (x.texto ? " · " + esc(x.texto) : "") + "<small>" +
       esc([x.descripcion, x.medida || x.medida_cod].filter(Boolean).join(" · ")) + "</small></button>").join("");
@@ -786,7 +791,7 @@
     $("cantLabel").textContent = cuantas(cierra.unidad) + cierra.unidad + (ab.texto ? (esMoldura(cierra) ? " de moldura " : " del ") + ab.texto : "") +
       (ab.detalle && ab.detalle.articulo ? " · " + ab.detalle.articulo : "") +
       (dos ? " hicieron " + entreVos(ab) : "") + "?";
-    $("cantInput").value = ""; $("cantError").textContent = "";
+    $("cantInput").value = ""; $("cantError").textContent = ""; st.cantOk = null;
     if (!conSigue && !almorzar) st.pend.sigue = null;   // «Listo» cierra y no abre nada
     $("sigueBox").classList.toggle("hidden", !conSigue);
     $("siguePend").classList.add("hidden"); $("siguePend").innerHTML = "";
@@ -797,7 +802,9 @@
       prepararInput("sigueInput", "sigueHint", sigue); $("sigueError").textContent = "";
       if (!sigue.pide_codigo) { $("sigueInput").classList.add("hidden"); $("sigueOpts").classList.add("hidden"); $("sigueSuf").classList.add("hidden"); }
       if (sigue.codigo === "GUARD" && sigue.pide_codigo) pendientesContraido("siguePend", () => st.pend && st.pend.sigue && st.pend.sigue.codigo === "GUARD");
-    }
+      const pend0 = st.pend;
+      paraUnirse(sigue, "sigueJunta", () => st.pend === pend0 && st.pend.sigue && st.pend.sigue.codigo === sigue.codigo);   // 1.61 (D100)
+    } else { $("sigueJunta").classList.add("hidden"); $("sigueJunta").innerHTML = ""; st.unirseS = []; }
     restaurarBtn("cantBtn");
     $("cantBtn").textContent = modo === "fin" ? "🏁 Terminar el día" : almorzar ? "🍽️ Terminar e ir a almorzar" :
       conSigue ? (cierra.codigo === "ALMU" ? "Volver y seguir en " : "Terminar y seguir en ") + sigue.nombre : "Listo";
@@ -824,9 +831,18 @@
       if (!/^\d+(\.\d+)?$/.test(v)) { $("cantError").textContent = "Poné un número (0 si no hiciste ninguna)"; $("cantInput").focus(); return; }
       cant = Number(v);
     }
+    // 1.61 (D101, Thomas: «están anotando unidades en lugar de cajas… si fabrican más de 10 cajas, que se les marque una
+    // alerta»): en un área que cuenta cajas, más de 10 pide confirmar ese número con un segundo toque (cualquier botón)
+    if (cant != null && cant > CAJAS_AVISO && /^cajas\b/i.test(p.cierra.unidad || "") && st.cantOk !== cant) {
+      st.cantOk = cant;
+      $("cantError").textContent = "⚠ ¿Son " + num(cant) + " CAJAS? Se anotan cajas, no unidades. Si son " + num(cant) +
+        " cajas, tocá de nuevo para confirmar.";
+      $("cantInput").focus(); return;
+    }
     const sigue = seguir && p.modo !== "fin" ? p.sigue : null;
+    const une = sigue && p.une && sigue.codigo === p.une.rubro ? p.une : null;   // 1.61 (D100): se suma a un compañero
     let nuevo = null;
-    if (sigue && sigue.pide_codigo) {
+    if (sigue && sigue.pide_codigo && !une) {
       nuevo = validarCodigo(sigue, $("sigueInput").value);
       if (nuevo.err) { $("sigueError").textContent = nuevo.err; $("sigueInput").focus(); return; }
       const avisoS = nuevo.nuevo ? null : fueraDeContraido(sigue, nuevo.guardo);
@@ -837,6 +853,7 @@
     if (companero(p.ab) && !esInvitado(p.ab)) lsSet(LS_SOCIO, { dia: hoyAR(), nombres: companero(p.ab).split(" y "), ts: Date.now() });
     registrar(p.cierra, { ts_inicio: p.ab.ts_cliente, cantidad: cant, texto: p.ab.texto || finX.texto || "", medida: p.ab.medida || "",
                           detalle: Object.keys(det).length ? det : null });
+    if (une) { flush(); st.pend = null; restaurarBtn("cantBtn"); unirse(sigue, une); return; }
     // 1.24: si sigue en un área con preguntas (Esnaola), primero cierra y después pregunta moldura / anilina / color
     if (sigue && p.modo !== "fin" && pasosDe(sigue, "empezar").length) {
       flush(); st.pend = null; restaurarBtn("cantBtn");
@@ -1397,6 +1414,12 @@
     $(sid).addEventListener("click", (e) => { const b = e.target.closest(".suf-btn"); if (b) ponerLetra(iid, b.dataset.l); });
   });
   $("codHijas").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { st.codPara = null; empezar(areaDe(b.dataset.cod)); } });
+  $("sigueJunta").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b || !st.pend) return;
+    st.pend.une = (st.unirseS || [])[Number(b.dataset.i)] || null; if (!st.pend.une) return;
+    confirmarCant(true);
+    if (st.pend) st.pend.une = null;   // no cerró (falta la cantidad o confirmar): el próximo toque decide de nuevo
+  });
   $("codJunta").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b && st.codPara) unirse(st.codPara, (st.unirse || [])[Number(b.dataset.i)]); });
   $("codPend").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("codInput").value = b.dataset.cod; confirmarCod(); } });
   $("histBtn").onclick = () => { renderHist(); $("histPop").classList.remove("hidden"); document.body.classList.add("sin-scroll"); };

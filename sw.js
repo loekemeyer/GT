@@ -3,7 +3,7 @@
 // Pasa en Android / Chrome: en iPhone (Safari) no existe Background Sync y el celular sigue mandando sólo con la app abierta.
 // La cola se lee del espejo en IndexedDB (cola-idb.js: la página lo escribe cada vez que cambia la cola). Es seguro mandar dos veces:
 // la base descarta lo repetido por client_id (gt_registrar: on conflict do nothing).
-const SW_VERSION = "1.60-gt";
+const SW_VERSION = "1.61-gt";
 importScripts("cola-idb.js");
 
 self.addEventListener("install", () => self.skipWaiting());

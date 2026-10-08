@@ -26,7 +26,7 @@ Object.assign(LISTA.find((x) => x.rubro === "DECO" && x.codigo === "071"),
 Object.assign(LISTA.find((x) => x.rubro === "ENCOL" && x.codigo === "317"), { codigo: "456", descripcion: "Bandeja manija/mad Mold 012 Colores", medida: "13*30" });
 const FILAS = [];
 const A = (codigo, nombre, orden) => ({ codigo, nombre, unidad: "cajas", orden, planta: "PELL", pide_codigo: true, pide_cantidad: true });
-const AREAS = [A("DECO", "Deco", 9), A("GRAMP", "Grampeado", 2), A("MONT", "Montaje", 4), A("GUARD", "Guardado a góndola", 10), A("CONTR", "Contraído", 7)];
+const AREAS = [Object.assign(A("DECO", "Deco", 9), { unidad: "unidades fabricadas" }), A("GRAMP", "Grampeado", 2), A("MONT", "Montaje", 4), A("GUARD", "Guardado a góndola", 10), A("CONTR", "Contraído", 7)];
 let conV2 = true;
 const srv = http.createServer((req, res) => {
   if (req.url.startsWith("/rest/v1/rpc/")) {

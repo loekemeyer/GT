@@ -191,6 +191,10 @@ srv.listen(0, async () => {
     chk(pide.includes("¿Cuántas cajas encoladas del 173 hicieron entre vos, Walter Saucedo y Luis Luna?") && pide.includes("las de todos, no sólo las tuyas"),
         "a Ximena le pide las de todos: «" + pide + "»");
     await xi.fill("#cantInput", "12"); await xi.fill("#sigueInput", "185"); await xi.click("#cantBtn");
+    // 1.61 (D101): más de 10 cajas pide confirmar el número (están anotando unidades en lugar de cajas)
+    chk((await xi.isVisible("#cantScreen")) && (await xi.textContent("#cantError")).includes("¿Son 12 CAJAS? Se anotan cajas, no unidades"),
+        "12 cajas: «" + (await xi.textContent("#cantError")) + "» y no cierra todavía");
+    await xi.click("#cantBtn");
     await xi.waitForSelector(".termine-btn[data-cod=ENCOL]"); await enviar(xi);
     const xc = de(7).find((r) => r.rubro === "ENCOL" && r.ts_inicio);
     chk(xc && xc.cantidad === 12 && xc.detalle && xc.detalle.pareja === "con Walter Saucedo y Luis Luna", "su cierre lleva las 12 cajas y «con Walter Saucedo y Luis Luna»");
@@ -248,6 +252,29 @@ srv.listen(0, async () => {
     await xi.fill("#cantInput", "3"); await xi.click("#cambioBtn"); await xi.waitForSelector(".box[data-cod=CORTE]");
     await xi.click(".box[data-cod=CORTE]"); await xi.waitForSelector(".termine-btn[data-cod=CORTE]");
     chk(true, "Corte arranca directo, sin nada de parejas");
+    // 10) 1.61 (D100): Walter hace su propio Contraído · 173 y, al terminar, «¿Con qué código seguís?» le ofrece sumarse a Luis
+    await wa.click(".box[data-cod=CONTR]"); await wa.waitForSelector("#codScreen:not(.hidden)");
+    await wa.fill("#codInput", "173"); await wa.click("#codBtn"); await wa.waitForSelector(".termine-btn[data-cod=CONTR]"); await enviar(wa);
+    await wa.click(".termine-btn[data-cod=CONTR]"); await wa.waitForSelector("#sigueJunta button", { timeout: 3000 });
+    const ofS = await wa.$$eval("#sigueJunta button", (bs) => bs.map((b) => b.textContent.replace(/\s+/g, " ").trim()));
+    chk(ofS.length === 1 && /Luis Luna · 185/.test(ofS[0]), "al terminar su 173, en «¿Con qué código seguís?» le aparece «" + (ofS[0] || "nada") + "»");
+    await wa.click("#sigueJunta button");
+    chk((await wa.textContent("#cantError")).includes("Poné un número"), "sin las cajas de su 173 no se suma");
+    await wa.fill("#cantInput", "15"); await wa.click("#sigueJunta button");
+    chk((await wa.textContent("#cantError")).includes("¿Son 15 CAJAS?"), "15 cajas: pide confirmar también desde el botón de sumarse");
+    await wa.click("#sigueJunta button"); await wa.waitForSelector("#avisoPop:not(.hidden)", { timeout: 3000 });
+    chk((await ventana(wa)).includes("Te sumaste a Luis Luna"), "con el segundo toque cierra el 173 y se suma a Luis en el 185");
+    await wa.click("#avisoBtns button"); await enviar(wa);
+    const w173 = de(8).find((r) => r.rubro === "CONTR" && r.ts_inicio && r.texto === "173"),
+          w185 = de(8).filter((r) => r.rubro === "CONTR" && !r.ts_inicio && r.texto === "185").pop();
+    chk(w173 && w173.cantidad === 15 && w185 && w185.detalle && w185.detalle._une && w185.detalle.pareja === "con Luis Luna",
+        "su 173 cerró con 15 cajas y abrió el 185 con Luis");
+    // 11) 1.61 (D101): 10 cajas no pregunta
+    await lu.evaluate(() => window.__gt.revisarParejas()); await lu.waitForTimeout(300);
+    if (await lu.isVisible("#avisoPop")) await lu.click("#avisoBtns button");
+    await lu.click(".termine-btn[data-cod=CONTR]"); await lu.waitForSelector("#cantScreen:not(.hidden)");
+    await lu.fill("#cantInput", "10"); await lu.click("#cambioBtn");
+    chk(await lu.waitForSelector(".box[data-cod=CONTR]", { timeout: 3000 }).then(() => true, () => false), "10 cajas cierra sin preguntar");
   } catch (e) { fallas.push(String(e)); console.log("✗ " + e); }
   await br.close(); srv.close();
   console.log(fallas.length ? `\n${fallas.length} falla(s)` : "\nTodo OK");
