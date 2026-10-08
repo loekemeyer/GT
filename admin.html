@@ -90,7 +90,8 @@
     <button class="tab" data-tab="rend">📈 Rendimiento</button>
   </nav>
 
-  <!-- CLAVE DEL MONITOR: la valida la base (gt_monitor_clave). Se recuerda en ESTA máquina hasta «Salir» o hasta el lunes 07:00 (v1.6). El ingreso tipeado va por gt_monitor_login. -->
+  <!-- CLAVE DEL MONITOR: la valida la base (gt_monitor_clave). Se recuerda en ESTA máquina hasta «Salir» o hasta el lunes 07:00 (v1.6). El ingreso tipeado va por gt_monitor_login2
+       con la pestaña: desde Asistencia / Producción / Pedidos / Rendimiento no avisa (1.59); ver el código sí. -->
   <div id="login" class="login hidden">
     <div class="rot">🔒 Clave del monitor</div>
     <input id="passInput" type="password" inputmode="numeric" autocomplete="off" />
@@ -139,7 +140,7 @@
     <div id="pedLista"></div>
   </section>
 
-  <script src="config.js?v=1.58"></script>
+  <script src="config.js?v=1.59"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -155,7 +156,10 @@
     // v1.6: la clave guardada VENCE cada lunes 07:00 (hora AR): ese día Javier la vuelve a poner.
     // Lunes 07:00 más reciente, en ms. Una clave guardada antes de eso no vale.
     const LS_PASS_TS = "gt_monitor_pass_ts", LS_DISP = "gt_dispositivo";
-    let vencio = false;
+    // 1.59: «0» = la clave se tipeó para CONSULTAR (Asistencia, Producción…) y todavía no mostró el código; sin la clave
+    // (guardada antes de la 1.59) cuenta como del Monitor. LS_TAB: la última pestaña, para volver a ella al recargar.
+    const LS_PASS_MON = "gt_monitor_pass_mon", LS_TAB = "gt_admin_tab";
+    let vencio = false, passMon = true;
     function inicioSemana(now) {
       const ar = new Date((now || Date.now()) - 3 * 3600e3);          // reloj AR como si fuera UTC
       const dow = (ar.getUTCDay() + 6) % 7;                            // 0 = lunes
@@ -167,7 +171,8 @@
       let ts = 0; try { ts = Number(localStorage.getItem(LS_PASS_TS)) || 0; } catch {}
       return ts < inicioSemana();
     }
-    function olvidarPass() { pass = null; try { localStorage.removeItem(LS_PASS); localStorage.removeItem(LS_PASS_TS); } catch {} }
+    function olvidarPass() { pass = null; passMon = true; try { localStorage.removeItem(LS_PASS); localStorage.removeItem(LS_PASS_TS); localStorage.removeItem(LS_PASS_MON); } catch {} }
+    function marcarMon(v) { passMon = v; try { localStorage.setItem(LS_PASS_MON, v ? "1" : "0"); } catch {} }
     function dispositivo() {
       try { let d = localStorage.getItem(LS_DISP);
         if (!d) { d = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random()); localStorage.setItem(LS_DISP, d); }
@@ -178,6 +183,7 @@
       // clave guardada antes de la 1.6 (sin fecha): vale hasta el próximo lunes, no se la pide hoy
       if (pass && !localStorage.getItem(LS_PASS_TS)) localStorage.setItem(LS_PASS_TS, String(Date.now()));
       if (pass && passVencida()) { olvidarPass(); vencio = true; }
+      passMon = localStorage.getItem(LS_PASS_MON) !== "0";
     } catch { /* sin storage */ }
 
     async function rpc(fn, body) {
@@ -191,39 +197,58 @@
       } finally { clearTimeout(t); }
     }
 
+    // 1.59 (gt_v168): el ingreso tipeado va con la pestaña; fuera de 'monitor' la base lo graba pero no avisa por Telegram.
+    // Una base sin gt_v168 (404) cae a gt_monitor_login, que avisa desde cualquier pestaña, como antes.
+    async function login(p, pestana) {
+      const b = { p_pass: p, p_dispositivo: dispositivo(), p_navegador: navigator.userAgent };
+      try { return await rpc("gt_monitor_login2", Object.assign({ p_pestana: pestana }, b)); }
+      catch (e) { if (String(e && e.message) !== "HTTP 404") throw e; return await rpc("gt_monitor_login", b); }
+    }
+
     /* ---------- login y pestañas ---------- */
     function verLogin(msg) {
-      clearTimeout(timer); fin = 0;
+      clearTimeout(timer); fin = 0; $("clave").textContent = "····";
       document.querySelectorAll(".vista").forEach((v) => v.classList.add("hidden"));
       $("login").classList.remove("hidden");
       $("passError").textContent = msg || ""; $("passInput").value = ""; $("passInput").focus();
     }
     async function entrar() {
       const p = $("passInput").value.trim(); if (!p) return;
-      // el ingreso TIPEADO queda registrado; fuera del lunes 07:00–08:00 la base avisa por Telegram
+      // el ingreso TIPEADO queda registrado; desde el Monitor y fuera del lunes 07:00–08:00 la base avisa por Telegram.
+      // 1.59: desde Asistencia, Producción, Pedidos o Rendimiento es para consultar el día: no avisa ni muestra el código.
+      const enMon = tab === "monitor";
       let r;
-      try { r = await rpc("gt_monitor_login", { p_pass: p, p_dispositivo: dispositivo(), p_navegador: navigator.userAgent }); }
+      try { r = await login(p, tab); }
       catch (e) { $("passError").textContent = "No pude validar la clave (" + (e.message || e) + ")"; return; }
       if (!r || !r.ok) { olvidarPass(); verLogin("Clave incorrecta"); return; }
       pass = p; vencio = false;
       try { localStorage.setItem(LS_PASS, p); localStorage.setItem(LS_PASS_TS, String(Date.now())); } catch {}
-      await pedir(true);
-      if (pass && tab !== "monitor") verTab(tab);
+      marcarMon(enMon);
+      if (enMon) await pedir(true);
+      else { $("login").classList.add("hidden"); verTab(tab); }
     }
     function verTab(t, primera) {
-      tab = t;
+      tab = t; try { localStorage.setItem(LS_TAB, t); } catch {}
       document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
       document.querySelectorAll(".vista").forEach((v) => v.classList.toggle("hidden", v.id !== t));
       if (t === "monitor") pedir(primera); else if (t === "prod") cargarProd(); else if (t === "ped") cargarPed(); else if (t === "rend") cargarRend(); else cargarAsis();
     }
-    function sinPermiso() { olvidarPass(); verLogin("Clave incorrecta"); }
+    // 1.59: sin clave puesta no es «incorrecta» (tocar Asistencia antes de tipearla decía «Clave incorrecta»)
+    function sinPermiso() { const habia = !!pass; olvidarPass(); verLogin(habia ? "Clave incorrecta" : ""); }
 
     /* ---------- MONITOR ---------- */
     async function pedir(primera) {
       clearTimeout(timer);
+      if (tab !== "monitor") return;
       if (pass && passVencida()) { olvidarPass(); verLogin("Es lunes: volvé a poner la clave"); return; }
       const p = pass || "";
       try {
+        // 1.59: la clave se puso para consultar; mostrar el código SÍ es abrir el monitor: se registra y, fuera de horario, avisa
+        if (p && !passMon) {
+          const r = await login(p, "monitor");
+          if (!r || !r.ok) { sinPermiso(); return; }
+          marcarMon(true);
+        }
         const d = await rpc("gt_monitor_clave", { p_pass: p });
         if (!d.ok) { if (p) sinPermiso(); else verLogin(vencio ? "Es lunes: volvé a poner la clave" : ""); return; }
         $("login").classList.add("hidden");
@@ -527,7 +552,10 @@
     $("passBtn").onclick = entrar;
     $("passInput").addEventListener("keydown", (e) => { if (e.key === "Enter") entrar(); });
     $("salirMon").onclick = (e) => { e.preventDefault(); olvidarPass(); verLogin(); };
-    verTab("monitor", true);
+    // 1.59: vuelve a la última pestaña (quien entró a mirar la asistencia, al recargar sigue en Asistencia y no abre el monitor).
+    // Con la clave vencida (lunes 07:00) abre en el Monitor: ahí la vuelve a poner Javier y cuenta como monitor abierto.
+    let tab0 = "monitor"; try { tab0 = localStorage.getItem(LS_TAB) || "monitor"; } catch {}
+    verTab(!vencio && document.querySelector('.tab[data-tab="' + tab0 + '"]') ? tab0 : "monitor", true);
   })();
   </script>
 </body>

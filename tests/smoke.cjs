@@ -39,6 +39,7 @@ const PASOS = [
   { rubro: "MOVIM", orden: 1, campo: "que", pregunta: "¿Qué estás haciendo?", opciones: null, momento: "empezar" }];
 const PELL = { codigo: "PELL", nombre: "Pellegrini" }, ESNA = { codigo: "ESNA", nombre: "Esnaola" };
 let CLAVE_MON = null; const LOGINS = []; const REING = []; const ARMAR = [];
+let SIN_LOGIN2 = false;   // 1.59: base sin gt_v168 (gt_monitor_login2 da 404)
 let SOLO_CORTO = false;   // 1.32: día con un solo tramo de menos de 2 min
 const INGRESOS = [];   // 1.33: los INGRESO van aparte (las posiciones de db de abajo son de los eventos de área)
 const db = [];
@@ -50,8 +51,9 @@ const srv = http.createServer((req, res) => {
     let body = ""; req.on("data", (c) => (body += c)); req.on("end", () => {
       const b = JSON.parse(body || "{}"), fn = req.url.split("/").pop();
       let out;
+      if (fn === "gt_monitor_login2" && SIN_LOGIN2) { res.writeHead(404); res.end("{}"); return; }
       if (fn === "gt_monitor_clave") out = !CLAVE_MON ? { ok: true, sin_clave: true, clave: "1234", cambia_en_s: 42 } : b.p_pass === CLAVE_MON ? { ok: true, clave: "1234", cambia_en_s: 42 } : { ok: false };
-      else if (fn === "gt_monitor_login") { LOGINS.push(b); out = { ok: b.p_pass === CLAVE_MON, en_horario: false }; }
+      else if (fn === "gt_monitor_login" || fn === "gt_monitor_login2") { LOGINS.push(Object.assign({ fn }, b)); out = { ok: b.p_pass === CLAVE_MON, en_horario: false }; }
       else if (fn === "gt_reingreso") { REING.push(b.p_empleado); out = null; }
       else if (fn === "gt_clave_validar") out = b.p_clave === "1234" ? { ok: true, principal: "PELL", empleados: [{ id: 7, nombre: "Prueba", plantas: [PELL] }, { id: 8, nombre: "Otro", plantas: [PELL] },
           { id: 6, nombre: "Dario Mendez", plantas: [PELL, ESNA] }] } : { ok: false };
@@ -428,8 +430,8 @@ srv.listen(0, async () => {
     await ad.waitForFunction(() => document.getElementById("clave").textContent === "1234");
     await ad.reload(); await ad.waitForFunction(() => document.getElementById("clave").textContent === "1234");
     chk(true, "con la clave buena muestra el código y la recuerda al recargar");
-    chk(LOGINS.length === 2 && LOGINS[1].p_dispositivo && LOGINS[1].p_navegador,
-        "cada clave TIPEADA pasa por gt_monitor_login con el equipo (la lectura de cada minuto no cuenta)");
+    chk(LOGINS.length === 2 && LOGINS[1].p_dispositivo && LOGINS[1].p_navegador && LOGINS[1].fn === "gt_monitor_login2" && LOGINS[1].p_pestana === "monitor",
+        "cada clave TIPEADA pasa por gt_monitor_login2 con el equipo y la pestaña «monitor» (la lectura de cada minuto no cuenta)");
     // la clave guardada vence el lunes 07:00: una guardada hace 8 días ya no vale
     await ad.evaluate(() => localStorage.setItem("gt_monitor_pass_ts", String(Date.now() - 8 * 864e5)));
     await ad.reload(); await ad.waitForSelector("#login:not(.hidden)");
@@ -502,6 +504,29 @@ srv.listen(0, async () => {
         "«Entregado» manda sólo el estado: el pedido cargado no reenvía armado");
     await ad.click("#salirMon"); await ad.click(".tab[data-tab=prod]"); await ad.waitForTimeout(800); await ad.waitForSelector("#login:not(.hidden)");
     chk(!(await ad.isVisible("#prod")), "sin clave, Producción no muestra datos y pide la clave");
+    chk((await ad.textContent("#passError")) === "", "1.59: sin haber tipeado la clave no dice «Clave incorrecta»");
+    // 1.59 (gt_v168): poner la clave desde Asistencia es para mirar el día: va con la pestaña «asis» (la base no avisa)
+    // y no muestra el código; pasar al Monitor sí es abrirlo y se registra con «monitor»
+    const nL = LOGINS.length;
+    await ad.click(".tab[data-tab=asis]"); await ad.waitForSelector("#login:not(.hidden)");
+    await ad.fill("#passInput", "151515"); await ad.click("#passBtn");
+    await ad.waitForSelector("#login", { state: "hidden" });   // la tabla de antes de «Salir» sigue escrita: se espera al login
+    await ad.waitForFunction(() => document.getElementById("asisTabla").textContent.includes("No terminó"));
+    chk(LOGINS.length === nL + 1 && LOGINS[nL].p_pestana === "asis" && (await ad.isVisible("#asis")) && !(await ad.isVisible("#login")),
+        "1.59: la clave tipeada en Asistencia va con la pestaña «asis» y muestra la asistencia");
+    chk(!(await ad.isVisible("#monitor")) && (await ad.textContent("#clave")) !== "1234", "1.59: entrar desde Asistencia no muestra el código");
+    await ad.reload(); await ad.waitForFunction(() => document.getElementById("asisTabla").textContent.includes("No terminó"));
+    chk(LOGINS.length === nL + 1 && (await ad.isVisible("#asis")), "1.59: al recargar vuelve a Asistencia sin registrar otro ingreso");
+    await ad.click(".tab[data-tab=monitor]"); await ad.waitForFunction(() => document.getElementById("clave").textContent === "1234");
+    chk(LOGINS.length === nL + 2 && LOGINS[nL + 1].p_pestana === "monitor",
+        "1.59: pasar al Monitor para ver el código se registra con «monitor» (fuera de horario, la base avisa)");
+    await ad.reload(); await ad.waitForFunction(() => document.getElementById("clave").textContent === "1234");
+    chk(LOGINS.length === nL + 2, "1.59: el Monitor ya registrado no se vuelve a registrar al recargar");
+    // base sin gt_v168: cae a gt_monitor_login (avisa desde cualquier pestaña, como antes)
+    SIN_LOGIN2 = true; await ad.click("#salirMon"); await ad.click(".tab[data-tab=asis]"); await ad.waitForSelector("#login:not(.hidden)");
+    await ad.fill("#passInput", "151515"); await ad.click("#passBtn"); await ad.waitForSelector("#login", { state: "hidden" });
+    chk(LOGINS[LOGINS.length - 1].fn === "gt_monitor_login", "1.59: sin gt_monitor_login2 en la base, entra igual por gt_monitor_login");
+    SIN_LOGIN2 = false;
   } catch (e) { fallas.push(String(e)); console.log("✗", e.message); }
   await br.close(); srv.close();
   console.log(fallas.length ? "ROJO: " + fallas.length : "VERDE");

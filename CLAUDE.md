@@ -191,6 +191,28 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.59 — poner la clave del admin para MIRAR (Asistencia, Producción, Pedidos, Rendimiento) no avisa «fuera de horario» (08/10/2026)
+
+- **Pedido:** *«cuando se marque asistencia, y pida la clave del monitor, no se reporte la entrada tarde, ya que solo queremos chequear
+  la asistencia del día»*. Medido: desde el lunes 05/10 salieron **5** «🔐 abrieron el monitor con la clave fuera de horario» (lun 08:00
+  y 12:11, mar 12:07, mié 10:04, jue 10:36), todos desde PC con Windows: gente mirando el admin, no abriendo el código.
+- **Ahora (gt_v168):** `public.gt_monitor_login2(pass, dispositivo, navegador, pestana)`. La clave tipeada desde **Asistencia,
+  Producción, Pedidos o Rendimiento** se graba en `gt.monitor_ingresos` con su `pestana` y **no avisa** (ni fuera de horario ni «desde
+  OTRO equipo»), no fija «el equipo de siempre» y no cuenta como «el monitor se abrió el lunes» (`gt.alerta_monitor_lunes`). Desde el
+  **Monitor**, todo igual que antes. `gt_monitor_login` (3 argumentos, la de los admin.html viejos) = login2 con `'monitor'`.
+  Se tomaron las 4 pestañas de consulta, no sólo Asistencia: ninguna muestra el código.
+- **El código no se ve sin avisar:** con la clave puesta para consultar, la pantalla no lo muestra; si después se toca **📺 Monitor**,
+  `admin.html` registra el ingreso con `'monitor'` (fuera de horario, avisa) antes de mostrarlo. `gt_monitor_pass_mon` = «0» en el
+  navegador mientras la clave sólo se usó para consultar. Al recargar vuelve a la última pestaña (`gt_admin_tab`): quien miraba la
+  asistencia sigue en Asistencia y no abre el monitor sin querer.
+- De paso: tocar una pestaña **sin** haber puesto la clave ya no dice «Clave incorrecta» (lo que se ve en la foto del pedido).
+- ⚠ **No es un candado (ya no lo era) [Seguro]:** con la clave, `gt_monitor_clave` devuelve el código sin dejar rastro. El aviso cubre
+  la pantalla del monitor, no la API.
+- Probado en transacción abortada (clave cambiada adentro): asis fuera de horario 0 avisos · monitor 1 · la de 3 argumentos 1 · en la
+  ventana, la PC nueva 1 («otro equipo»), el celular en Asistencia 0 y la PC otra vez 0 (el celular no cambió «el de siempre») · lunes
+  con sólo un ingreso de Asistencia → avisa «nadie abrió el monitor», con uno del Monitor → nada. `tests/smoke.cjs` (falla con la 1.58
+  en 3 controles). `sql/gt_v168_monitor_consulta_sin_aviso.sql` · rollback `sql/gt_v168_rollback.sql`.
+
 ### 1.58 — nada se descarta de la cola: lo que la base no toma se reintenta, con su hora original (Elías, 06/10/2026)
 
 - **Pedido** (sobre D92, que preguntaba si avisar por Telegram las filas rechazadas): *«no debería ser así, si no se envió se tiene que
@@ -1191,9 +1213,10 @@ Con el almuerzo abierto, sólo «Volví de almorzar».
 
 - Todos los lunes ~07:30 Javier pone la clave en la PC. La clave guardada **vence el lunes 07:00**
   (hora AR): ese día el monitor la pide de nuevo («Es lunes: volvé a poner la clave»).
-- Cada clave **tipeada** pasa por `public.gt_monitor_login` y queda en `gt.monitor_ingresos` (ok, en
-  horario, equipo, navegador). Clave buena **fuera** de la ventana → 🔐 aviso a «GT Avisos». La lectura
-  del código cada minuto (`gt_monitor_clave`) no cuenta como ingreso.
+- Cada clave **tipeada** pasa por `public.gt_monitor_login` (desde 1.59, `gt_monitor_login2` con la pestaña) y queda en
+  `gt.monitor_ingresos` (ok, en horario, equipo, navegador, pestaña). Clave buena **fuera** de la ventana **desde el Monitor** → 🔐 aviso a
+  «GT Avisos»; desde Asistencia / Producción / Pedidos / Rendimiento, no (1.59). La lectura del código cada minuto (`gt_monitor_clave`)
+  no cuenta como ingreso.
 - Ventana en `gt.config` (sin fila = default): `monitor_login_dow` 1 · `monitor_login_desde` 07:00 ·
   `monitor_login_hasta` 08:00. `sql/gt_v16_monitor_login_lunes.sql`.
 - Consulta: `select * from gt.monitor_ingresos order by ts desc;`
