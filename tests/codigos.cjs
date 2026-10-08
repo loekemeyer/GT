@@ -20,8 +20,13 @@ const LISTA = ["CONTR", "EMBL", "ENCOL", "GANCHO", "GUARD", "MONT"].flatMap((rub
           propios("DECO", 71, () => ({ descripcion: "Bandeja", medida: null })),
           [{ rubro: "RECIB", codigo: "INSUMO", descripcion: "Insumo", medida: null }, { rubro: "RECIB", codigo: "MOLDURA", descripcion: "Moldura", medida: null }])
   .sort((a, b) => a.rubro.localeCompare(b.rubro) || a.codigo.localeCompare(b.codigo));
+// 1.59: el 3080 de Deco sirve para 4 bandejas y pregunta cuál (gt.codigos_rubro.articulos)
+Object.assign(LISTA.find((x) => x.rubro === "DECO" && x.codigo === "071"),
+  { codigo: "3080", descripcion: "Armado Bandeja — 456/536/818/534 Bandeja 13x30", articulos: ["456", "536", "818", "534"] });
+Object.assign(LISTA.find((x) => x.rubro === "ENCOL" && x.codigo === "317"), { codigo: "456", descripcion: "Bandeja manija/mad Mold 012 Colores", medida: "13*30" });
+const FILAS = [];
 const A = (codigo, nombre, orden) => ({ codigo, nombre, unidad: "cajas", orden, planta: "PELL", pide_codigo: true, pide_cantidad: true });
-const AREAS = [A("GRAMP", "Grampeado", 2), A("MONT", "Montaje", 4), A("GUARD", "Guardado a góndola", 10), A("CONTR", "Contraído", 7)];
+const AREAS = [A("DECO", "Deco", 9), A("GRAMP", "Grampeado", 2), A("MONT", "Montaje", 4), A("GUARD", "Guardado a góndola", 10), A("CONTR", "Contraído", 7)];
 let conV2 = true;
 const srv = http.createServer((req, res) => {
   if (req.url.startsWith("/rest/v1/rpc/")) {
@@ -32,7 +37,7 @@ const srv = http.createServer((req, res) => {
         : fn.startsWith("gt_botones") ? AREAS
         : fn === "gt_codigos_area" ? LISTA.slice(0, 1000)          // como la API real: corta en 1.000 filas
         : fn === "gt_codigos_area2" ? LISTA                         // una sola fila con todo
-        : fn === "gt_registrar" ? { ok: [], rechazados: [] } : [];
+        : fn === "gt_registrar" ? (JSON.parse(body || "{}").p_filas || []).forEach((f) => { if (!FILAS.find((x) => x.client_id === f.client_id)) FILAS.push(f); }) || { ok: [], rechazados: [] } : [];
       res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify(out));
     }); return;
   }
@@ -76,6 +81,29 @@ srv.listen(0, async () => {
     await pg.click(".box[data-cod=MONT]"); await pg.waitForSelector("#codScreen:not(.hidden)");
     await pg.fill("#codInput", "136"); await pg.click("#codBtn");
     chk(await pg.waitForSelector("#medScreen:not(.hidden)", { timeout: 3000 }).then(() => true, () => false), "Montaje: el set 136 pregunta qué medida va a montar");
+    await pg.click("#medVolver"); await pg.waitForSelector("#optionsScreen:not(.hidden)");
+    // 1.59: Deco 3080 pregunta qué artículo va a fabricar, al empezar y al seguir con el mismo código
+    await pg.click(".box[data-cod=DECO]"); await pg.waitForSelector("#codScreen:not(.hidden)");
+    await pg.fill("#codInput", "3080"); await pg.click("#codBtn");
+    chk(await pg.waitForSelector("#medScreen:not(.hidden)", { timeout: 3000 }).then(() => true, () => false) &&
+        (await pg.textContent("#medLabel")) === "¿Qué artículo vas a fabricar?" && (await pg.$$("#medOpts button")).length === 4,
+        "Deco: el 3080 pregunta qué artículo va a fabricar (4 botones)");
+    chk((await pg.textContent("#medOpts button[data-med='456']")).includes("Bandeja manija/mad Mold 012 Colores"), "el botón del 456 dice qué bandeja es");
+    await pg.click("#medOpts button[data-med='534']"); await pg.waitForSelector("#optionsScreen:not(.hidden)"); await pg.waitForTimeout(300);
+    let ap = FILAS.filter((f) => f.rubro === "DECO");
+    chk(ap.length === 1 && ap[0].texto === "3080" && ap[0].detalle && ap[0].detalle.articulo === "534" && !ap[0].ts_inicio, "empezó Deco 3080 con el artículo 534");
+    await pg.click(".termine-btn[data-cod=DECO]"); await pg.waitForSelector("#cantScreen:not(.hidden)");
+    chk((await pg.textContent("#cantLabel")).includes("3080 · 534"), "al terminar pide las del 3080 · 534 (" + (await pg.textContent("#cantLabel")) + ")");
+    await pg.fill("#cantInput", "12"); await pg.fill("#sigueInput", "3080"); await pg.click("#cantBtn");
+    chk(await pg.waitForSelector("#medScreen:not(.hidden)", { timeout: 3000 }).then(() => true, () => false), "al seguir con el 3080 vuelve a preguntar el artículo");
+    await pg.click("#medOpts button[data-med='818']"); await pg.waitForSelector("#optionsScreen:not(.hidden)"); await pg.waitForTimeout(300);
+    ap = FILAS.filter((f) => f.rubro === "DECO");
+    chk(ap.length === 3 && ap[1].ts_inicio && ap[1].cantidad === 12 && ap[1].detalle.articulo === "534" && ap[2].detalle.articulo === "818",
+        "cerró el 534 con 12 y siguió con el 3080 · 818");
+    const otro = await (async () => { await pg.click(".termine-btn[data-cod=DECO]"); await pg.waitForSelector("#cantScreen:not(.hidden)");
+      await pg.fill("#cantInput", "1"); await pg.fill("#sigueInput", "001"); await pg.click("#cantBtn");
+      return pg.waitForSelector("#medScreen:not(.hidden)", { timeout: 800 }).then(() => true, () => false); })();
+    chk(!otro && FILAS.filter((f) => f.rubro === "DECO").pop().texto === "001", "un código de Deco sin artículos no pregunta");
     await pg.close();
     // con la base sin la consulta nueva, el celular cae a la vieja y no se rompe (Contraído, que entra en las 1.000, anda)
     conV2 = false;

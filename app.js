@@ -782,6 +782,7 @@
       (idos ? " · 🤝 todas las del tramo (" + idos + ")" : dos ? " · 🤝 las de " + (companero(ab).includes(" y ") ? "todos" : "los dos") + ", no sólo las tuyas" : "");
     $("cantBox").classList.toggle("hidden", !pideCant);
     $("cantLabel").textContent = cuantas(cierra.unidad) + cierra.unidad + (ab.texto ? (esMoldura(cierra) ? " de moldura " : " del ") + ab.texto : "") +
+      (ab.detalle && ab.detalle.articulo ? " · " + ab.detalle.articulo : "") +
       (dos ? " hicieron " + entreVos(ab) : "") + "?";
     $("cantInput").value = ""; $("cantError").textContent = "";
     if (!conSigue && !almorzar) st.pend.sigue = null;   // «Listo» cierra y no abre nada
@@ -845,6 +846,11 @@
     if (sigue && nuevo && piezasSet(sigue, nuevo.cod)) {
       flush(); const s2 = sigue, n2 = nuevo; st.pend = null; restaurarBtn("cantBtn");
       pedirMedida(s2, n2.guardo, piezasSet(s2, n2.cod)); return;
+    }
+    // 1.59: si sigue con un código de varios artículos (Deco 3080), primero cierra y después pregunta cuál
+    if (sigue && nuevo && articulosDe(nuevo.cod)) {
+      flush(); const s2 = sigue, n2 = nuevo; st.pend = null; restaurarBtn("cantBtn");
+      pedirMedida(s2, n2.guardo, articulosDe(n2.cod), true); return;
     }
     if (sigue) registrar(sigue, nuevo ? { texto: nuevo.guardo } : null, 1);
     if (p.modo === "fin") registrarFin();
@@ -997,6 +1003,8 @@
     restaurarBtn("codBtn");
     const piezas = piezasSet(a, r.cod);
     if (piezas) { st.codPara = null; pedirMedida(a, r.guardo, piezas); return; }
+    const arts = articulosDe(r.cod);
+    if (arts) { st.codPara = null; pedirMedida(a, r.guardo, arts, true); return; }
     st.codPara = null;
     registrar(a, { texto: r.guardo }, 1); flush();
     const c = r.cod;
@@ -1011,17 +1019,30 @@
     const p = String(cod.medida).split("+").map((x) => x.trim()).filter(Boolean);
     return p.length === 3 ? p : null;
   }
-  function pedirMedida(a, codigo, piezas) {
-    st.medPara = { a, codigo };
+  // 1.59 (Thomas: «456, 536, 818, 534 usan el 3080. Cuando ponen 3080, debe preguntar qué código va a fabricar»): un código
+  // con 2 o más artículos en gt.codigos_rubro.articulos pregunta cuál, con un botón por artículo (la misma pantalla que la
+  // medida del set). Va en detalle.articulo de la apertura (y el cierre lo hereda). Sin la lista, no pregunta.
+  function articulosDe(cod) {
+    const l = cod && Array.isArray(cod.articulos) ? cod.articulos.filter(Boolean) : [];
+    return l.length > 1 ? l : null;
+  }
+  function descArticulo(art, rubro) {
+    const c = st.codigos.find((x) => x.codigo === art && x.rubro !== rubro);
+    return c ? [c.descripcion, c.medida].filter(Boolean).join(" · ") : "";
+  }
+  function pedirMedida(a, codigo, piezas, esArt) {
+    st.medPara = { a, codigo, esArt: !!esArt };
     $("medTitulo").textContent = "Empecé " + a.nombre + " · " + codigo;
-    $("medLabel").textContent = a.codigo === "GANCHO" ? "¿A qué medida le vas a poner gancho?" : "¿Qué medida vas a montar?";
-    $("medOpts").innerHTML = piezas.map((m) => '<button data-med="' + esc(m) + '">' + esc(m) + "</button>").join("");
+    $("medLabel").textContent = esArt ? "¿Qué artículo vas a fabricar?" :
+      a.codigo === "GANCHO" ? "¿A qué medida le vas a poner gancho?" : "¿Qué medida vas a montar?";
+    $("medOpts").innerHTML = piezas.map((m) => '<button data-med="' + esc(m) + '">' + esc(m) +
+      (esArt && descArticulo(m, a.codigo) ? "<small>" + esc(descArticulo(m, a.codigo)) + "</small>" : "") + "</button>").join("");
     show("medScreen");
   }
   function elegirMedida(m) {
     const p = st.medPara; if (!p) return;
-    registrar(p.a, { texto: p.codigo, medida: m }, 1); flush();
-    toast("✓ Empezaste " + p.a.nombre + " · " + p.codigo + " (" + m + ")");
+    registrar(p.a, p.esArt ? { texto: p.codigo, detalle: { articulo: m } } : { texto: p.codigo, medida: m }, 1); flush();
+    toast("✓ Empezaste " + p.a.nombre + " · " + p.codigo + (p.esArt ? " · " + m : " (" + m + ")"));
     st.medPara = null; show("optionsScreen"); renderBotonera();
   }
   function cancelarCod() { st.codPara = null; show("optionsScreen"); renderBotonera(); }

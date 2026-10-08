@@ -13,7 +13,7 @@ evento**. Se sirve por GitHub Pages desde `main`. Pedido de Thomas, 01/10/2026.
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) · `node tests/vista.cjs` (el modo vista y las áreas de un solo empleado) · `node tests/resync.cjs` (el celular recarga con la base caída o con un envío en camino y no pierde lo abierto) · `node tests/esnaola.cjs` (Esnaola sin monitor: la clave del encargado y el código para el compañero) · `node tests/cola.cjs` (la cola: reintento cada 5 s, aviso de errores de envío, una fila mala que no traba, la copia en IndexedDB y el service worker que manda con la app cerrada) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API, y el 3080 de Deco que pregunta el artículo) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) · `node tests/vista.cjs` (el modo vista y las áreas de un solo empleado) · `node tests/resync.cjs` (el celular recarga con la base caída o con un envío en camino y no pierde lo abierto) · `node tests/esnaola.cjs` (Esnaola sin monitor: la clave del encargado y el código para el compañero) · `node tests/cola.cjs` (la cola: reintento cada 5 s, aviso de errores de envío, una fila mala que no traba, la copia en IndexedDB y el service worker que manda con la app cerrada) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -190,6 +190,19 @@ insert into gt.rubros (codigo, nombre, unidad, orden) values ('<COD>', '<Área>'
 insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_texto, fila, orden)
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
+
+### 1.59 — Deco: el 3080 sirve para 4 bandejas y pregunta cuál se fabrica (Thomas, 08/10/2026)
+
+- Pedido: *«456, 536, 818, 534 usan el 3080. Cuando ponen 3080, debe preguntar qué código va a fabricar»* (escribió «380»: se
+  tomó como 3080). Venía de la Oficina Pellegrini: *«necesitamos los códigos de armado de art bandeja 456, armado de manija más bastidor»*.
+- **`gt.codigos_rubro.articulos`** (text[], gt_v168): con 2 o más, el celular pregunta **«¿Qué artículo vas a fabricar?»** con un botón
+  por artículo (número + descripción del producto) en la pantalla de la medida del set (1.17). Va en **`detalle.articulo`** de la
+  apertura y el cierre lo hereda («¿Cuántas unidades fabricadas del 3080 · 534?»). Al seguir con el mismo código lo vuelve a preguntar.
+  Hoy sólo el **3080** «Armado Bandeja — 456/536/818/534 Bandeja 13x30» (antes «— 536»). Otro código igual:
+  `update gt.codigos_rubro set articulos = array['…','…'] where rubro = 'DECO' and codigo = '…'`.
+- `gt_codigos_area2` (misma firma) suma `articulos`. Un celular que cae a `gt_codigos_area` no pregunta. El 3008 (manija de la 536)
+  y la 549 (20×20, sin código de armado) quedaron sin tocar.
+- `sql/gt_v168_deco_articulos.sql` · `tests/codigos.cjs` (empezar, terminar, seguir con el 3080, un código sin artículos no pregunta).
 
 ### 1.58 — nada se descarta de la cola: lo que la base no toma se reintenta, con su hora original (Elías, 06/10/2026)
 
