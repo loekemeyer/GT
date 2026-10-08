@@ -37,6 +37,7 @@ const srv = http.createServer((req, res) => {
         : fn.startsWith("gt_botones") ? AREAS
         : fn === "gt_codigos_area" ? LISTA.slice(0, 1000)          // como la API real: corta en 1.000 filas
         : fn === "gt_codigos_area2" ? LISTA                         // una sola fila con todo
+        : fn === "gt_pasos" ? [{ rubro: "GUARD", orden: 1, campo: "destino", pregunta: "¿A dónde fue?", opciones: ["Góndola", "Pedidos"], momento: "terminar" }]
         : fn === "gt_registrar" ? (JSON.parse(body || "{}").p_filas || []).forEach((f) => { if (!FILAS.find((x) => x.client_id === f.client_id)) FILAS.push(f); }) || { ok: [], rechazados: [] } : [];
       res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify(out));
     }); return;
@@ -104,6 +105,21 @@ srv.listen(0, async () => {
       await pg.fill("#cantInput", "1"); await pg.fill("#sigueInput", "001"); await pg.click("#cantBtn");
       return pg.waitForSelector("#medScreen:not(.hidden)", { timeout: 800 }).then(() => true, () => false); })();
     chk(!otro && FILAS.filter((f) => f.rubro === "DECO").pop().texto === "001", "un código de Deco sin artículos no pregunta");
+    await pg.click(".termine-btn[data-cod=DECO]"); await pg.waitForSelector("#cantScreen:not(.hidden)");
+    await pg.fill("#cantInput", "1"); await pg.click("#cambioBtn"); await pg.waitForSelector("#optionsScreen:not(.hidden)");
+    // 1.60 (Thomas: «en guardado a góndola puede mandarse directo a pedidos o guardarse en góndola»): al terminar, ¿a dónde fue?
+    await pg.click(".box[data-cod=GUARD]"); await pg.waitForSelector("#codScreen:not(.hidden)");
+    await pg.fill("#codInput", "224"); await pg.click("#codBtn"); await pg.waitForTimeout(200);
+    if (await pg.isVisible("#codScreen")) await pg.click("#codBtn");   // «no salió de Contraído»: segundo toque
+    await pg.waitForSelector("#optionsScreen:not(.hidden)");
+    await pg.click(".termine-btn[data-cod=GUARD]");
+    chk(await pg.waitForSelector("#pasoScreen:not(.hidden)", { timeout: 3000 }).then(() => true, () => false) &&
+        (await pg.textContent("#pasoLabel")) === "¿A dónde fue?" && (await pg.$$("#pasoOpts button")).length === 2,
+        "Guardado: al terminar pregunta a dónde fue (Góndola / Pedidos)");
+    await pg.click("#pasoOpts button[data-val='Pedidos']"); await pg.waitForSelector("#cantScreen:not(.hidden)");
+    await pg.fill("#cantInput", "3"); await pg.click("#cambioBtn"); await pg.waitForSelector("#optionsScreen:not(.hidden)"); await pg.waitForTimeout(300);
+    const gu = FILAS.filter((f) => f.rubro === "GUARD" && f.ts_inicio).pop();
+    chk(gu && gu.cantidad === 3 && gu.texto === "224" && gu.detalle && gu.detalle.destino === "Pedidos", "cerró Guardado · 224 con 3 cajas a Pedidos");
     await pg.close();
     // con la base sin la consulta nueva, el celular cae a la vieja y no se rompe (Contraído, que entra en las 1.000, anda)
     conV2 = false;

@@ -1,3 +1,5 @@
+-- ⚠ Al 08/10 la viva tiene además los insumos (gt_v140 a v142) y el Guardado a Pedidos (gt_v169): antes de
+-- tocarla, traer la viva con pg_get_viewdef('gt.movimientos'::regclass, true).
 -- GT v1.25 — gt.movimientos COMPLETA como quedó aplicada (regla: el CREATE entero va en el repo, no sólo el parche).
 -- Es la de gt_v123_movimientos.sql + detalle en r + Moldurado y Lijado (1.24) + Pintado (1.25). Equivalente a lo que aplicó el bloque
 -- do $mov$ de gt_v124_esnaola_pasos.sql y gt_v125_pintado_paquetes_cubo.sql (verificado el 01/10/2026). Rollback de 1.25: gt_v124_movimientos_vivo.sql.
@@ -68,7 +70,8 @@ mov (registro_id, ts, dia, empleado_id, planta, area, deposito, codigo, medida, 
   union all
   select registro_id, ts, dia, empleado_id, planta, area, 'emblistado', producto, null, -u, 'ok', nota from rp where area = 'CONTR'
   union all  -- Guardado a góndola: + góndola, − contraído
-  select registro_id, ts, dia, empleado_id, planta, area, 'gondola', producto, null, u, 'ok', nota from rp where area = 'GUARD'
+  -- gt_v169 (Thomas, 08/10): un Guardado que fue directo a Pedidos suma en 'armado', no en la góndola
+  select registro_id, ts, dia, empleado_id, planta, area, case when detalle ->> 'destino' = 'Pedidos' then 'armado' else 'gondola' end, producto, null, u, 'ok', nota from rp where area = 'GUARD'
   union all
   select registro_id, ts, dia, empleado_id, planta, area, 'contraido', producto, null, -u, 'ok', nota from rp where area = 'GUARD'
   union all  -- Pedidos (apagado, D2): + armado, − góndola

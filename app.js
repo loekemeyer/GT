@@ -338,7 +338,9 @@
     if (!d || typeof d !== "object" || !Object.keys(d).length) return "";
     if (d.anilina === "No") return "sin anilina";
     if (d.anilina === "Sí") return "anilina " + (d.color || "?");
-    return Object.keys(d).filter((k) => k[0] !== "_").map((k) => d[k]).join(" · ");   // 1.39: «_invitado» es interno
+    // 1.60: «con Walter Saucedo» / «solo» (Puesta a punto) y «a Pedidos» / «a Góndola» (Guardado)
+    const fmt = (k) => k === "con" ? (d[k] === "Solo" ? "solo" : "con " + d[k]) : k === "destino" ? "a " + d[k] : d[k];
+    return Object.keys(d).filter((k) => k[0] !== "_").map(fmt).join(" · ");   // 1.39: «_invitado» es interno
   }
   // lo que se está haciendo, en una línea: «012 · anilina Cedro», «136 (30*40)»
   function etq(r) {
@@ -1084,6 +1086,7 @@
     if (v == null || v === "") return "";
     if (p.campo === "texto") return (p.fuente === "molduras" ? "Moldura " : "") + v;
     if (p.campo === "anilina") return v === "Sí" ? "con anilina" : "sin anilina";
+    if (p.campo === "con") return v === "Solo" ? "solo" : "con " + v;
     return v;
   }
   function pintarPaso() {
@@ -1093,7 +1096,8 @@
     $("pasoResp").textContent = ya.join(" · ");
     $("pasoResp").classList.toggle("hidden", !ya.length);
     $("pasoLabel").textContent = p.pregunta;
-    const ops = p.opciones || [];
+    // 1.60: «¿Con quién lo hacés?» (Puesta a punto encoladora): la base manda «Solo» y todos los activos; se saca al que pregunta
+    const ops = (p.opciones || []).filter((o) => p.fuente !== "companeros" || o !== st.nombre);
     // 1.33: una pregunta sin opciones se contesta escribiendo (Movimientos: «¿Qué estás haciendo?»)
     const libre = !ops.length;
     $("pasoOpts").innerHTML = ops.map((o) => '<button data-val="' + esc(o) + '">' + esc(o) + "</button>").join("");

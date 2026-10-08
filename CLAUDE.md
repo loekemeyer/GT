@@ -191,6 +191,23 @@ insert into gt.tareas (codigo, descripcion, tipo, rubro, pide_texto, etiqueta_te
 values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1) on conflict do nothing;
 ```
 
+### 1.60 — más códigos de Deco por artículo, «¿Con quién?» en la Puesta a punto y Guardado → Góndola o Pedidos (Thomas, 08/10/2026)
+
+- **Deco (gt_v169), con `articulos` como el 3080:** **3004** Patas c/Trav, **3001** Armado Bastidor y **3061** Bastidor + Patas
+  c/Tornillo → 540 / 542 / 547 · **3008** «Manija 03 + Corte 012 13 cm» → 456 / 536 / 818 / 534 · **3007** «Manija 03 + Corte 012
+  20 cm» y **3079** «Armado Bandeja» 20x20 → 535 / 549 / 452. ⚠ **3002 / 3003** (bastidor 540 / 547) y **3060 / 3063** (bastidor +
+  patas 540 / 547) siguen activos y hacen lo mismo que el 3001 y el 3061: D103.
+- **Puesta a punto encoladora pregunta «¿Con quién lo hacés?»** al empezar: «Solo» y los empleados activos por legajo, sin el que
+  pregunta (`gt.rubro_pasos` con `fuente = 'companeros'`, que resuelve `gt_pasos`; «Solo» lo pone la base, así sirve con la app vieja).
+  Va en `detalle.con` y la botonera dice «con Walter Saucedo». **No** le abre nada al compañero ni lo suma como pareja: es un dato.
+- **Guardado a góndola pregunta al terminar «¿A dónde fue?» Góndola / Pedidos** (`gt.rubro_pasos`, momento `terminar`,
+  `detalle.destino`). En `gt.movimientos` lo que va a Pedidos suma en **`armado`** (lo armado para pedidos) en vez de `gondola`;
+  contraído se descuenta igual. Probado en transacción abortada (183 × 2 cajas a Pedidos: armado +32 · contraído −32; × 1 a Góndola:
+  gondola +16). Sin la pregunta (cierre automático, celular viejo sin la fila) va a góndola, como antes. No dice a QUÉ pedido: D104.
+- ⚠ Las dos preguntas viven en la base: salieron en los celulares apenas se aplicó gt_v169 (también con la 1.58).
+- `sql/gt_v169_deco_articulos_puesta_con_quien_guardado_destino.sql` · `tests/puesta.cjs` (con quién, sin uno mismo, Solo) ·
+  `tests/codigos.cjs` (Guardado a Pedidos).
+
 ### 1.59 — Deco: el 3080 sirve para 4 bandejas y pregunta cuál se fabrica (Thomas, 08/10/2026)
 
 - Pedido: *«456, 536, 818, 534 usan el 3080. Cuando ponen 3080, debe preguntar qué código va a fabricar»* (escribió «380»: se
@@ -200,8 +217,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   apertura y el cierre lo hereda («¿Cuántas unidades fabricadas del 3080 · 534?»). Al seguir con el mismo código lo vuelve a preguntar.
   Hoy sólo el **3080** «Armado Bandeja — 456/536/818/534 Bandeja 13x30» (antes «— 536»). Otro código igual:
   `update gt.codigos_rubro set articulos = array['…','…'] where rubro = 'DECO' and codigo = '…'`.
-- `gt_codigos_area2` (misma firma) suma `articulos`. Un celular que cae a `gt_codigos_area` no pregunta. El 3008 (manija de la 536)
-  y la 549 (20×20, sin código de armado) quedaron sin tocar.
+- `gt_codigos_area2` (misma firma) suma `articulos`. Un celular que cae a `gt_codigos_area` no pregunta. (Más códigos así: 1.60.)
 - `sql/gt_v168_deco_articulos.sql` · `tests/codigos.cjs` (empezar, terminar, seguir con el 3080, un código sin artículos no pregunta).
 
 ### 1.58 — nada se descarta de la cola: lo que la base no toma se reintenta, con su hora original (Elías, 06/10/2026)

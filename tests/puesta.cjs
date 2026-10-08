@@ -15,6 +15,9 @@ const CODS = PROD.map(([codigo, descripcion, medida]) => ({ rubro: "EMBL", codig
            { rubro: "ENCOL", codigo: "781", descripcion: "Porta Mold 03", medida: "13*18" },
            { rubro: "ENCOL", codigo: "781E", descripcion: "Porta Mold 03 Caja Exhibidora", medida: "13*18" }]);
 const filas = [];
+// 1.60 (Thomas: «en puesta a punto encoladora tiene que preguntar con quién lo va a hacer»): la base manda «Solo» y todos
+const PASOS = [{ rubro: "PAPENC", orden: 1, campo: "con", pregunta: "¿Con quién lo hacés?", fuente: "companeros", momento: "empezar",
+                 opciones: ["Solo", "Ximena Ortiz", "Walter Saucedo", "Luis Luna"] }];
 const srv = http.createServer((req, res) => {
   if (req.url.startsWith("/rest/v1/rpc/")) {
     let body = ""; req.on("data", (c) => (body += c)); req.on("end", () => {
@@ -22,6 +25,7 @@ const srv = http.createServer((req, res) => {
       if (fn === "gt_registrar") (b.p_filas || []).forEach((f) => { if (!filas.some((x) => x.client_id === f.client_id)) filas.push(f); });
       const out = fn === "gt_clave_validar" ? { ok: true, principal: "PELL", empleados: [{ id: 7, nombre: "Ximena Ortiz", plantas: [] }] }
         : fn.startsWith("gt_botones") ? AREAS : fn === "gt_codigos_area2" ? CODS
+        : fn === "gt_pasos" ? PASOS
         : fn === "gt_registrar" ? { ok: (b.p_filas || []).map((f) => f.client_id), rechazados: [] } : [];
       res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify(out));
     }); return;
@@ -52,11 +56,16 @@ srv.listen(0, async () => {
       const b = await pg.$("#codHijas button[data-cod=PAPENC]");
       const bb = b && await b.boundingBox();
       chk(b && (await b.isVisible()) && bb.height >= 48 && bb.y + bb.height <= h, w + " px · en Encolado, «🔧 Puesta a punto encoladora» a la vista (" + (b ? (await b.textContent()).trim() : "—") + ")");
-      await b.click(); await pg.waitForSelector("#optionsScreen:not(.hidden)");
+      await b.click(); await pg.waitForSelector("#pasoScreen:not(.hidden)");
+      const ops = await pg.$$eval("#pasoOpts button", (l) => l.map((x) => x.textContent.trim()));
+      chk((await pg.textContent("#pasoLabel")) === "¿Con quién lo hacés?" && ops.join("|") === "Solo|Walter Saucedo|Luis Luna",
+          w + " px · pregunta con quién, sin ella misma en la lista (" + ops.join(", ") + ")");
+      await pg.click("#pasoOpts button[data-val='Walter Saucedo']"); await pg.waitForSelector("#optionsScreen:not(.hidden)");
       chk((await pg.textContent("#abiertaBox")).includes("Puesta a punto encoladora") && (await pg.isVisible(".termine-btn")), w + " px · queda abierta, con «Terminé»");
       await pg.waitForTimeout(300);
       const ap = filas.find((f) => f.rubro === "PAPENC" && !f.ts_inicio);
-      chk(ap && !ap.texto && ap.cantidad == null, w + " px · la apertura va a la base sin código ni cantidad");
+      chk(ap && !ap.texto && ap.cantidad == null && ap.detalle && ap.detalle.con === "Walter Saucedo", w + " px · la apertura va a la base sin código ni cantidad, con Walter Saucedo");
+      chk((await pg.textContent("#abiertaBox")).includes("con Walter Saucedo"), w + " px · la botonera dice «con Walter Saucedo»");
       await pg.click(".termine-btn"); await pg.waitForSelector("#cantScreen:not(.hidden)");
       chk(!(await pg.isVisible("#cantBox")) && (await pg.textContent("#sigueLabel")).includes("Encolado") && (await pg.textContent("#cantBtn")).includes("Encolado"),
           w + " px · al terminar no pide cantidad y propone seguir en Encolado («" + (await pg.textContent("#sigueLabel")) + "»)");
@@ -70,10 +79,11 @@ srv.listen(0, async () => {
       chk(ir && (await ir.isVisible()) && irBox.height >= 48 && irBox.y + irBox.height <= h, w + " px · al terminar Encolado, el botón de la puesta a punto a la vista");
       await ir.click();
       chk((await pg.textContent("#cantError")).includes("Poné un número"), w + " px · sin cantidad no cierra Encolado");
-      await pg.fill("#cantInput", "5"); await pg.click("#sigueHijas button[data-cod=PAPENC]"); await pg.waitForSelector("#optionsScreen:not(.hidden)");
+      await pg.fill("#cantInput", "5"); await pg.click("#sigueHijas button[data-cod=PAPENC]"); await pg.waitForSelector("#pasoScreen:not(.hidden)");
+      await pg.click("#pasoOpts button[data-val='Solo']"); await pg.waitForSelector("#optionsScreen:not(.hidden)");
       await pg.waitForTimeout(300);
       const ce = filas.find((f) => f.rubro === "ENCOL" && f.ts_inicio), p2 = filas.filter((f) => f.rubro === "PAPENC" && !f.ts_inicio);
-      chk(ce && ce.cantidad === 5 && ce.texto === "781" && p2.length === 2 && (await pg.textContent("#abiertaBox")).includes("Puesta a punto"),
+      chk(ce && ce.cantidad === 5 && ce.texto === "781" && p2.length === 2 && p2[1].detalle && p2[1].detalle.con === "Solo" && (await pg.textContent("#abiertaBox")).includes("Puesta a punto"),
           w + " px · cierra Encolado · 781 con 5 cajas y abre otra puesta a punto");
       await pg.click(".termine-btn"); await pg.waitForSelector("#cantScreen:not(.hidden)");
       chk(!(await pg.isVisible("#sigueHijas")), w + " px · al terminar la puesta a punto no se ofrece otra");
