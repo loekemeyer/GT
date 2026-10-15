@@ -10,6 +10,7 @@ const AREAS = [A("CORTE", "Corte", 1, "PELL"), A("MOLDU", "Moldurado", 21, "ESNA
 const PELL = { codigo: "PELL", nombre: "Pellegrini" }, ESNA = { codigo: "ESNA", nombre: "Esnaola" };
 const DARIO = { id: 6, nombre: "Dario Mendez", plantas: [PELL, ESNA] }, LUIS = { id: 5, nombre: "Luis Luna", plantas: [PELL, ESNA] };
 const filas = [], llamadas = [];
+let cambio = false;   // el «minuto» del código de planta: lo da vuelta el test
 const srv = http.createServer((req, res) => {
   if (req.url.startsWith("/rest/v1/rpc/")) {
     let body = ""; req.on("data", (c) => (body += c)); req.on("end", () => {
@@ -19,7 +20,8 @@ const srv = http.createServer((req, res) => {
       const out = fn === "gt_clave_validar" ? (b.p_clave === "123456" ? { ok: true, personal: true, da_codigo: "ESNA", principal: "PELL", empleados: [DARIO] }
           : b.p_clave === "5300" ? { ok: true, planta: "ESNA", principal: "PELL", empleados: [LUIS, DARIO] }
           : b.p_clave === "1234" ? { ok: true, principal: "PELL", empleados: [LUIS, DARIO, { id: 7, nombre: "Ximena Ortiz", plantas: [PELL] }] } : { ok: false })
-        : fn === "gt_codigo_planta" ? (b.p_llave === "123456" ? { ok: true, planta: "ESNA", planta_nombre: "Esnaola", clave: llamadas.filter((x) => x === fn).length > 1 ? "6411" : "5300", cambia_en_s: 2 } : { ok: false })
+        : fn === "gt_google_llave" ? (req.headers.authorization === "Bearer tokD" ? { ok: true, llave: "123456" } : { ok: false, email: "otro@gmail.com" })
+        : fn === "gt_codigo_planta" ? (b.p_llave === "123456" ? { ok: true, planta: "ESNA", planta_nombre: "Esnaola", clave: cambio ? "6411" : "5300", cambia_en_s: 2 } : { ok: false })
         : fn.startsWith("gt_botones") ? AREAS
         : fn === "gt_registrar" ? { ok: (b.p_filas || []).map((f) => f.client_id), rechazados: [] } : [];
       res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify(out));
@@ -53,9 +55,14 @@ srv.listen(0, async () => {
     chk(await d.isVisible("#codPlantaBtn"), "en Esnaola tiene la 🔑 arriba");
     const caja = await d.evaluate(() => { const t = document.querySelector("#optionsScreen .top-bar"); return t.scrollWidth <= t.clientWidth + 1 && document.documentElement.scrollWidth <= innerWidth; });
     chk(caja, "la 🔑 entra en el encabezado sin pasarse de ancho (360 px)");
+    // 1.63: el monitor de Esnaola abajo de la botonera
+    chk(await d.isVisible("#monitorBox") && (await d.textContent("#monitorNum")) === "5300" && (await d.textContent("#monitorTit")).includes("Esnaola"), "abajo: 📺 Monitor Esnaola 5300");
+    chk(await d.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "el monitor no se pasa de ancho (360 px)");
     await d.click("#codPlantaBtn"); await d.waitForSelector("#avisoPop:not(.hidden)");
     chk((await d.textContent("#codPlantaNum")) === "5300" && (await d.textContent("#avisoTit")).includes("Esnaola"), "la 🔑 muestra el código de Esnaola (5300)");
+    cambio = true;
     await d.waitForTimeout(3500);
+    chk((await d.textContent("#monitorNum")) === "6411", "el monitor de abajo también cambia (6411)");
     chk((await d.textContent("#codPlantaNum")) === "6411", "al cambiar el minuto se actualiza solo (6411)");
     await d.click("#avisoBtns button"); await d.waitForTimeout(100);
     // salir y volver: un toque
@@ -64,7 +71,16 @@ srv.listen(0, async () => {
     await d.click("#llaveBtn"); await d.waitForSelector("#plantaScreen:not(.hidden)");
     await d.click("#plantaOpts button[data-planta='PELL']"); await d.waitForSelector("#optionsScreen:not(.hidden)");
     chk(await d.isHidden("#codPlantaBtn"), "en Pellegrini no tiene la 🔑");
+    chk(await d.isHidden("#monitorBox"), "en Pellegrini no tiene el monitor abajo");
     // --- el celular de Luis
+    // 1.63: login con Google → vuelve con #access_token y entra como él (mail no habilitado → aviso)
+    const cG = await br.newContext({ viewport: { width: 360, height: 640 } }), g = await cG.newPage();
+    await g.goto(url + "#access_token=tokX&token_type=bearer"); await g.waitForTimeout(500);
+    chk((await g.textContent("#claveError")).includes("no está habilitado") && !(await g.evaluate(() => location.hash)), "Google con otro mail: «no está habilitado» y limpia el token de la URL");
+    await g.goto(url + "?g=1#access_token=tokD&token_type=bearer"); await g.waitForSelector("#plantaScreen:not(.hidden)");
+    await g.click("#plantaOpts button[data-planta='ESNA']"); await g.waitForSelector("#optionsScreen:not(.hidden)");
+    chk((await g.textContent("#opName")).includes("Dario Mendez") && await g.isVisible("#monitorBox"), "Google con su mail: entra como Dario Mendez en Esnaola con el monitor abajo");
+    await cG.close();
     const cL = await br.newContext({ viewport: { width: 360, height: 640 } }), l = await cL.newPage();
     await l.goto(url);
     await l.fill("#claveInput", "5300"); await l.click("#claveBtn"); await l.waitForSelector("#nombreScreen:not(.hidden)");

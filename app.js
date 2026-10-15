@@ -1332,6 +1332,49 @@
     $("llaveBtn").classList.toggle("hidden", !k);
     if (k) $("llaveBtn").textContent = "👷 Entrar como " + k.nombre;
     $("codPlantaBtn").classList.toggle("hidden", !(k && k.da && st.emp && !st.vista && st.planta === k.da));
+    pintarMonitor();
+  }
+  // 1.63 (Thomas: «operario con posibilidad de tener el monitor en el celu»): mismo código que la 🔑, fijo abajo de la botonera
+  let monTimer = null, monResta = 0, monR = null;
+  function pintarMonitor() {
+    const k = lsGet(LS_LLAVE, null), ver = !!(k && k.da && st.emp && !st.vista && st.planta === k.da);
+    $("monitorBox").classList.toggle("hidden", !ver);
+    clearInterval(monTimer); monTimer = null;
+    if (!ver) return;
+    const traer = async () => { try { const x = await rpc("gt_codigo_planta", { p_llave: k.llave }); if (x && x.ok) { monR = x; monResta = Number(x.cambia_en_s) || 60; } else monResta = 10; } catch { monResta = 5; } };
+    const pinta = () => {
+      $("monitorTit").textContent = "📺 Monitor " + (monR ? monR.planta_nombre || monR.planta : "");
+      $("monitorNum").textContent = monR ? monR.clave : "····";
+      $("monitorSeg").textContent = monR ? "cambia en " + monResta + " s" : "";
+    };
+    traer().then(pinta);
+    monTimer = setInterval(async () => { if (--monResta <= 0) await traer(); pinta(); }, 1000);
+  }
+  // 1.63 (Thomas): login con Google. Implicit flow de Supabase Auth: vuelve con #access_token, la base mira el mail del token
+  // (gt_google_llave) y devuelve la clave personal de ese mail; de ahí sigue igual que la clave personal (1.53)
+  function loginGoogle() {
+    const vuelta = location.origin + location.pathname;
+    location.href = CFG.SUPABASE_URL + "/auth/v1/authorize?provider=google&prompt=select_account&redirect_to=" + encodeURIComponent(vuelta);
+  }
+  async function volverDeGoogle() {
+    const h = new URLSearchParams(location.hash.replace(/^#/, ""));
+    const tok = h.get("access_token"), err = h.get("error_description");
+    if (!tok && !err) return false;
+    history.replaceState(null, "", location.pathname + location.search);
+    show("claveScreen");
+    if (err) { $("claveError").textContent = "Google: " + err; return true; }
+    let r = null;
+    try {
+      const f = await fetch(CFG.SUPABASE_URL + "/rest/v1/rpc/gt_google_llave", { method: "POST",
+        headers: { apikey: CFG.SUPABASE_KEY, Authorization: "Bearer " + tok, "Content-Type": "application/json" }, body: "{}" });
+      r = await f.json();
+    } catch { r = null; }
+    // sin admin en ningún lado (Thomas): la sesión de Google se cierra YA; el celular sólo se queda con la clave personal
+    fetch(CFG.SUPABASE_URL + "/auth/v1/logout", { method: "POST", headers: { apikey: CFG.SUPABASE_KEY, Authorization: "Bearer " + tok } }).catch(() => {});
+    if (r === null) { $("claveError").textContent = "Sin conexión. Probá de nuevo."; return true; }
+    if (!r || !r.ok) { $("claveError").textContent = "Ese mail no está habilitado" + (r && r.email ? " (" + r.email + ")" : ""); return true; }
+    $("claveInput").value = r.llave; await validarClave(); $("claveInput").value = "";
+    return true;
   }
   function entrarConLlave() {
     const k = lsGet(LS_LLAVE, null); if (!k) return;
@@ -1378,6 +1421,7 @@
   $("claveBtn").onclick = validarClave;
   $("llaveBtn").onclick = entrarConLlave;
   $("codPlantaBtn").onclick = mostrarCodigoPlanta;
+  $("googleBtn").onclick = loginGoogle;
   $("claveInput").addEventListener("keydown", (e) => { if (e.key === "Enter") validarClave(); });
   // 1.52: en modo vista no se pregunta «¿Sos …?»: no se graba nada a nombre de nadie
   $("nombreLista").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; if (st.vistaClave) elegirEmpleado(b.dataset.id, b.dataset.nombre); else confirmarNombre(b.dataset.id, b.dataset.nombre); });
@@ -1463,7 +1507,8 @@
   const ses = lsGet(LS_SESION, null);
   pintarLlave();
   if (!(ses && ses.dia === hoyAR() && ses.id)) reconciliar();   // sin sesión del día no pasa por entrar(): igual se pone al día la cola
-  if (ses && ses.dia === hoyAR() && ses.id) entrar(ses.id, ses.nombre, ses.planta, ses.plantas, ses.principal, false, ses.vista);
+  if (/access_token=|error_description=/.test(location.hash)) volverDeGoogle();
+  else if (ses && ses.dia === hoyAR() && ses.id) entrar(ses.id, ses.nombre, ses.planta, ses.plantas, ses.principal, false, ses.vista);
   else show("claveScreen");
 
   // v1.2: la app se actualiza sola. GitHub Pages deja la página en caché hasta 10 min y nadie avisaba:

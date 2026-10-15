@@ -298,3 +298,7 @@ body.sin-scroll{overflow:hidden;}
 .cod-planta{display:inline-block;font-size:56px;font-weight:700;letter-spacing:8px;line-height:1.1;margin:6px 0 2px;}
 .llave-top{flex:0 0 44px;font-size:22px;padding:0;}
 #llaveBtn{margin-top:4px;}
+
+/* 1.63: monitor del encargado abajo de la botonera */
+.monitor-box{display:flex;flex-direction:column;align-items:center;gap:2px;margin:10px auto 0;padding:8px 18px;border:1px solid var(--borde,#ddd);border-radius:14px;width:max-content;}
+.monitor-num{font-size:44px;font-weight:700;letter-spacing:.08em;font-variant-numeric:tabular-nums;line-height:1.1;}
