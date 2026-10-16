@@ -14,12 +14,15 @@ const CODS = PROD.map(([codigo, descripcion, medida]) => ({ rubro: "EMBL", codig
            { rubro: "MONT", codigo: "781E", descripcion: "Porta Mold 03 Caja Exhibidora", medida: "13*18" },
            { rubro: "MONT", codigo: "999X", descripcion: "Inventado con otra letra", medida: "10*10" },
            { rubro: "ENCOL", codigo: "781", descripcion: "Porta Mold 03", medida: "13*18" },
+           { rubro: "CORTE", codigo: "213", descripcion: "012 Celeste · 045 Chico", medida: "13 cm · Cajón Porta Cubiertos (556)" },
            { rubro: "CONTR", codigo: "183", descripcion: "Cuadro Mold 03 Botanica", medida: "30*40" },
            { rubro: "ENCOL", codigo: "781E", descripcion: "Porta Mold 03 Caja Exhibidora", medida: "13*18" }]);
 const filas = [];
 // 1.60 (Thomas: «en puesta a punto encoladora tiene que preguntar con quién lo va a hacer»): la base manda «Solo» y todos
 const PASOS = [{ rubro: "PAPENC", orden: 1, campo: "con", pregunta: "¿Con quién lo hacés?", fuente: "companeros", momento: "empezar",
-                 opciones: ["Solo", "Ximena Ortiz", "Walter Saucedo", "Luis Luna"] }];
+                 opciones: ["Solo", "Ximena Ortiz", "Walter Saucedo", "Luis Luna"] },
+               // 1.65 (D16): en Corte, sólo con el 213 / 214, «¿Qué cortaste?»
+               { rubro: "CORTE", orden: 2, campo: "producto", pregunta: "¿Qué cortaste?", opciones: ["012 Celeste", "Cajón Porta Cubiertos"], si_campo: "codigo", si_valor: "213", momento: "terminar" }];
 const srv = http.createServer((req, res) => {
   if (req.url.startsWith("/rest/v1/rpc/")) {
     let body = ""; req.on("data", (c) => (body += c)); req.on("end", () => {
@@ -100,6 +103,26 @@ srv.listen(0, async () => {
       await pg.click(".termine-btn"); await pg.waitForSelector("#cantScreen:not(.hidden)");
       chk(!(await pg.isVisible("#sigueHijas")), w + " px · al terminar la puesta a punto no se ofrece otra");
       await pg.close();
+      // 1.65 (D16): Corte con el 213 pregunta qué se cortó; con otro código, no
+      {
+        const p3 = await br.newPage({ viewport: { width: w, height: h } });
+        await p3.goto(url); await p3.fill("#claveInput", "1234"); await p3.click("#claveBtn");
+        await p3.click("#nombreLista button[data-id='7']"); await p3.waitForSelector("#avisoPop:not(.hidden)"); await p3.waitForTimeout(450); await p3.click("#avisoBtns button[data-i='0']"); await p3.waitForSelector(".box[data-cod=CORTE]");
+        await p3.click(".box[data-cod=CORTE]"); await p3.waitForSelector("#codScreen:not(.hidden)");
+        await p3.fill("#codInput", "0213"); await p3.click("#codBtn"); await p3.waitForSelector(".termine-btn");
+        await p3.click(".termine-btn"); await p3.waitForSelector("#pasoScreen:not(.hidden)");
+        const ops3 = await p3.$$eval("#pasoOpts button", (l) => l.map((x) => x.textContent.trim()));
+        chk((await p3.textContent("#pasoLabel")) === "¿Qué cortaste?" && ops3.join("|") === "012 Celeste|Cajón Porta Cubiertos", w + " px · Corte 0213 pregunta «¿Qué cortaste?» (" + ops3.join(", ") + ")");
+        await p3.click("#pasoOpts button[data-val='Cajón Porta Cubiertos']"); await p3.waitForSelector("#cantScreen:not(.hidden)");
+        await p3.fill("#cantInput", "40"); await p3.fill("#sigueInput", "025"); await p3.click("#cantBtn"); await p3.waitForTimeout(300);
+        if (await p3.isVisible("#cantScreen")) await p3.click("#cantBtn");
+        await p3.waitForSelector("#optionsScreen:not(.hidden)"); await p3.waitForTimeout(400);
+        const c3 = filas.find((f) => f.rubro === "CORTE" && f.ts_inicio && f.texto === "213");
+        chk(c3 && c3.detalle && c3.detalle.producto === "Cajón Porta Cubiertos" && c3.cantidad === 40, w + " px · el cierre del 213 lleva «Cajón Porta Cubiertos»");
+        await p3.click(".termine-btn"); await p3.waitForTimeout(400);
+        chk(!(await p3.isVisible("#pasoScreen")) && (await p3.isVisible("#cantScreen")), w + " px · Corte 025 no pregunta qué se cortó");
+        await p3.close();
+      }
       // D15 (Elías): el armado de cajas pide cuántas cajas armó; al terminar vuelve a Contraído, y desde Contraído se va al armado
       {
         const p2 = await br.newPage({ viewport: { width: w, height: h } });

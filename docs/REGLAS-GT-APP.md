@@ -462,6 +462,18 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
 
+### 1.65 — Corte 213 / 214: «¿Qué cortaste?» (Elías, 16/10/2026, D16)
+
+- El tablero «Codigos Corte 45° Bandeja» usa el 213 / 214 para el Cajón Porta Cubiertos (045 Chico / Grande), que ya eran
+  012 Celeste 13 / 27.5 cm (Elías: *«está duplicado»*). Para separarlos en la producción, al terminar Corte con esos
+  códigos se pregunta **«¿Qué cortaste?» · 012 Celeste / Cajón Porta Cubiertos** → `detalle.producto`.
+- Nuevo en `gt.rubro_pasos`: **`si_campo = 'codigo'`** compara `si_valor` contra el código del tramo (sin ceros adelante),
+  no contra otra respuesta. Sirve para cualquier pregunta que dependa del código. `sql/gt_v165_corte_213_214_pregunta.sql`,
+  `tests/puesta.cjs`.
+- El tablero de la Caja de Té repite números a propósito: el **307** (moldura 70) sale en 70 Grande de la Chica y la Mediana y
+  en 70 Chico de la Grande; el **311** (moldura 03), en la tapa grande de la Chica y la Mediana y en la tapa chica de la Grande:
+  es el mismo largo de corte para cajas distintas (D14, Elías).
+
 ### 1.64 — «📦 Armado de cajas» dentro de Contraído (Elías, 16/10/2026)
 
 - Pedido: *«En contraído faltaría agregar armado de cajas»*. Mismo molde que la Puesta a punto (1.50): rubro **`ARMCAJ`**,

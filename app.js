@@ -780,7 +780,7 @@
   function abrirTermine(ab, cierra, sigue, modo) {
     if (!pasosDe(cierra, "terminar").length) { pintarTermine(ab, cierra, sigue, modo, null); return; }
     iniciarPasos(cierra, "terminar", "Terminé " + cierra.nombre + (etq(ab) ? " · " + etq(ab) : ""),
-      (resp) => pintarTermine(ab, cierra, sigue, modo, resp), () => { show("optionsScreen"); renderBotonera(); });
+      (resp) => pintarTermine(ab, cierra, sigue, modo, resp), () => { show("optionsScreen"); renderBotonera(); }, { codigo: ab.texto });
   }
   function pintarTermine(ab, cierra, sigue, modo, fin) {
     // 1.39 (D45): el compañero invitado no carga cajas (las carga quien lo invitó) y al terminar vuelve la botonera
@@ -1094,17 +1094,24 @@
       show("optionsScreen"); renderBotonera();
     }, () => { show("optionsScreen"); renderBotonera(); });
   }
-  function iniciarPasos(a, momento, titulo, onFin, onCancel) {
+  // 1.65 (D16, Elías): ctx.codigo = el código del tramo; una pregunta con si_campo = "codigo" sale sólo con ese código
+  // (sin ceros adelante). Así el 213 / 214 de Corte preguntan si fue 012 Celeste o Cajón Porta Cubiertos
+  function iniciarPasos(a, momento, titulo, onFin, onCancel, ctx) {
     const pasos = pasosDe(a, momento);
     if (!pasos.length) { onFin({}); return; }
-    st.paso = { a, pasos, i: -1, resp: {}, vistos: [], titulo, onFin, onCancel };
+    st.paso = { a, pasos, i: -1, resp: {}, vistos: [], titulo, onFin, onCancel, ctx: ctx || {} };
     sigPaso();
   }
-  function aplica(p, resp) { return !p.si_campo || resp[p.si_campo] === p.si_valor; }
+  const sinCeros = (c) => String(c == null ? "" : c).trim().toUpperCase().replace(/^0+(?=.)/, "");
+  function aplica(p, resp, ctx) {
+    if (!p.si_campo) return true;
+    if (p.si_campo === "codigo") return !!(ctx && ctx.codigo) && sinCeros(ctx.codigo) === sinCeros(p.si_valor);
+    return resp[p.si_campo] === p.si_valor;
+  }
   function sigPaso() {
     const s = st.paso; if (!s) return;
     let i = s.i + 1;
-    while (i < s.pasos.length && !aplica(s.pasos[i], s.resp)) i++;
+    while (i < s.pasos.length && !aplica(s.pasos[i], s.resp, s.ctx)) i++;
     if (i >= s.pasos.length) { st.paso = null; s.onFin(s.resp); return; }
     s.i = i; s.vistos.push(i);
     pintarPaso();
