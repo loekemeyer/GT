@@ -7,13 +7,14 @@ const ROOT = path.join(__dirname, "..");
 const A = (codigo, nombre, orden, x) => Object.assign({ codigo, nombre, unidad: "cajas", orden, planta: "PELL", pide_codigo: true, pide_cantidad: true }, x || {});
 const AREAS = [A("CORTE", "Corte", 1, { unidad: "unidades cortadas" }), A("ENCOL", "Encolado", 3), A("MONT", "Montaje", 4), A("EMBL", "Emblistado", 6),
                A("PAPENC", "Puesta a punto encoladora", 32, { unidad: "—", pide_codigo: false, pide_cantidad: false }),
-               A("CONTR", "Contraído", 7), A("ARMCAJ", "Armado de cajas", 33, { unidad: "—", pide_codigo: false, pide_cantidad: false })];
+               A("CONTR", "Contraído", 7), A("ARMCAJ", "Armado de cajas", 33, { unidad: "cajas armadas", pide_codigo: false })];
 const PROD = [["183", "Cuadro Mold 03 Botanica", "30*40"], ["781E", "Porta Mold 03 Caja Exhibidora", "13*18"], ["782E", "Porta Mold 03 Caja Exhibidora", "15*21"]];
 const CODS = PROD.map(([codigo, descripcion, medida]) => ({ rubro: "EMBL", codigo, descripcion, medida }))
   .concat([{ rubro: "CORTE", codigo: "025", descripcion: "03 Bco", medida: "25 cm" },
            { rubro: "MONT", codigo: "781E", descripcion: "Porta Mold 03 Caja Exhibidora", medida: "13*18" },
            { rubro: "MONT", codigo: "999X", descripcion: "Inventado con otra letra", medida: "10*10" },
            { rubro: "ENCOL", codigo: "781", descripcion: "Porta Mold 03", medida: "13*18" },
+           { rubro: "CONTR", codigo: "183", descripcion: "Cuadro Mold 03 Botanica", medida: "30*40" },
            { rubro: "ENCOL", codigo: "781E", descripcion: "Porta Mold 03 Caja Exhibidora", medida: "13*18" }]);
 const filas = [];
 // 1.60 (Thomas: «en puesta a punto encoladora tiene que preguntar con quién lo va a hacer»): la base manda «Solo» y todos
@@ -60,6 +61,8 @@ srv.listen(0, async () => {
       chk(ac && (await ac.isVisible()) && acb.height >= 48 && acb.y + acb.height <= h && !(await pg.$("#codHijas button[data-cod=PAPENC]")),
           w + " px · en Contraído, «📦 Armado de cajas» a la vista y sin la puesta a punto (" + (ac ? (await ac.textContent()).trim() : "—") + ")");
       await pg.click("#codVolver"); await pg.waitForSelector("#optionsScreen:not(.hidden)");
+      await pg.click(".box[data-cod=MONT]"); await pg.waitForSelector("#codScreen:not(.hidden)");
+      await pg.click("#codVolver"); await pg.waitForSelector("#optionsScreen:not(.hidden)");
       await pg.click(".box[data-cod=ENCOL]"); await pg.waitForSelector("#codScreen:not(.hidden)");
       chk(!(await pg.$("#codHijas button[data-cod=ARMCAJ]")), w + " px · en Encolado no aparece el armado de cajas");
       const b = await pg.$("#codHijas button[data-cod=PAPENC]");
@@ -97,6 +100,27 @@ srv.listen(0, async () => {
       await pg.click(".termine-btn"); await pg.waitForSelector("#cantScreen:not(.hidden)");
       chk(!(await pg.isVisible("#sigueHijas")), w + " px · al terminar la puesta a punto no se ofrece otra");
       await pg.close();
+      // D15 (Elías): el armado de cajas pide cuántas cajas armó; al terminar vuelve a Contraído, y desde Contraído se va al armado
+      {
+        const p2 = await br.newPage({ viewport: { width: w, height: h } });
+        await p2.goto(url); await p2.fill("#claveInput", "1234"); await p2.click("#claveBtn");
+        await p2.click("#nombreLista button[data-id='7']"); await p2.waitForSelector("#avisoPop:not(.hidden)"); await p2.waitForTimeout(450); await p2.click("#avisoBtns button[data-i='0']"); await p2.waitForSelector(".box[data-cod=CONTR]");
+        await p2.click(".box[data-cod=CONTR]"); await p2.waitForSelector("#codScreen:not(.hidden)");
+        await p2.click("#codHijas button[data-cod=ARMCAJ]"); await p2.waitForSelector("#optionsScreen:not(.hidden)");
+        await p2.click(".termine-btn"); await p2.waitForSelector("#cantScreen:not(.hidden)");
+        chk((await p2.isVisible("#cantBox")) && (await p2.textContent("#cantLabel")).toLowerCase().includes("cajas armadas") && (await p2.textContent("#sigueLabel")).includes("Contraído"),
+            w + " px · al terminar el armado pide «cajas armadas» y propone Contraído («" + (await p2.textContent("#cantLabel")) + "»)");
+        await p2.fill("#cantInput", "12"); await p2.fill("#sigueInput", "183"); await p2.click("#cantBtn"); await p2.waitForTimeout(300);
+        if ((await p2.textContent("#cantError")).includes("CAJAS")) await p2.click("#cantBtn");   // «¿Son 12 cajas?»: segundo toque confirma
+        await p2.waitForSelector("#optionsScreen:not(.hidden)");
+        await p2.waitForTimeout(400);
+        const ca = filas.find((f) => f.rubro === "ARMCAJ" && f.ts_inicio), co = filas.find((f) => f.rubro === "CONTR" && !f.ts_inicio);
+        chk(ca && ca.cantidad === 12 && co && co.texto === "183", w + " px · cierra el armado con 12 cajas y vuelve a Contraído · 183");
+        await p2.click(".termine-btn"); await p2.waitForSelector("#cantScreen:not(.hidden)");
+        const irA = await p2.$("#sigueHijas button[data-cod=ARMCAJ]");
+        chk(irA && await irA.isVisible(), w + " px · al terminar Contraído, «Terminar e ir a Armado de cajas»");
+        await p2.close();
+      }
     }
   } catch (e) { fallas.push(String(e)); console.log("✗ " + e); }
   await br.close(); srv.close();

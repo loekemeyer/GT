@@ -466,7 +466,8 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 
 - Pedido: *«En contraído faltaría agregar armado de cajas»*. Mismo molde que la Puesta a punto (1.50): rubro **`ARMCAJ`**,
   `DENTRO_DE = { ARMCAJ: "CONTR" }`. No va en la botonera: es un botón en la pantalla del código de Contraído y «Terminar e ir a
-  Armado de cajas» al cerrar Contraído. Sin código ni cantidad, productiva. `sql/gt_v164_armado_de_cajas.sql`, `tests/puesta.cjs`.
+  Armado de cajas» al cerrar Contraído. Sin código, productiva. **D15 (Elías: «sí»): pide cuántas «cajas armadas»** (no es
+  cambio de app: `pide_cantidad = true` en la base); sale en Producción y no mueve stock. `sql/gt_v164_armado_de_cajas.sql`, `tests/puesta.cjs`.
 
 ### 1.50 — «🔧 Puesta a punto encoladora» dentro de Encolado (05/10/2026)
 

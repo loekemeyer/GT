@@ -5,3 +5,4 @@
 insert into gt.rubros (codigo, nombre, unidad, orden, activo, pide_codigo, pide_cantidad, planta, todas_plantas, familia_sin_moldura, productivo)
 values ('ARMCAJ', 'Armado de cajas', '—', 33, true, false, false, null, false, false, true)
 on conflict (codigo) do nothing;
+-- D15 (Elías, 16/10): pide cantidad. update gt.rubros set pide_cantidad = true, unidad = 'cajas armadas' where codigo = 'ARMCAJ';
