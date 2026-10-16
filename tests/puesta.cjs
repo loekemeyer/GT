@@ -6,7 +6,8 @@ let pw; try { pw = require("playwright"); } catch { pw = require(require("child_
 const ROOT = path.join(__dirname, "..");
 const A = (codigo, nombre, orden, x) => Object.assign({ codigo, nombre, unidad: "cajas", orden, planta: "PELL", pide_codigo: true, pide_cantidad: true }, x || {});
 const AREAS = [A("CORTE", "Corte", 1, { unidad: "unidades cortadas" }), A("ENCOL", "Encolado", 3), A("MONT", "Montaje", 4), A("EMBL", "Emblistado", 6),
-               A("PAPENC", "Puesta a punto encoladora", 32, { unidad: "—", pide_codigo: false, pide_cantidad: false })];
+               A("PAPENC", "Puesta a punto encoladora", 32, { unidad: "—", pide_codigo: false, pide_cantidad: false }),
+               A("CONTR", "Contraído", 7), A("ARMCAJ", "Armado de cajas", 33, { unidad: "—", pide_codigo: false, pide_cantidad: false })];
 const PROD = [["183", "Cuadro Mold 03 Botanica", "30*40"], ["781E", "Porta Mold 03 Caja Exhibidora", "13*18"], ["782E", "Porta Mold 03 Caja Exhibidora", "15*21"]];
 const CODS = PROD.map(([codigo, descripcion, medida]) => ({ rubro: "EMBL", codigo, descripcion, medida }))
   .concat([{ rubro: "CORTE", codigo: "025", descripcion: "03 Bco", medida: "25 cm" },
@@ -51,8 +52,16 @@ srv.listen(0, async () => {
       chk(!(await pg.$(".box[data-cod=PAPENC]")), w + " px · la puesta a punto no está en la botonera");
       await pg.click(".box[data-cod=MONT]"); await pg.waitForSelector("#codScreen:not(.hidden)");
       chk(!(await pg.isVisible("#codHijas")), w + " px · en Montaje no aparece el botón");
+      // 1.64 (Elías): «📦 Armado de cajas» dentro de Contraído (y sólo ahí)
+      chk(!(await pg.$(".box[data-cod=ARMCAJ]")), w + " px · el armado de cajas no está en la botonera");
+      await pg.click("#codVolver"); await pg.waitForSelector("#optionsScreen:not(.hidden)");
+      await pg.click(".box[data-cod=CONTR]"); await pg.waitForSelector("#codScreen:not(.hidden)");
+      const ac = await pg.$("#codHijas button[data-cod=ARMCAJ]"), acb = ac && await ac.boundingBox();
+      chk(ac && (await ac.isVisible()) && acb.height >= 48 && acb.y + acb.height <= h && !(await pg.$("#codHijas button[data-cod=PAPENC]")),
+          w + " px · en Contraído, «📦 Armado de cajas» a la vista y sin la puesta a punto (" + (ac ? (await ac.textContent()).trim() : "—") + ")");
       await pg.click("#codVolver"); await pg.waitForSelector("#optionsScreen:not(.hidden)");
       await pg.click(".box[data-cod=ENCOL]"); await pg.waitForSelector("#codScreen:not(.hidden)");
+      chk(!(await pg.$("#codHijas button[data-cod=ARMCAJ]")), w + " px · en Encolado no aparece el armado de cajas");
       const b = await pg.$("#codHijas button[data-cod=PAPENC]");
       const bb = b && await b.boundingBox();
       chk(b && (await b.isVisible()) && bb.height >= 48 && bb.y + bb.height <= h, w + " px · en Encolado, «🔧 Puesta a punto encoladora» a la vista (" + (b ? (await b.textContent()).trim() : "—") + ")");

@@ -12,7 +12,7 @@
   <title>Producción GT</title>
   <link rel="icon" href="data:," />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="styles.css?v=1.63" />
+  <link rel="stylesheet" href="styles.css?v=1.64" />
 </head>
 <body>
   <!-- 1) CÓDIGO DE INGRESO (el del monitor, cambia cada minuto) -->
@@ -32,7 +32,7 @@
       <button id="claveBtn" class="primary-btn">Siguiente</button>
       <!-- 1.53: en el celular del encargado (clave personal guardada), entrar sin código -->
       <button id="llaveBtn" class="sec-btn hidden"></button>
-      <!-- 1.63 (Thomas): entrar con Google (sólo los mails cargados en gt.clave_personal.email) -->
+      <!-- 1.64 (Thomas): entrar con Google (sólo los mails cargados en gt.clave_personal.email) -->
       <button id="googleBtn" class="sec-btn">🔐 Entrar con Google</button>
       <div class="version"><span id="verBadge"></span> · <a href="admin.html">Admin</a></div>
     </div>
@@ -71,7 +71,7 @@
       </div>
       <button id="histBtn" class="sec-btn">📋 Resumen de hoy</button>
     </div>
-    <!-- 1.63 (Thomas): el encargado ve el monitor de su planta abajo de la botonera (operario, no admin) -->
+    <!-- 1.64 (Thomas): el encargado ve el monitor de su planta abajo de la botonera (operario, no admin) -->
     <div id="monitorBox" class="monitor-box hidden"><span class="mut chico" id="monitorTit"></span><span id="monitorNum" class="monitor-num">····</span><span class="mut chico" id="monitorSeg"></span></div>
   </div>
 
@@ -168,8 +168,8 @@
       <div id="avisoBtns" class="aviso-btns"></div>
     </div>
   </div>
-  <script src="config.js?v=1.63"></script>
-  <script src="cola-idb.js?v=1.63"></script>
-  <script src="app.js?v=1.63"></script>
+  <script src="config.js?v=1.64"></script>
+  <script src="cola-idb.js?v=1.64"></script>
+  <script src="app.js?v=1.64"></script>
 </body>
 </html>

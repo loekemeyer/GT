@@ -462,6 +462,12 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
 
+### 1.64 — «📦 Armado de cajas» dentro de Contraído (Elías, 16/10/2026)
+
+- Pedido: *«En contraído faltaría agregar armado de cajas»*. Mismo molde que la Puesta a punto (1.50): rubro **`ARMCAJ`**,
+  `DENTRO_DE = { ARMCAJ: "CONTR" }`. No va en la botonera: es un botón en la pantalla del código de Contraído y «Terminar e ir a
+  Armado de cajas» al cerrar Contraído. Sin código ni cantidad, productiva. `sql/gt_v164_armado_de_cajas.sql`, `tests/puesta.cjs`.
+
 ### 1.50 — «🔧 Puesta a punto encoladora» dentro de Encolado (05/10/2026)
 
 - Pedido: *«dentro de encolado, apenas entrar, puedan tocar un botón que sea puesta a punto encoladora… se necesita hacer

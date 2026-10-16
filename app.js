@@ -390,11 +390,11 @@
   /* ---------- botonera de áreas ---------- */
   // v1.1: ícono por área (se ve en la tarjeta); un área nueva sin ícono usa 🏷️
   const ICONO = { CORTE: "✂️", GRAMP: "📌", ENCOL: "🧴", MONT: "🛠️", GANCHO: "🪝", EMBL: "📦", CONTR: "🎞️",
-                  PED: "🧾", DECO: "🎨", PAPENC: "🔧", ISIS: "💻", OP: "📝", FACT: "💵", GUARD: "🗄️", RECIB: "🚚", MOVIM: "🔄", LIMP: "🧹", BANO: "🚻", ALMU: "🍽️", MOLDU: "🪚", LIJA: "🧽", PINT: "🖌️" };
+                  PED: "🧾", DECO: "🎨", PAPENC: "🔧", ARMCAJ: "📦", ISIS: "💻", OP: "📝", FACT: "💵", GUARD: "🗄️", RECIB: "🚚", MOVIM: "🔄", LIMP: "🧹", BANO: "🚻", ALMU: "🍽️", MOLDU: "🪚", LIJA: "🧽", PINT: "🖌️" };
   // 1.50 (05/10/2026: «dentro de encolado, apenas entrar, un botón que sea puesta a punto encoladora»): un área que vive
   // DENTRO de otra no va en la botonera: es un botón en la pantalla del código de su área. Sin pide_codigo ni cantidad
   // (gt.rubros). Al terminarla se propone seguir en el área madre
-  const DENTRO_DE = { PAPENC: "ENCOL" };
+  const DENTRO_DE = { PAPENC: "ENCOL", ARMCAJ: "CONTR" };   // 1.64 (Elías): Armado de cajas dentro de Contraído
   function hijasDe(a) { return st.areas.filter((x) => DENTRO_DE[x.codigo] === a.codigo && deLaPlanta(x) && delEmp(x)); }
   // 1.52 (gt_v162): un área con «solo» (gt.empleado_rubro) es sólo de esos empleados (Javier: ISIS, OP, Facturación)
   function delEmp(a) { return !Array.isArray(a.solo) || a.solo.includes(Number(st.emp)); }
