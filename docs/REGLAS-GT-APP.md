@@ -471,7 +471,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   no contra otra respuesta. Sirve para cualquier pregunta que dependa del código. `sql/gt_v165_corte_213_214_pregunta.sql`,
   `tests/puesta.cjs`.
 - El tablero de la Caja de Té repite números a propósito: el **307** (moldura 70) sale en 70 Grande de la Chica y la Mediana y
-  en 70 Chico de la Grande; el **311** (moldura 03), en la tapa grande de la Chica y la Mediana y en la tapa chica de la Grande:
+  en 70 Chico de la Grande; el **311** (moldura 03), en la tapa grande de la Chica y la Mediana; el **314**, las dos tapas de la Grande (Elías, 16/10):
   es el mismo largo de corte para cajas distintas (D14, Elías).
 
 ### 1.64 — «📦 Armado de cajas» dentro de Contraído (Elías, 16/10/2026)

@@ -1,7 +1,7 @@
 -- Corte 45° — tablero «Codigos Corte 45° Bandeja» (foto, Elías 16/10/2026: «cargalos todos»).
 -- descripcion = moldura · medida = producto (código de artículo). Códigos repetidos en el tablero: una fila con todos.
 -- 213 y 214 YA eran «012 Celeste 13 / 27.5 cm»: se suma el producto del tablero, no se pisa (D13 pendiente).
--- 663 (Caja de Té Grande), tapas: corregido a mano en el cartel; leído 03 Chica Tapa = 311, 03 Gde. Tapa = 314 [Probable].
+-- 663 (Caja de Té Grande), tapas: corregido a mano en el cartel. Elías (16/10): 03 Chica y 03 Gde. Tapa = 314 los dos.
 insert into gt.codigos_rubro (rubro, codigo, descripcion, medida, activo) values
  ('CORTE','236','045 Chico','Bandeja 25*35 Natural (541)',true),
  ('CORTE','237','045 Grande','Bandeja 25*35 Natural (541)',true),
@@ -22,8 +22,8 @@ insert into gt.codigos_rubro (rubro, codigo, descripcion, medida, activo) values
  ('CORTE','310','70 Grande','Caja de Té Grande (663)',true),
  ('CORTE','312','03 Chica Tapa','Caja de Té Chica (661)',true),
  ('CORTE','313','03 Chica Tapa','Caja de Té Mediana (662)',true),
- ('CORTE','311','03 Gde. Tapa · 03 Chica Tapa','Caja de Té Chica (661) y Mediana (662) · Grande (663)',true),
- ('CORTE','314','03 Gde. Tapa','Caja de Té Grande (663)',true)
+ ('CORTE','311','03 Gde. Tapa','Caja de Té Chica (661) y Mediana (662)',true),
+ ('CORTE','314','03 Chica y Gde. Tapa','Caja de Té Grande (663)',true)
 on conflict (rubro, codigo) do update set descripcion = excluded.descripcion, medida = excluded.medida, activo = true;
 
 update gt.codigos_rubro set descripcion = '012 Celeste · 045 Chico', medida = '13 cm · Cajón Porta Cubiertos (556)'
