@@ -101,7 +101,7 @@ token está en el Vault, `telegram_bot_token`; nada más en el sistema lee los u
 
 **Aviso de Movimientos a Thomy (Elías, 16/10/2026).** Cada vez que alguien abre **Movimientos** (`AREA` + `MOVIM`, sin
 `ts_inicio`) el trigger `gt_aviso_movimiento` encola en `telegram_outbox` *«🔄 GT — <nombre> cargó Movimientos a las HH:MM
-(<planta>)»* al chat **privado** `gt.config.telegram_chat_movim`. ⚠ Telegram **no manda a un número de teléfono**: el chat
+(<planta>). Motivo: <detalle.que>»* (el «Motivo» que escribe el operario; vacío → «— (no escribió)») al chat **privado** `gt.config.telegram_chat_movim`. ⚠ Telegram **no manda a un número de teléfono**: el chat
 existe recién cuando Thomy abre `t.me/Faltantes_Virgilio_bot?start=<gt.config.telegram_movim_codigo>` y toca *Iniciar*.
 El cron `gt-telegram-capturar-movim` (cada minuto, `gt.telegram_capturar_movim()`) lee `getUpdates`, guarda el chat que
 mandó exactamente `/start <código>` y le confirma por el bot; con el chat cargado no hace nada más. Vacío = no avisa.

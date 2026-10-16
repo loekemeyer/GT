@@ -4,3 +4,4 @@
 -- gt.telegram_capturar_movim(): getUpdates por net.http_get; guarda el chat privado que mandó «/start <codigo>».
 -- cron gt-telegram-capturar-movim, cada minuto.
 -- Definición viva: select pg_get_functiondef('gt.trg_aviso_movimiento()'::regprocedure);
+-- gt_v165b (16/10): el mensaje suma «Motivo: <detalle->>'que'>».
