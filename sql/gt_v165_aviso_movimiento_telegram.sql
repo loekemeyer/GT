@@ -1,0 +1,6 @@
+-- Aplicada como migración gt_v165_aviso_movimiento_telegram (16/10/2026, Elías).
+-- gt.config: telegram_chat_movim (vacío hasta capturar), telegram_movim_codigo, telegram_movim_req.
+-- gt.trg_aviso_movimiento() + trigger gt_aviso_movimiento (after insert on gt.registros): AREA/MOVIM abierto -> tg_enqueue al chat.
+-- gt.telegram_capturar_movim(): getUpdates por net.http_get; guarda el chat privado que mandó «/start <codigo>».
+-- cron gt-telegram-capturar-movim, cada minuto.
+-- Definición viva: select pg_get_functiondef('gt.trg_aviso_movimiento()'::regprocedure);

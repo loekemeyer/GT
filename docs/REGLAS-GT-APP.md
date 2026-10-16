@@ -99,6 +99,14 @@ configurado y probado el 01/10/2026). El bot es `@Faltantes_Virgilio_bot`, el mi
 como destino: hace falta el número del grupo. Se saca con `getUpdates` del bot por `net.http_get` (el
 token está en el Vault, `telegram_bot_token`; nada más en el sistema lee los updates del bot).
 
+**Aviso de Movimientos a Thomy (Elías, 16/10/2026).** Cada vez que alguien abre **Movimientos** (`AREA` + `MOVIM`, sin
+`ts_inicio`) el trigger `gt_aviso_movimiento` encola en `telegram_outbox` *«🔄 GT — <nombre> cargó Movimientos a las HH:MM
+(<planta>)»* al chat **privado** `gt.config.telegram_chat_movim`. ⚠ Telegram **no manda a un número de teléfono**: el chat
+existe recién cuando Thomy abre `t.me/Faltantes_Virgilio_bot?start=<gt.config.telegram_movim_codigo>` y toca *Iniciar*.
+El cron `gt-telegram-capturar-movim` (cada minuto, `gt.telegram_capturar_movim()`) lee `getUpdates`, guarda el chat que
+mandó exactamente `/start <código>` y le confirma por el bot; con el chat cargado no hace nada más. Vacío = no avisa.
+Lo que llega fuera de 07:00-21:00 sale a las 07:00 (horario del outbox). `sql/gt_v165_aviso_movimiento_telegram.sql`.
+
 ### v7.0 — códigos propios de Corte 45° y Grampeado (Thomas, 01/10/2026)
 
 El mismo número es otra cosa según el área (**080** = «Cuadro Ciudades MDF» como producto, pero
