@@ -7,7 +7,10 @@ const ROOT = path.join(__dirname, "..");
 const A = (codigo, nombre, orden, x) => Object.assign({ codigo, nombre, unidad: "cajas", orden, planta: "PELL", pide_codigo: true, pide_cantidad: true }, x || {});
 const AREAS = [A("CORTE", "Corte", 1, { unidad: "unidades cortadas" }), A("ENCOL", "Encolado", 3), A("MONT", "Montaje", 4), A("EMBL", "Emblistado", 6),
                A("PAPENC", "Puesta a punto encoladora", 32, { unidad: "—", pide_codigo: false, pide_cantidad: false }),
-               A("CONTR", "Contraído", 7), A("ARMCAJ", "Armado de cajas", 33, { unidad: "cajas armadas", pide_codigo: false })];
+               A("CONTR", "Contraído", 7), A("ARMCAJ", "Armado de cajas", 33, { unidad: "cajas armadas" })];
+// 1.67 (Thomas): el tablero «Num Caja», como lo manda la base (gt.codigos_rubro, ordenado alfabéticamente por código)
+const CAJAS = ["10", "12", "13", "14", "15", "16", "2", "20*50", "22", "29", "30", "38*38", "40*15", "40*50", "5",
+               "Caja Cuadros Set", "Caja Notebook", "Exhi 2 Porta", "Exhi 3 Porta", "Exhi Cuadro", "IMP", "Tapa + Base"];
 const PROD = [["183", "Cuadro Mold 03 Botanica", "30*40"], ["781E", "Porta Mold 03 Caja Exhibidora", "13*18"], ["782E", "Porta Mold 03 Caja Exhibidora", "15*21"]];
 const CODS = PROD.map(([codigo, descripcion, medida]) => ({ rubro: "EMBL", codigo, descripcion, medida }))
   .concat([{ rubro: "CORTE", codigo: "025", descripcion: "03 Bco", medida: "25 cm" },
@@ -16,7 +19,8 @@ const CODS = PROD.map(([codigo, descripcion, medida]) => ({ rubro: "EMBL", codig
            { rubro: "ENCOL", codigo: "781", descripcion: "Porta Mold 03", medida: "13*18" },
            { rubro: "CORTE", codigo: "213", descripcion: "012 Celeste · 045 Chico", medida: "13 cm · Cajón Porta Cubiertos (556)" },
            { rubro: "CONTR", codigo: "183", descripcion: "Cuadro Mold 03 Botanica", medida: "30*40" },
-           { rubro: "ENCOL", codigo: "781E", descripcion: "Porta Mold 03 Caja Exhibidora", medida: "13*18" }]);
+           { rubro: "ENCOL", codigo: "781E", descripcion: "Porta Mold 03 Caja Exhibidora", medida: "13*18" }])
+  .concat(CAJAS.map((codigo) => ({ rubro: "ARMCAJ", codigo, descripcion: null, medida: null })));
 const filas = [];
 // 1.60 (Thomas: «en puesta a punto encoladora tiene que preguntar con quién lo va a hacer»): la base manda «Solo» y todos
 const PASOS = [{ rubro: "PAPENC", orden: 1, campo: "con", pregunta: "¿Con quién lo hacés?", fuente: "companeros", momento: "empezar",
@@ -129,7 +133,17 @@ srv.listen(0, async () => {
         await p2.goto(url); await p2.fill("#claveInput", "1234"); await p2.click("#claveBtn");
         await p2.click("#nombreLista button[data-id='7']"); await p2.waitForSelector("#avisoPop:not(.hidden)"); await p2.waitForTimeout(450); await p2.click("#avisoBtns button[data-i='0']"); await p2.waitForSelector(".box[data-cod=CONTR]");
         await p2.click(".box[data-cod=CONTR]"); await p2.waitForSelector("#codScreen:not(.hidden)");
-        await p2.click("#codHijas button[data-cod=ARMCAJ]"); await p2.waitForSelector("#optionsScreen:not(.hidden)");
+        await p2.click("#codHijas button[data-cod=ARMCAJ]"); await p2.waitForSelector("#codOpts:not(.hidden)");
+        // 1.67: pregunta qué caja, con los 22 del tablero como botones y en el orden del tablero (no el alfabético de la base)
+        const cajas = await p2.$$eval("#codOpts button", (l) => l.map((x) => x.textContent.trim()));
+        chk((await p2.textContent("#codLabel")) === "¿Qué caja vas a armar?", w + " px · el armado pregunta «¿Qué caja vas a armar?»");
+        chk(cajas.length === 22 && cajas.slice(0, 11).join("|") === "2|5|10|12|13|14|15|16|22|29|30" &&
+            cajas.slice(11, 15).join("|") === "20*50|38*38|40*15|40*50" && cajas[15] === "Caja Cuadros Set" && cajas[21] === "Tapa + Base",
+            w + " px · las 22 cajas en el orden del tablero (" + cajas.slice(0, 13).join(", ") + "…)");
+        chk(await p2.isHidden("#codInput"), w + " px · no se tipea: con el teclado numérico no se escribe «Caja Notebook»");
+        await p2.click('#codOpts button[data-cod="Caja Notebook"]'); await p2.waitForSelector("#optionsScreen:not(.hidden)");
+        const ab = filas.find((f) => f.rubro === "ARMCAJ" && !f.ts_inicio && f.texto === "Caja Notebook");
+        chk(!!ab, w + " px · la apertura del armado lleva la caja elegida");
         await p2.click(".termine-btn"); await p2.waitForSelector("#cantScreen:not(.hidden)");
         chk((await p2.isVisible("#cantBox")) && (await p2.textContent("#cantLabel")).toLowerCase().includes("cajas armadas") && (await p2.textContent("#sigueLabel")).includes("Contraído"),
             w + " px · al terminar el armado pide «cajas armadas» y propone Contraído («" + (await p2.textContent("#cantLabel")) + "»)");
@@ -138,7 +152,8 @@ srv.listen(0, async () => {
         await p2.waitForSelector("#optionsScreen:not(.hidden)");
         await p2.waitForTimeout(400);
         const ca = filas.find((f) => f.rubro === "ARMCAJ" && f.ts_inicio), co = filas.find((f) => f.rubro === "CONTR" && !f.ts_inicio);
-        chk(ca && ca.cantidad === 12 && co && co.texto === "183", w + " px · cierra el armado con 12 cajas y vuelve a Contraído · 183");
+        chk(ca && ca.cantidad === 12 && ca.texto === "Caja Notebook" && co && co.texto === "183",
+            w + " px · cierra el armado de la Caja Notebook con 12 cajas y vuelve a Contraído · 183");
         await p2.click(".termine-btn"); await p2.waitForSelector("#cantScreen:not(.hidden)");
         const irA = await p2.$("#sigueHijas button[data-cod=ARMCAJ]");
         chk(irA && await irA.isVisible(), w + " px · al terminar Contraído, «Terminar e ir a Armado de cajas»");

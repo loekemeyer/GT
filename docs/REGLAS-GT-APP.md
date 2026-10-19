@@ -462,6 +462,30 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
 
+### 1.67 — Armado de cajas pregunta QUÉ caja, con el tablero «Num Caja» (Thomas, 19/10/2026)
+
+- Pedido: *«Ahí debería preguntar qué número de caja va a armar»*, con la foto del tablero: **22 cajas**.
+- **Las 22 van a `gt.codigos_rubro` (rubro `ARMCAJ`), no a `gt.codigo_area`**: ésa es para los 331 productos, y el «2» de
+  una caja no es el producto 2. `gt_codigos_area2` ya une las dos tablas, así que la app las ve sin tocar ninguna función.
+  `gt.rubros.pide_codigo = true` para `ARMCAJ`. **Cero cambios en funciones o vistas.**
+- **No mueve stock, y está verificado en la definición viva de `gt.movimientos`:** esa vista cruza `codigos_rubro` sólo con
+  `CORTE` y `GRAMP` (`cr.rubro = r.area`), y los productos sólo con las 6 áreas de producto. `ARMCAJ` no entra por ninguna
+  rama. 11 de los 22 códigos existen también en Corte o Grampeado («2», «5», «10»…): no se cruzan porque el join pide
+  además el rubro.
+- **Se eligen por BOTONES, no se tipean:** 7 de los 22 son texto («Caja Notebook», «Tapa + Base», «IMP») y 4 son medidas
+  («20\*50»), y el campo de código es de teclado numérico. `esOpciones` pasa a aceptar también una lista **corta**
+  (`BOTONES_MAX = 30`) donde **algún** código no se puede tipear. Las áreas de producto (331), Corte (195), Grampeado (130)
+  y Deco (87) se siguen tipeando: no entran en una grilla. Con más de 6 opciones la grilla va compacta (`.muchas`) y la
+  pregunta ya no las nombra una por una: dice **«¿Qué caja vas a armar?»** (`PREGUNTA` por área, porque «Armado de cajas»
+  no sale de la regla «¿Qué vas a <nombre sin -ado>?»).
+- **El orden es el del tablero, no el de la base:** `gt_codigos_area2` ordena por texto («10» antes que «2»), así que la app
+  reordena: números por valor (2 … 30), después las medidas (20\*50 … 40\*50), después los nombres. Medido en 390 px:
+  2 columnas, botón de 52 px, ningún texto cortado; la lista entra con un poco de scroll (915 px de alto).
+- **Sigue pidiendo cuántas armó** (D15, 1.64): primero la caja, al terminar la cantidad. El cartel dice «¿Cuántas cajas
+  armadas de Caja Notebook?» («del 183» sólo cuando el código empieza con número).
+- `sql/gt_v167_armado_de_cajas_numero.sql` (con su rollback) · `tests/puesta.cjs` (las 22 en orden, sin campo de tipeo, la
+  caja viaja en la apertura y en el cierre).
+
 ### 1.66 — «👁 Botonera» en el admin: la app del operario sin grabar nada (Thomas, 19/10/2026)
 
 - Pedido: *«dentro del admin poneme un módulo para ver botonera de operario sin mover stocks ni contabilizar para

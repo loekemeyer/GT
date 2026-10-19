@@ -803,7 +803,8 @@
       (idos ? " · 🤝 todas las del tramo (" + idos + ")" : dos ? " · 🤝 las de " + (companero(ab).includes(" y ") ? "todos" : "los dos") + ", no sólo las tuyas" : "");
     $("cantBox").classList.toggle("hidden", !pideCant);
     const uni = unidadDe(cierra, ab.texto);   // 1.62: deco en Encolado se cuenta en unidades
-    $("cantLabel").textContent = cuantas(uni) + uni + (ab.texto ? (esMoldura(cierra) ? " de moldura " : " del ") + ab.texto : "") +
+    // 1.67: «del 183», pero «de Caja Notebook»: un código que no empieza con número no lleva el artículo
+    $("cantLabel").textContent = cuantas(uni) + uni + (ab.texto ? (esMoldura(cierra) ? " de moldura " : /^\d/.test(ab.texto) ? " del " : " de ") + ab.texto : "") +
       (ab.detalle && ab.detalle.articulo ? " · " + ab.detalle.articulo : "") +
       (dos ? " hicieron " + entreVos(ab) : "") + "?";
     $("cantInput").value = ""; $("cantError").textContent = ""; st.cantOk = null;
@@ -812,7 +813,7 @@
     $("siguePend").classList.add("hidden"); $("siguePend").innerHTML = "";
     if (conSigue) {
       $("sigueLabel").textContent = !sigue.pide_codigo ? "¿Seguís en " + sigue.nombre + "?" :
-        esOpciones(sigue) ? "¿Seguís en " + sigue.nombre + "? ¿" + codigosDe(sigue).map((c) => c.descripcion || c.codigo).join(" o ") + "?" :
+        esOpcionesCortas(sigue) ? "¿Seguís en " + sigue.nombre + "? ¿" + codigosDe(sigue).map((c) => c.descripcion || c.codigo).join(" o ") + "?" :
         "¿Con qué código seguís en " + sigue.nombre + "?";
       prepararInput("sigueInput", "sigueHint", sigue); $("sigueError").textContent = "";
       if (!sigue.pide_codigo) { $("sigueInput").classList.add("hidden"); $("sigueOpts").classList.add("hidden"); $("sigueSuf").classList.add("hidden"); }
@@ -899,15 +900,41 @@
   }
 
   // empezar un área: si pide código, primero «¿Qué vas a grampear?»
+  // 1.67: la pregunta del área cuando «¿Qué vas a <nombre sin -ado>?» no sale bien («Armado de cajas» → «armar cajas»)
+  const PREGUNTA = { ARMCAJ: "¿Qué caja vas a armar?" };
   function verbo(a) {
+    if (PREGUNTA[a.codigo]) return PREGUNTA[a.codigo];
     const n = String(a.nombre || "").toLowerCase();
     return /ado$/.test(n) ? "¿Qué vas a " + n.replace(/ado$/, "ar") + "?" : "¿Qué código vas a hacer en " + a.nombre + "?";
   }
   // input de código: teclado numérico si todos los códigos del área son números; abajo, qué es lo tipeado
   const OPCIONES_MAX = 6;
+  const BOTONES_MAX = 30;        // 1.67: hasta acá una lista que no se puede tipear entra como grilla de botones
   const SIN_LETRA = ["ENCOL"];   // 1.44: áreas sin el botón de la E
-  // opciones = pocas y con nombre (INSUMO, MOLDURA); una lista de números siempre se tipea
-  function esOpciones(a) { const l = codigosDe(a); return l.length > 0 && l.length <= OPCIONES_MAX && l.every((c) => /^[A-ZÁÉÍÓÚÑ ]+$/i.test(c.codigo)); }
+  // opciones = pocas y con nombre (INSUMO, MOLDURA); una lista de números siempre se tipea.
+  // 1.67 (Thomas, el tablero «Num Caja» de Armado de cajas): una lista corta donde algún código NO se puede tipear con el
+  // teclado numérico («Caja Notebook», «20*50», «Tapa + Base») también va por botones. Las áreas de producto (331 códigos),
+  // Corte (195), Grampeado (130) y Deco (87) se siguen tipeando: no entran en una grilla.
+  function tipeable(c) { return /^\d+[A-Z]?$/i.test(c.codigo); }
+  function esOpciones(a) {
+    const l = codigosDe(a);
+    if (!l.length) return false;
+    if (l.length <= OPCIONES_MAX && l.every((c) => /^[A-ZÁÉÍÓÚÑ ]+$/i.test(c.codigo))) return true;
+    return l.length <= BOTONES_MAX && l.some((c) => !tipeable(c));
+  }
+  // con pocas opciones la pregunta las nombra («¿Insumo o Moldura?»); con 22 cajas, no: va la pregunta del área
+  function esOpcionesCortas(a) { return esOpciones(a) && codigosDe(a).length <= OPCIONES_MAX; }
+  // 1.67: los botones salen en el orden del tablero —números por valor, después las medidas (20*50) y después los nombres—,
+  // no en el alfabético que manda la base («10» antes que «2»)
+  function ordenOpciones(l) {
+    const grupo = (c) => /^\d+$/.test(c) ? 0 : /^[\d*x.,+ -]+$/i.test(c) ? 1 : 2;
+    return l.slice().sort((a, b) => {
+      const ga = grupo(a.codigo), gb = grupo(b.codigo);
+      if (ga !== gb) return ga - gb;
+      if (ga < 2) { const na = parseFloat(a.codigo), nb = parseFloat(b.codigo); if (na !== nb) return na - nb; }
+      return String(a.codigo).localeCompare(String(b.codigo), "es");
+    });
+  }
   function prepararInput(inputId, hintId, a) {
     const lista = codigosDe(a);
     const el = $(inputId);
@@ -915,7 +942,8 @@
     const conOpc = esOpciones(a);
     el.classList.toggle("hidden", conOpc);
     opts.classList.toggle("hidden", !conOpc);
-    opts.innerHTML = conOpc ? lista.map((c) => '<button data-cod="' + esc(c.codigo) + '">' + esc(c.descripcion || c.codigo) + "</button>").join("") : "";
+    opts.classList.toggle("muchas", conOpc && lista.length > OPCIONES_MAX);   // 1.67: 22 cajas entran como grilla compacta
+    opts.innerHTML = conOpc ? ordenOpciones(lista).map((c) => '<button data-cod="' + esc(c.codigo) + '">' + esc(c.descripcion || c.codigo) + "</button>").join("") : "";
     el.value = ""; el.dataset.area = a.codigo; el.dataset.hint = hintId;
     // 1.42 (Elías: «que todos los inputs para poner código sean numéricos y con un botón al lado para agregar a ese código o
     // sacarle (en caso de doble tap) una E»): teclado numérico siempre (inputmode en index.html) y, al lado, la E. Si la
@@ -993,7 +1021,7 @@
     }
     st.codPara = a;
     $("codTitulo").textContent = "Empecé " + a.nombre;
-    $("codLabel").textContent = esOpciones(a) ? "¿" + codigosDe(a).map((c) => c.descripcion || c.codigo).join(" o ") + "?" : verbo(a);
+    $("codLabel").textContent = esOpcionesCortas(a) ? "¿" + codigosDe(a).map((c) => c.descripcion || c.codigo).join(" o ") + "?" : verbo(a);
     prepararInput("codInput", "codHint", a); $("codError").textContent = ""; restaurarBtn("codBtn");
     $("codPend").classList.add("hidden"); $("codPend").innerHTML = "";
     if (a.codigo === "GUARD") pendientesContraido("codPend", () => st.codPara && st.codPara.codigo === "GUARD");
