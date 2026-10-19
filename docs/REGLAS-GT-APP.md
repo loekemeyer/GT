@@ -462,7 +462,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
 
-### 1.66 — «👁 Botonera» en el admin: la app del operario sin grabar nada (19/10/2026)
+### 1.66 — «👁 Botonera» en el admin: la app del operario sin grabar nada (Thomas, 19/10/2026)
 
 - Pedido: *«dentro del admin poneme un módulo para ver botonera de operario sin mover stocks ni contabilizar para
   productividad»*.
