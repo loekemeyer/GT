@@ -1,0 +1,7 @@
+-- gt_v170 (Elías, 19/10/2026): «la entrada al admin de GT no tiene que lanzar llegada tarde a telegram».
+-- Entrar a admin.html abre la pestaña Monitor y gt_monitor_login2 avisaba «abrieron el monitor fuera de horario» /
+-- «desde OTRO equipo» (19/10: 3 avisos, 12:13 PC y 15:04 iPhone x2). Ahora esos avisos sólo salen con
+-- gt.config.monitor_login_avisa = 'si' (se cargó 'no'). El ingreso se sigue anotando en gt.monitor_ingresos.
+-- Aplicada como migración gt_v170_admin_no_avisa_telegram. Definición viva:
+--   select pg_get_functiondef('public.gt_monitor_login2(text,text,text,text)'::regprocedure);
+-- Volver a prender: update gt.config set valor = 'si' where clave = 'monitor_login_avisa';

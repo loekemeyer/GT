@@ -509,6 +509,13 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 - **Cero cambios en la base.** `app.js`, `admin.html`, `tests/admin-botonera.cjs` (13 chequeos: entra solo, no graba, no deja
   sesión, se apaga al cambiar de pestaña).
 
+### gt_v170 — entrar al admin no avisa por Telegram (Elías, 19/10/2026)
+
+- *«La entrada al admin de GT no tiene que lanzar llegada tarde a telegram»*. Abrir `admin.html` cae en la pestaña Monitor y
+  `gt_monitor_login2` mandaba «🔐 abrieron el monitor con la clave fuera de horario / desde OTRO equipo». Quedan apagados con
+  **`gt.config.monitor_login_avisa = 'no'`**; el ingreso se sigue anotando en `gt.monitor_ingresos`. Los avisos de llegada de
+  los operarios (08:05 y 10:30) no cambian. `sql/gt_v170_admin_no_avisa_telegram.sql`.
+
 ### 1.65 — Corte 213 / 214: «¿Qué cortaste?» (Elías, 16/10/2026, D16)
 
 - El tablero «Codigos Corte 45° Bandeja» usa el 213 / 214 para el Cajón Porta Cubiertos (045 Chico / Grande), que ya eran
