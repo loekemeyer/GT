@@ -72,6 +72,10 @@
     .ped-acc button{border:1px solid var(--borde);background:var(--card);color:var(--fg);border-radius:10px;padding:7px 12px;font-size:14px;}
     .ped-acc button.prim{background:var(--acc);border-color:var(--acc);color:#fff;} .ped-acc button.peligro{color:var(--err);}
     .ped-msg{font-size:13px;color:var(--mut);}
+    /* BOTONERA (1.66): la app del operario en un marco del ancho de un celular (390 px), sin espacio muerto alrededor */
+    .cel{width:390px;max-width:100%;height:min(760px,calc(100vh - 200px));border:1px solid var(--borde);border-radius:var(--r);
+         overflow:hidden;background:var(--card);box-shadow:var(--sombra);}
+    .cel iframe{width:100%;height:100%;border:0;display:block;}
     td input.arm{width:64px;font:inherit;font-size:14px;text-align:center;padding:4px;border-radius:8px;border:1px solid var(--borde);background:var(--card);color:var(--fg);}
     .c-mut{background:var(--borde);color:var(--mut);}
   </style>
@@ -88,6 +92,7 @@
     <button class="tab" data-tab="asis">⏰ Asistencia</button>
     <button class="tab" data-tab="ped">📦 Pedidos</button>
     <button class="tab" data-tab="rend">📈 Rendimiento</button>
+    <button class="tab" data-tab="bot">👁 Botonera</button>
   </nav>
 
   <!-- CLAVE DEL MONITOR: la valida la base (gt_monitor_clave). Se recuerda en ESTA máquina hasta «Salir» o hasta el lunes 07:00 (v1.6). El ingreso tipeado va por gt_monitor_login. -->
@@ -139,7 +144,17 @@
     <div id="pedLista"></div>
   </section>
 
-  <script src="config.js?v=1.62"></script>
+  <!-- BOTONERA DEL OPERARIO (1.66, Thomas 19/10/2026: «un módulo para ver botonera de operario sin mover stocks ni
+       contabilizar para productividad»): es la app REAL (index.html) en modo vista (1.52) dentro de un iframe, abierta con
+       ?vista=1 y el código del monitor en ?cod=. En modo vista nada sale del celular: no hay INGRESO, no hay «Empecé» ni
+       «Terminé» en gt.registros, así que no toca stock, Producción, Ritmo ni Rendimiento. No se copia la botonera acá a
+       propósito: dos botoneras terminan divergiendo. -->
+  <section id="bot" class="vista panel hidden">
+    <div class="barra"><button id="botRef">↻ Reiniciar</button><span class="info" id="botInfo"></span></div>
+    <div class="cel"><iframe id="botFrame" title="Botonera del operario (modo vista)" referrerpolicy="no-referrer"></iframe></div>
+  </section>
+
+  <script src="config.js?v=1.66"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -214,7 +229,9 @@
       tab = t;
       document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
       document.querySelectorAll(".vista").forEach((v) => v.classList.toggle("hidden", v.id !== t));
-      if (t === "monitor") pedir(primera); else if (t === "prod") cargarProd(); else if (t === "ped") cargarPed(); else if (t === "rend") cargarRend(); else cargarAsis();
+      if (t !== "bot") apagarBotonera();   // 1.66: fuera de la pestaña el iframe no queda corriendo
+      if (t === "monitor") pedir(primera); else if (t === "prod") cargarProd(); else if (t === "ped") cargarPed();
+      else if (t === "rend") cargarRend(); else if (t === "bot") abrirBotonera(); else cargarAsis();
     }
     function sinPermiso() { olvidarPass(); verLogin("Clave incorrecta"); }
 
@@ -514,6 +531,26 @@
       sinPermiso(); return false;
     }
 
+    /* ---------- BOTONERA DEL OPERARIO (1.66) ---------- */
+    // El código del monitor sirve el minuto en que se pide y el anterior (gt_clave_validar mira clave_de(t) y clave_de(t-1)),
+    // así que no hay carrera con la rueda de los 60 s. Si se vence mientras está abierta no pasa nada: ya entró.
+    async function abrirBotonera(forzar) {
+      const f = $("botFrame");
+      if (!forzar && f.dataset.ok === "1") return;        // al volver a la pestaña sigue donde estaba
+      $("botInfo").textContent = "Pidiendo el código del monitor…";
+      let d;
+      try { d = await rpc("gt_monitor_clave", { p_pass: pass || "" }); }
+      catch (e) { $("botInfo").textContent = "⚠ No pude leer el código (" + (e.message || e) + "). Tocá ↻ Reiniciar."; return; }
+      if (!d || !d.ok) { sinPermiso(); return; }
+      f.src = "./?vista=1&cod=" + encodeURIComponent(d.clave) + "&t=" + Date.now();
+      f.dataset.ok = "1";
+      $("botInfo").textContent = "👁 Modo vista: se puede tocar todo y NO graba nada (ni productividad, ni stock, ni la asistencia). Elegí el operario.";
+    }
+    function apagarBotonera() {
+      const f = $("botFrame"); if (f.dataset.ok !== "1") return;
+      f.removeAttribute("src"); f.dataset.ok = ""; $("botInfo").textContent = "";
+    }
+
     /* ---------- eventos ---------- */
     $("prodDia").value = $("asisDia").value = hoyAR();
     $("tabs").addEventListener("click", (e) => { const b = e.target.closest(".tab"); if (b) verTab(b.dataset.tab); });
@@ -521,6 +558,7 @@
     $("prodDia").onchange = cargarProd; $("asisDia").onchange = cargarAsis;
     ["fArea", "fOper", "fFam"].forEach((id) => { $(id).onchange = pintarProd; });
     $("rendRef").onclick = cargarRend; $("rendDesde").onchange = cargarRend; $("rendHasta").onchange = cargarRend;
+    $("botRef").onclick = () => abrirBotonera(true);
     setInterval(() => { if (document.hidden) return; if (tab === "prod" && $("prodDia").value === hoyAR()) cargarProd();
                         if (tab === "asis" && $("asisDia").value === hoyAR()) cargarAsis(); }, 60000);
     document.addEventListener("visibilitychange", () => { if (!document.hidden && tab === "monitor") pedir(); });

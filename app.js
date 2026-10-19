@@ -60,9 +60,14 @@
   const REINTENTO_MS = 5000;        // 1.57 (D89): la cola se reintenta cada 5 s (antes 30)
 
   const $ = (id) => document.getElementById(id);
+  // 1.66 (Thomas, 19/10/2026: «dentro del admin un módulo para ver botonera de operario sin mover stocks ni contabilizar
+  // para productividad»): con ?vista=1 la app entra SIEMPRE en modo vista (1.52), venga la clave que venga. El admin la
+  // abre así dentro de un iframe, con el código del monitor en ?cod=, y no se graba nada: ni productividad ni stock.
+  // Sigue pidiendo un código válido del monitor: ?vista=1 solo no abre nada.
+  const VISTA_URL = new URLSearchParams(location.search).get("vista") === "1";
   const st = { emp: null, nombre: null, areas: [], codigos: [], server: [], pend: null, codPara: null, pendCont: null,
               planta: null, plantas: [], principal: null, pasos: [], paso: null,
-              vista: false, vistaClave: false, sim: [], sinc: false };
+              vista: false, vistaClave: VISTA_URL, sim: [], sinc: false };
 
   /* ---------- utilidades ---------- */
   function lsGet(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } }
@@ -1205,7 +1210,7 @@
       $("claveInput").value = ""; pintarLlave();
       elegirEmpleado(e.id, e.nombre); return;
     }
-    st.vistaClave = !!r.vista;   // 1.52: la clave del administrador (gt.config.clave_vista): elegir a quién ver, sin grabar
+    st.vistaClave = !!r.vista || VISTA_URL;   // 1.52: la clave del administrador (gt.config.clave_vista): elegir a quién ver, sin grabar
     $("nombreLista").classList.toggle("vista", st.vistaClave);
     const emps = r.empleados || [];
     st.principal = r.principal || null;
@@ -1301,6 +1306,7 @@
   function nombrePlanta(cod) { const p = st.plantas.find((x) => x.codigo === cod); return p ? p.nombre : cod || ""; }
   function ponerNombre() { $("opName").textContent = (st.vista ? "👁 " : "") + st.nombre + (st.plantas.length > 1 && st.planta ? " · " + nombrePlanta(st.planta) : ""); }
   function guardarSesion() {
+    if (VISTA_URL) return;   // 1.66: el módulo del admin no deja sesión guardada (no pisa la del celular del operario)
     lsSet(LS_SESION, { id: st.emp, nombre: st.nombre, dia: hoyAR(), planta: st.planta, plantas: st.plantas, principal: st.principal, vista: st.vista });
   }
   // ingreso = true cuando viene de poner el código y elegir el nombre (no al recargar con la sesión del día)
@@ -1336,7 +1342,7 @@
   // compañero: sólo en el celular del encargado, entrando en esa planta y no en modo vista)
   function pintarLlave() {
     const k = lsGet(LS_LLAVE, null);
-    $("llaveBtn").classList.toggle("hidden", !k);
+    $("llaveBtn").classList.toggle("hidden", !k || VISTA_URL);   // 1.66: en el módulo del admin no se entra como nadie
     if (k) $("llaveBtn").textContent = "👷 Entrar como " + k.nombre;
     $("codPlantaBtn").classList.toggle("hidden", !(k && k.da && st.emp && !st.vista && st.planta === k.da));
     pintarMonitor();
@@ -1515,6 +1521,13 @@
   pintarLlave();
   if (!(ses && ses.dia === hoyAR() && ses.id)) reconciliar();   // sin sesión del día no pasa por entrar(): igual se pone al día la cola
   if (/access_token=|error_description=/.test(location.hash)) volverDeGoogle();
+  // 1.66: el módulo del admin (?vista=1) nunca retoma la sesión del día de este navegador: arranca en el código, y si el
+  // admin lo pasó en ?cod= lo valida solo. Así el iframe no puede quedar grabando a nombre del operario de este celular.
+  else if (VISTA_URL) {
+    show("claveScreen");
+    const cod = (new URLSearchParams(location.search).get("cod") || "").replace(/\D/g, "");
+    if (cod) { $("claveInput").value = cod; validarClave(); }
+  }
   else if (ses && ses.dia === hoyAR() && ses.id) entrar(ses.id, ses.nombre, ses.planta, ses.plantas, ses.principal, false, ses.vista);
   else show("claveScreen");
 
@@ -1530,8 +1543,10 @@
       const enCarga = ["cantScreen", "codScreen", "medScreen", "pasoScreen"].some((id) => !$(id).classList.contains("hidden")) ||
                       (document.activeElement && document.activeElement.tagName === "INPUT") || !!st.aviso;   // 1.47: ni con un aviso abierto
       if (enCarga) return;                                   // se reintenta en la próxima vuelta
-      if (new URLSearchParams(location.search).get("v") === v) return;   // ya recargó con ésa: no entra en bucle
-      location.replace(location.pathname + "?v=" + encodeURIComponent(v));
+      const q = new URLSearchParams(location.search);
+      if (q.get("v") === v) return;   // ya recargó con ésa: no entra en bucle
+      q.set("v", v);                  // 1.66: se conservan ?vista=1 y ?cod= (el módulo del admin no se cae a modo normal)
+      location.replace(location.pathname + "?" + q.toString());
     } catch { /* sin red: no pasa nada */ }
   }
   setInterval(chequearVersion, 120000);

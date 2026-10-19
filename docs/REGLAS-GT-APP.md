@@ -11,7 +11,7 @@ _Movido desde `CLAUDE.md` el 2026-10-13 (poda de tokens). Reglas sin cambios._
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API, y el 3080 de Deco que pregunta el artículo) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse —también desde «¿Con qué seguís?»—, el aviso de más de 10 cajas, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) · `node tests/vista.cjs` (el modo vista y las áreas de un solo empleado) · `node tests/resync.cjs` (el celular recarga con la base caída o con un envío en camino y no pierde lo abierto) · `node tests/esnaola.cjs` (Esnaola sin monitor: la clave del encargado y el código para el compañero) · `node tests/cola.cjs` (la cola: reintento cada 5 s, aviso de errores de envío, una fila mala que no traba, la copia en IndexedDB y el service worker que manda con la app cerrada) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API, y el 3080 de Deco que pregunta el artículo) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse —también desde «¿Con qué seguís?»—, el aviso de más de 10 cajas, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) · `node tests/vista.cjs` (el modo vista y las áreas de un solo empleado) · `node tests/resync.cjs` (el celular recarga con la base caída o con un envío en camino y no pierde lo abierto) · `node tests/esnaola.cjs` (Esnaola sin monitor: la clave del encargado y el código para el compañero) · `node tests/admin-botonera.cjs` (la pestaña 👁 Botonera del admin: entra sola con el código del monitor, se toca todo y no graba nada) · `node tests/cola.cjs` (la cola: reintento cada 5 s, aviso de errores de envío, una fila mala que no traba, la copia en IndexedDB y el service worker que manda con la app cerrada) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -461,6 +461,29 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   **D74 (Thomas: «no»):** ninguna pide cantidad. **D75 (Thomas: «sí»):** quedan los nombres cortos.
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
+
+### 1.66 — «👁 Botonera» en el admin: la app del operario sin grabar nada (19/10/2026)
+
+- Pedido: *«dentro del admin poneme un módulo para ver botonera de operario sin mover stocks ni contabilizar para
+  productividad»*.
+- **Es la app REAL en un iframe, no una copia.** Pestaña **👁 Botonera** en `admin.html`: un marco del ancho de un celular
+  (390 px) con `index.html` abierto en **modo vista** (1.52). Se puede elegir cualquier operario, tocar las áreas, cerrar con
+  cantidad, abrir Armado de cajas: **nada sale del celular**. No hay `INGRESO`, ni «Empecé», ni «Terminé» en `gt.registros`,
+  así que no toca **stock** (`gt.movimientos` se calcula de los registros), ni **Producción**, ni **Ritmo**, ni
+  **Rendimiento**, ni la **Asistencia**. El badge de arriba dice «👁 Vista · no graba».
+  ⚠ No se copió la botonera dentro del admin **a propósito**: dos botoneras terminan divergiendo (el pozo del módulo de
+  Matricería duplicado).
+- **Cómo entra sin tipear nada:** el admin ya está logueado con la clave del monitor, así que pide el código del minuto
+  (`gt_monitor_clave`) y abre el iframe en `./?vista=1&cod=<código>`. `gt_clave_validar` acepta el código del minuto **y el
+  anterior**, así que no hay carrera con la rueda de los 60 s. Al salir de la pestaña el iframe se apaga; al volver, se
+  reabre con un código nuevo.
+- **`?vista=1` NO es una puerta abierta**: sólo fuerza el modo vista; sin un código válido del monitor no muestra nada. Y en
+  la app hace tres cosas más, todas para que el iframe no pueda grabar por accidente: (1) el estado arranca en
+  `vistaClave = true`, así cualquier camino de entrada queda en vista; (2) **no guarda sesión** (`LS_SESION`), así no pisa la
+  del celular del operario ni se reabre sola; (3) **no retoma la sesión del día** de ese navegador y **no ofrece «Entrar como
+  …»** (la llave personal del encargado). La recarga por versión nueva conserva `?vista=1`.
+- **Cero cambios en la base.** `app.js`, `admin.html`, `tests/admin-botonera.cjs` (13 chequeos: entra solo, no graba, no deja
+  sesión, se apaga al cambiar de pestaña).
 
 ### 1.65 — Corte 213 / 214: «¿Qué cortaste?» (Elías, 16/10/2026, D16)
 
