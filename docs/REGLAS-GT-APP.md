@@ -85,7 +85,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 | Grampeado | sí | 130 propios (234 a 240 entraron con D22 y D26) |
 | Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos (13 discontinuos: 6 desde D22 y los 7 G y W desde el 02/10, no se listan) |
 | Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`). Acepta **cualquier** producto, pero si no salió de Contraído **avisa y pide confirmar** (v11.0, D17) |
-| Deco | sí | 123 de operación activos (el 21/10 entraron los 16 del cartel «Codigos Perforado-Lijado-Calado»: 6001–6006, 7006–7011, 8001–8004, gt_v177 · el 21/10 entraron los 15 del tablero «Codigos Corte Vidrio», **2001–2015** «Corte Vidrio · 10\*15…», gt_v171, el 2012 apagado, y los 24 del tablero «Codigos Sublimado», **5101–5124**, 19 activos: gt_v173) (tablero «08. Sector Deco»: 71; los 13 de artículos discontinuados salieron con D64; el 07/10 entraron el **7001** «Perforado — Cajas de Té» y 15 de la foto del tablero de bastidores y aros: 3010–3013, 3018, 3028–3036, 3043. ⚠ 3031/3033/3035 «Bastidor» se superponen con 3084/3086/3088 «Panal + Bastidor + Tapa»: D96) |
+| Deco | sí | 121 de operación activos (gt_v178: 3002 y 3060 apagados, D103 · el 21/10 entraron los 16 del cartel «Codigos Perforado-Lijado-Calado»: 6001–6006, 7006–7011, 8001–8004, gt_v177 · el 21/10 entraron los 15 del tablero «Codigos Corte Vidrio», **2001–2015** «Corte Vidrio · 10\*15…», gt_v171, el 2012 apagado, y los 24 del tablero «Codigos Sublimado», **5101–5124**, 19 activos: gt_v173) (tablero «08. Sector Deco»: 71; los 13 de artículos discontinuados salieron con D64; el 07/10 entraron el **7001** «Perforado — Cajas de Té» y 15 de la foto del tablero de bastidores y aros: 3010–3013, 3018, 3028–3036, 3043. ⚠ 3031/3033/3035 «Bastidor» se superponen con 3084/3086/3088 «Panal + Bastidor + Tapa»: D96) |
 | Pedidos | no | — (y no pide cantidad) |
 | Almuerzo (`ALMU`) | no | botón aparte, no tarjeta; sin cantidad |
 | Recibir mercadería | **no** (1.12, D29) | — ; al terminar no pide cantidad (1.13, D30) |
@@ -461,6 +461,16 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   **D74 (Thomas: «no»):** ninguna pide cantidad. **D75 (Thomas: «sí»):** quedan los nombres cortos.
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
+
+### gt_v178 — Deco controlado contra el tablero de las bandejas (Thomas, 21/10/2026: «Controla»)
+
+- Tablero de bandejas (536 / 535 / 538, 540 / 542 / 543 / 545 / 547, 537 / 541 / 546 / 548, Porta Broche 160 / 162 / 163): **31
+  códigos coinciden** con la base. Las diferencias, todas de la Bandeja Cama Chica:
+  - El tablero tiene escrito a mano **3001** y **3061** en la 540 (tapando el 3002 y el 3060) y da **3003 / 3063** para la 547.
+    → 3001 y 3061 preguntan sólo 540 / 542; **3002 y 3060 apagados** (resuelve **D103**). Lo ya cargado no se toca: 3001·547
+    (30, 09/10) y 3061·547 (60, hasta 16/10).
+  - 3007 / 3008 pasan al nombre del tablero, «Armado Corte Chico c/Manija».
+- `sql/gt_v178_deco_bandejas_control_tablero.sql`.
 
 ### gt_v177 — Deco: cartel «Codigos Perforado-Lijado-Calado» (Thomas, 21/10/2026)
 
