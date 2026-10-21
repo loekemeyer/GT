@@ -462,6 +462,28 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
 
+### gt_v172 — el vidrio cortado SUMA al stock y lo descuenta Montaje de portas (Thomas, 21/10/2026, D2)
+
+- Pedido: *«tiene que descontarse cuando montan portas»*. El descuento ya existía (gt_v142, regla 6 de `gt.insumo_regla`:
+  Montaje de porta / múltiple / «c/Vidrio» resta 1 «VIDRIO {medida}» por unidad). Faltaba que el corte sumara.
+- **`gt.codigos_rubro.insumo`** (columna nueva): el insumo que produce un código propio de un rubro. Los 15 de Corte Vidrio
+  (Deco 2001–2015) producen «VIDRIO <medida del tablero>»; `gt.movimientos` suma **+cantidad** al cerrar el tramo (rama nueva
+  al final de `mov`, agregada sobre la definición viva). Otro código que produzca un insumo es un `update`, no código.
+- **La regla 6 ya no descuenta vidrio** a las «porta» que no lo llevan: Difusor, Vela, Sahumerio, Cepillo y Pasta, Foto
+  Broche, Broche Metálico (`excluye`) [Probable]. ⚠ La regla 7 (FONDO, [Adivinando]) no se tocó: al 895 Porta Difusor le sigue
+  descontando un «FONDO 10\*12\*7».
+- **Recetas por producto** (`gt.insumo_receta`, `fuente = 'gt_v172'`), donde la medida del producto no es la del vidrio:
+  portas c/Soga 606–609 («10\*15 x2» → 2 «VIDRIO 10\*15») y múltiples 281, 283, 311, 312 (un vidrio por ventana, la medida
+  del aro); c/Vidrio 30\*40 con aro 27.5\*40 (Diplomas 192 y 214, Cuadro Vintage 228) → «VIDRIO 27.5\*40» (el 2006 del
+  tablero) [Probable]. Como una receta por producto reemplaza todas las reglas de la etapa, llevan también su FONDO.
+  `gt.insumo_receta.insumo` tiene FK a `gt.insumos`: se dieron de alta 16 «VIDRIO …» y 5 «FONDO …».
+- Probado en transacción abortada: 2003 × 10 → +10 VIDRIO 15\*21 · 782 × 1 caja → −16 · 606 × 1 caja (UxB 12) → −24
+  VIDRIO 10\*15 · 895 sin vidrio · 192 → −16 VIDRIO 27.5\*40 · 2006 × 7 → +7.
+- **Sin vidrio cortado que les corresponda** (siguen descontando la medida del producto): 224 Porta Gigante 30\*40 (¿29\*40?),
+  227 Cuadro Vintage c/Vidrio 20\*30 (aro 20\*27.5). **Cortes sin producto que los use:** 29\*40, 15\*37, 8.5\*23, 17.5\*23,
+  23\*26.5. Sin conteo inicial, el saldo arranca negativo (hoy VIDRIO 15\*21 −160 y 27.5\*40 −16, de montajes del 782 y 192).
+- `sql/gt_v172_stock_vidrio.sql` (con su rollback). Cero cambios en la app.
+
 ### gt_v171 — Deco: «Codigos Corte Vidrio» 2001 a 2015 (21/10/2026)
 
 - Pedido: foto del tablero «Codigos Corte Vidrio» + *«Carga estos · Rubro deco»*. 15 medidas → `gt.codigos_rubro` rubro `DECO`,
