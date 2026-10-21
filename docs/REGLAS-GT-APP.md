@@ -81,7 +81,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 
 | área | pide código | lista |
 |---|---|---|
-| Corte | sí | 233 activos (el 21/10 entraron 38 del tablero «Corte 90° Grados»: 200–205, 208–211, 225 de bandejas y 241–258 / 265–273 de Cajón 2 Tablas, gt_v174) · 174 propios (Corte 45°; 157 y 158 entraron con D22, 159 a 168 con D27; el 07/10 206 / 207 «012 Rosa 13 y 27,5 cm» y 212 «Manija 03 Rosa», tipeados esa mañana fuera de lista, y sus Celeste 213 / 214 / 215, números elegidos por Claude: D95. **gt_v176:** sin color, 206 / 207 / 212 preguntan «¿De qué color?», 215 apagado) |
+| Corte | sí | 233 activos (el 21/10 entraron 38 del tablero «Corte 90° Grados»: 200–205, 208–211, 225 de bandejas y 241–258 / 265–273 de Cajón 2 Tablas, gt_v174) · 174 propios (Corte 45°; 157 y 158 entraron con D22, 159 a 168 con D27; el 07/10 206 / 207 «012 Rosa 13 y 27,5 cm» y 212 «Manija 03 Rosa», tipeados esa mañana fuera de lista, y sus Celeste 213 / 214 / 215, números elegidos por Claude: D95. **gt_v176:** sin color, 206 / 207 / 212 preguntan «¿De qué color?» Rosa / Natural / Celeste (gt_v179), 215 apagado) |
 | Grampeado | sí | 130 propios (234 a 240 entraron con D22 y D26) |
 | Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos (13 discontinuos: 6 desde D22 y los 7 G y W desde el 02/10, no se listan) |
 | Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`). Acepta **cualquier** producto, pero si no salió de Contraído **avisa y pide confirmar** (v11.0, D17) |
@@ -461,6 +461,16 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   **D74 (Thomas: «no»):** ninguna pide cantidad. **D75 (Thomas: «sí»):** quedan los nombres cortos.
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
+
+### gt_v179 — la pregunta de color de la bandeja suma «Natural» (Thomas, 21/10/2026)
+
+- *«Un solo código para la moldura de una misma medida… que pregunte qué color están cortando, si rosa, natural o celeste.»*
+  206 / 207 / 212 preguntan al terminar **Rosa / Natural / Celeste** (`gt.rubro_pasos` CORTE 2–4).
+- Ningún tablero tenía un código Rosa: «Rosa» era sólo la etiqueta que la base les puso el 07/10 a 206 / 207 / 212. Lo que se
+  apagó (215) y lo que se le sacó al 213 / 214 eran los Celeste que numeró Claude ese día (D95), tampoco impresos.
+- ⚠ El «012 Natural 13 cm» que sí existe (código **69**) es de Corte 45° (marcos), no la pieza de 90° de la bandeja. En Corte
+  45° la regla sigue siendo un código por color (69 / 74 / 84 / 94 para 012 13 cm; 153 / 155 Trav 20mm Rosa / Celeste 27 cm): D15.
+  `sql/gt_v179_corte_bandeja_color_natural.sql`.
 
 ### gt_v178 — Deco controlado contra el tablero de las bandejas (Thomas, 21/10/2026: «Controla»)
 
