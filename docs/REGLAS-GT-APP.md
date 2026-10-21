@@ -462,6 +462,16 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
 
+### gt_v175 — Porta Cubo Colgante sin vidrio y dónde se descuenta el de la Caja de Té (Thomas, 21/10/2026: D6, D7)
+
+- **D7:** *«El 348 no utiliza vidrio»*. La regla 6 suma «Cubo Colgante» a `excluye`: salen el 348 (30\*40) y el 346 (15\*21), el
+  mismo producto en otra medida [Probable]. El FONDO no cambia. Ninguno se había registrado en Montaje.
+- **D6:** *«en un paso se le pone el panel con bastidor y la tapa con bisagras ya tiene puesto el vidrio cuando se le va a poner
+  todo junto»*. El vidrio se pone antes, en la tapa, pero **ningún paso registra eso** (el Bastidor 3031 y el Aro 3032 se
+  tipean en Grampeado). El 3084 / 3086 / 3088 consume una tapa con su vidrio por caja, así que el descuento de gt_v173 queda ahí.
+  Lo único que no ve: tapas ya armadas con vidrio que todavía no entraron a una caja (siguen contando como vidrio).
+  `sql/gt_v175_cubo_colgante_sin_vidrio.sql`.
+
 ### gt_v174 — Corte: tablero «Corte 90° Grados», 200 a 273 (Thomas, 21/10/2026)
 
 - Pedido: *«258 en corte no lo tenés»* + la foto del tablero (*«el 258 es moldura de 100 con ranura para cajón 25x34»*).
