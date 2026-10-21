@@ -85,7 +85,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 | Grampeado | sí | 130 propios (234 a 240 entraron con D22 y D26) |
 | Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos (13 discontinuos: 6 desde D22 y los 7 G y W desde el 02/10, no se listan) |
 | Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`). Acepta **cualquier** producto, pero si no salió de Contraído **avisa y pide confirmar** (v11.0, D17) |
-| Deco | sí | 107 de operación activos (el 21/10 entraron los 15 del tablero «Codigos Corte Vidrio», **2001–2015** «Corte Vidrio · 10\*15…», gt_v171, el 2012 apagado, y los 24 del tablero «Codigos Sublimado», **5101–5124**, 19 activos: gt_v173) (tablero «08. Sector Deco»: 71; los 13 de artículos discontinuados salieron con D64; el 07/10 entraron el **7001** «Perforado — Cajas de Té» y 15 de la foto del tablero de bastidores y aros: 3010–3013, 3018, 3028–3036, 3043. ⚠ 3031/3033/3035 «Bastidor» se superponen con 3084/3086/3088 «Panal + Bastidor + Tapa»: D96) |
+| Deco | sí | 123 de operación activos (el 21/10 entraron los 16 del cartel «Codigos Perforado-Lijado-Calado»: 6001–6006, 7006–7011, 8001–8004, gt_v177 · el 21/10 entraron los 15 del tablero «Codigos Corte Vidrio», **2001–2015** «Corte Vidrio · 10\*15…», gt_v171, el 2012 apagado, y los 24 del tablero «Codigos Sublimado», **5101–5124**, 19 activos: gt_v173) (tablero «08. Sector Deco»: 71; los 13 de artículos discontinuados salieron con D64; el 07/10 entraron el **7001** «Perforado — Cajas de Té» y 15 de la foto del tablero de bastidores y aros: 3010–3013, 3018, 3028–3036, 3043. ⚠ 3031/3033/3035 «Bastidor» se superponen con 3084/3086/3088 «Panal + Bastidor + Tapa»: D96) |
 | Pedidos | no | — (y no pide cantidad) |
 | Almuerzo (`ALMU`) | no | botón aparte, no tarjeta; sin cantidad |
 | Recibir mercadería | **no** (1.12, D29) | — ; al terminar no pide cantidad (1.13, D30) |
@@ -461,6 +461,18 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   **D74 (Thomas: «no»):** ninguna pide cantidad. **D75 (Thomas: «sí»):** quedan los nombres cortos.
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
+
+### gt_v177 — Deco: cartel «Codigos Perforado-Lijado-Calado» (Thomas, 21/10/2026)
+
+- 16 códigos nuevos de Deco, «Operación — artículo»: Calado 045 Trav Chico / Gde de las Cajas de Té 662 y 663 (6001–6004);
+  Bandeja Notebook 545: Calado Bast. 045 (**6005**), Calado Reg Altura Trav 20mm (6006), Perforado Patas (7008), Perforado
+  Soporte 10mm (**7010**), Perforado 100 Grande (7011), Lijado Soporte 10mm (8002), Lijado 100 Chico / Grande (8003 / 8004);
+  Perforado Patas de las Bandejas de Cama 542 y 543 (7006 / 7007); Perforado 012 p/Pitones del 310 Cuelga Llaves (7009);
+  Lijado Manija 03 de las bandejas 535 / 536 / 538 (8001). El 7001 pasa a «Perforado Tapa 03 — Cajas de Té».
+- **Resuelve D10:** el 6005 y el 7010 que tipeaba Juan Gimenez son de la Bandeja Notebook. También se tipeaban fuera de la lista
+  el 7008 (Juan), el 7006 (Luis Luna, Ximena Ortiz) y el 8001 (Lautaro Durante): ahora se reconocen. No mueven stock.
+- ⚠ Quedan como no identificados: el **6005 en Corte** del 16/10 (Juan, 100, era el Calado de Deco) y el **215** del 07/10 (Luis,
+  200 manijas Celeste, apagado en gt_v176) (D13). `sql/gt_v177_deco_perforado_lijado_calado.sql`.
 
 ### gt_v176 — Corte de la bandeja 13x30: sin códigos por color, pregunta «¿De qué color?» (Thomas, 21/10/2026, D9)
 
