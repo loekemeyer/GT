@@ -81,7 +81,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 
 | área | pide código | lista |
 |---|---|---|
-| Corte | sí | 174 propios (Corte 45°; 157 y 158 entraron con D22, 159 a 168 con D27; el 07/10 206 / 207 «012 Rosa 13 y 27,5 cm» y 212 «Manija 03 Rosa», tipeados esa mañana fuera de lista, y sus Celeste 213 / 214 / 215, números elegidos por Claude: D95) |
+| Corte | sí | 233 activos (el 21/10 entraron 38 del tablero «Corte 90° Grados»: 200–205, 208–211, 225 de bandejas y 241–258 / 265–273 de Cajón 2 Tablas, gt_v174) · 174 propios (Corte 45°; 157 y 158 entraron con D22, 159 a 168 con D27; el 07/10 206 / 207 «012 Rosa 13 y 27,5 cm» y 212 «Manija 03 Rosa», tipeados esa mañana fuera de lista, y sus Celeste 213 / 214 / 215, números elegidos por Claude: D95) |
 | Grampeado | sí | 130 propios (234 a 240 entraron con D22 y D26) |
 | Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos (13 discontinuos: 6 desde D22 y los 7 G y W desde el 02/10, no se listan) |
 | Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`). Acepta **cualquier** producto, pero si no salió de Contraído **avisa y pide confirmar** (v11.0, D17) |
@@ -461,6 +461,20 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   **D74 (Thomas: «no»):** ninguna pide cantidad. **D75 (Thomas: «sí»):** quedan los nombres cortos.
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
+
+### gt_v174 — Corte: tablero «Corte 90° Grados», 200 a 273 (Thomas, 21/10/2026)
+
+- Pedido: *«258 en corte no lo tenés»* + la foto del tablero (*«el 258 es moldura de 100 con ranura para cajón 25x34»*).
+  38 códigos con el formato del tablero de Corte 45° Bandeja: `descripcion` = moldura, `medida` = producto. Bandejas: 204/205
+  (535 20x20), 225 (538 30x30), 208–211 (Cama Chica 540/542: Corte Chico, Grande, Pata, Travesaño), 200–203 (Cama Grande 543).
+  Cajón 2 Tablas Blanco 15\*21 / 20\*27.5 / 25\*34 (563 / 564 / 565): 241–249 (045 s/Ran, 045 c/Ran, 100 c/Ran) y 265–273
+  (las tres «c/B»). Natural (583 / 584 / 585): 250–258. En los cajones sólo los artículos activos (563J, 564J, 570, 581, 582 y 589
+  a 594 son discontinuos, D64).
+- **206 / 207 / 212 no se pisaron**: el tablero los da como «012 Corte Chico / Grande» y «Manija Madera» de las bandejas 536 / 535
+  / 538, y la base los tenía desde el 07/10 como «012 Rosa 13 / 27.5 cm» y «Manija 03 Rosa» (D9).
+- Ya se tipeaban fuera de la lista y pasan a reconocerse: 204 (Javier Burgos), 208, 210, 211 (Luis Luna, Lautaro Durante, Ximena
+  Ortiz) y 258 (Luis Luna). Quedan fuera de la lista en Corte el 1000 (prueba, D33) y el **6005** (Juan Gimenez, 2 veces).
+  `sql/gt_v174_corte_90_grados.sql`.
 
 ### gt_v173 — Sublimado 5101 a 5124 y el vidrio de cada producto (Thomas, 21/10/2026: D3 «sí», D4, D5 «no»)
 
