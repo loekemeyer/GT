@@ -85,7 +85,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 | Grampeado | sí | 130 propios (234 a 240 entraron con D22 y D26) |
 | Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos (13 discontinuos: 6 desde D22 y los 7 G y W desde el 02/10, no se listan) |
 | Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`). Acepta **cualquier** producto, pero si no salió de Contraído **avisa y pide confirmar** (v11.0, D17) |
-| Deco | sí | 89 de operación activos (el 21/10 entraron los 15 del tablero «Codigos Corte Vidrio», **2001–2015** «Corte Vidrio · 10\*15…»: gt_v171) (tablero «08. Sector Deco»: 71; los 13 de artículos discontinuados salieron con D64; el 07/10 entraron el **7001** «Perforado — Cajas de Té» y 15 de la foto del tablero de bastidores y aros: 3010–3013, 3018, 3028–3036, 3043. ⚠ 3031/3033/3035 «Bastidor» se superponen con 3084/3086/3088 «Panal + Bastidor + Tapa»: D96) |
+| Deco | sí | 107 de operación activos (el 21/10 entraron los 15 del tablero «Codigos Corte Vidrio», **2001–2015** «Corte Vidrio · 10\*15…», gt_v171, el 2012 apagado, y los 24 del tablero «Codigos Sublimado», **5101–5124**, 19 activos: gt_v173) (tablero «08. Sector Deco»: 71; los 13 de artículos discontinuados salieron con D64; el 07/10 entraron el **7001** «Perforado — Cajas de Té» y 15 de la foto del tablero de bastidores y aros: 3010–3013, 3018, 3028–3036, 3043. ⚠ 3031/3033/3035 «Bastidor» se superponen con 3084/3086/3088 «Panal + Bastidor + Tapa»: D96) |
 | Pedidos | no | — (y no pide cantidad) |
 | Almuerzo (`ALMU`) | no | botón aparte, no tarjeta; sin cantidad |
 | Recibir mercadería | **no** (1.12, D29) | — ; al terminar no pide cantidad (1.13, D30) |
@@ -462,6 +462,24 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
 
+### gt_v173 — Sublimado 5101 a 5124 y el vidrio de cada producto (Thomas, 21/10/2026: D3 «sí», D4, D5 «no»)
+
+- **Tablero «Codigos Sublimado»** → 24 códigos de Deco, «Sublimado <moldura> — <artículo>» (5101 «Sublimado Pareja 045 — 563
+  Cajón 2 Tablas 15\*21», 5117 «Sublimado Aro Vintage 10\*15»…). Apagados los 5 de artículos discontinuados (563J, 564J, Cartel
+  302: 5107–5110 y 5114). El 307 Arbolito va con moldura **012** como el tablero (la base dice «Mold 045»). No mueven stock.
+  El 5101 / 5102 / 5103 ya se venían tipeando fuera de la lista (Juan Gimenez, Darío Mendez): dejaron de ser no identificados.
+- **D4 — qué vidrio lleva cada uno:** 224 Porta Gigante 30\*40 → **29\*40** (receta en Montaje, con su FONDO) · 227 Cuadro
+  Vintage c/Vidrio → **20\*30** (la regla 6 ya lo daba) · **15\*37 discontinuo** (2012 e insumo apagados) · **8.5\*23 → 661,
+  17.5\*23 → 662, 23\*26.5 → 663**.
+- **Las Cajas de Té no pasan por Montaje** (nunca se registró un 661–663 ahí): el vidrio se descuenta al cerrar en Deco el
+  «Panal + Bastidor + Tapa c/Bisagras» (3084 / 3086 / 3088), uno por caja [Probable: va en la tapa]. Para eso
+  **`gt.codigos_rubro.insumo_cant`**: cuánto mueve el insumo por unidad (vacío = +1, lo produce · −1 = lo consume), y la rama
+  de gt_v172 en `gt.movimientos` multiplica por ese número.
+- **D5 «no»:** sin conteo inicial; el stock de vidrio son sólo los movimientos. Al 21/10 (con lo ya cargado): 8.5\*23 −54,
+  17.5\*23 −7, 23\*26.5 −12 (Cajas de Té armadas), 15\*21 −160, 27.5\*40 −16.
+- Probado en transacción abortada: 2013 × 10 → +10 VIDRIO 8.5\*23 · 3084 × 4 → −4 · 224 × 1 caja (UxB 4) → −4 VIDRIO 29\*40 ·
+  227 × 1 caja → −16 VIDRIO 20\*30 · 2001 × 5 → +5 · 5102 sin movimiento. `sql/gt_v173_sublimado_y_vidrio_cajas_te.sql`.
+
 ### gt_v172 — el vidrio cortado SUMA al stock y lo descuenta Montaje de portas (Thomas, 21/10/2026, D2)
 
 - Pedido: *«tiene que descontarse cuando montan portas»*. El descuento ya existía (gt_v142, regla 6 de `gt.insumo_regla`:
@@ -479,9 +497,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   `gt.insumo_receta.insumo` tiene FK a `gt.insumos`: se dieron de alta 16 «VIDRIO …» y 5 «FONDO …».
 - Probado en transacción abortada: 2003 × 10 → +10 VIDRIO 15\*21 · 782 × 1 caja → −16 · 606 × 1 caja (UxB 12) → −24
   VIDRIO 10\*15 · 895 sin vidrio · 192 → −16 VIDRIO 27.5\*40 · 2006 × 7 → +7.
-- **Sin vidrio cortado que les corresponda** (siguen descontando la medida del producto): 224 Porta Gigante 30\*40 (¿29\*40?),
-  227 Cuadro Vintage c/Vidrio 20\*30 (aro 20\*27.5). **Cortes sin producto que los use:** 29\*40, 15\*37, 8.5\*23, 17.5\*23,
-  23\*26.5. Sin conteo inicial, el saldo arranca negativo (hoy VIDRIO 15\*21 −160 y 27.5\*40 −16, de montajes del 782 y 192).
+- Lo que quedaba sin par (224, 227 y los cortes 29\*40, 15\*37, 8.5\*23, 17.5\*23, 23\*26.5) lo resolvió Thomas el mismo día: gt_v173.
 - `sql/gt_v172_stock_vidrio.sql` (con su rollback). Cero cambios en la app.
 
 ### gt_v171 — Deco: «Codigos Corte Vidrio» 2001 a 2015 (21/10/2026)
