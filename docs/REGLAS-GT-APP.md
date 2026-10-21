@@ -85,7 +85,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 | Grampeado | sí | 130 propios (234 a 240 entraron con D22 y D26) |
 | Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos (13 discontinuos: 6 desde D22 y los 7 G y W desde el 02/10, no se listan) |
 | Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`). Acepta **cualquier** producto, pero si no salió de Contraído **avisa y pide confirmar** (v11.0, D17) |
-| Deco | sí | 74 de operación activos (tablero «08. Sector Deco»: 71; los 13 de artículos discontinuados salieron con D64; el 07/10 entraron el **7001** «Perforado — Cajas de Té» y 15 de la foto del tablero de bastidores y aros: 3010–3013, 3018, 3028–3036, 3043. ⚠ 3031/3033/3035 «Bastidor» se superponen con 3084/3086/3088 «Panal + Bastidor + Tapa»: D96) |
+| Deco | sí | 89 de operación activos (el 21/10 entraron los 15 del tablero «Codigos Corte Vidrio», **2001–2015** «Corte Vidrio · 10\*15…»: gt_v171) (tablero «08. Sector Deco»: 71; los 13 de artículos discontinuados salieron con D64; el 07/10 entraron el **7001** «Perforado — Cajas de Té» y 15 de la foto del tablero de bastidores y aros: 3010–3013, 3018, 3028–3036, 3043. ⚠ 3031/3033/3035 «Bastidor» se superponen con 3084/3086/3088 «Panal + Bastidor + Tapa»: D96) |
 | Pedidos | no | — (y no pide cantidad) |
 | Almuerzo (`ALMU`) | no | botón aparte, no tarjeta; sin cantidad |
 | Recibir mercadería | **no** (1.12, D29) | — ; al terminar no pide cantidad (1.13, D30) |
@@ -461,6 +461,15 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   **D74 (Thomas: «no»):** ninguna pide cantidad. **D75 (Thomas: «sí»):** quedan los nombres cortos.
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
+
+### gt_v171 — Deco: «Codigos Corte Vidrio» 2001 a 2015 (21/10/2026)
+
+- Pedido: foto del tablero «Codigos Corte Vidrio» + *«Carga estos · Rubro deco»*. 15 medidas → `gt.codigos_rubro` rubro `DECO`,
+  `descripcion = 'Corte Vidrio'`, `medida` como en el tablero (10\*15, 13\*18, 15\*21, 20\*25, 20\*30, 27.5\*40, 29\*40, 40\*50,
+  50\*60, 60\*80, 60\*100, 15\*37, 8.5\*23, 17.5\*23, 23\*26.5). El celular muestra «Corte Vidrio · 10\*15» y al terminar pide
+  «unidades fabricadas». Ningún rubro usaba 2001–2015. Deco: 74 → **89** activos.
+- ⚠ **No mueve stock**: `gt.movimientos` cruza `codigos_rubro` sólo con Corte y Grampeado. El vidrio cortado **no** suma al insumo
+  «Vidrio {medida}» que descuenta Montaje (gt_v142). Cero cambios en la app. `sql/gt_v171_deco_corte_vidrio.sql`.
 
 ### 1.67 — Armado de cajas pregunta QUÉ caja, con el tablero «Num Caja» (Thomas, 19/10/2026)
 
