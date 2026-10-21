@@ -81,7 +81,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 
 | área | pide código | lista |
 |---|---|---|
-| Corte | sí | 233 activos (el 21/10 entraron 38 del tablero «Corte 90° Grados»: 200–205, 208–211, 225 de bandejas y 241–258 / 265–273 de Cajón 2 Tablas, gt_v174) · 174 propios (Corte 45°; 157 y 158 entraron con D22, 159 a 168 con D27; el 07/10 206 / 207 «012 Rosa 13 y 27,5 cm» y 212 «Manija 03 Rosa», tipeados esa mañana fuera de lista, y sus Celeste 213 / 214 / 215, números elegidos por Claude: D95) |
+| Corte | sí | 233 activos (el 21/10 entraron 38 del tablero «Corte 90° Grados»: 200–205, 208–211, 225 de bandejas y 241–258 / 265–273 de Cajón 2 Tablas, gt_v174) · 174 propios (Corte 45°; 157 y 158 entraron con D22, 159 a 168 con D27; el 07/10 206 / 207 «012 Rosa 13 y 27,5 cm» y 212 «Manija 03 Rosa», tipeados esa mañana fuera de lista, y sus Celeste 213 / 214 / 215, números elegidos por Claude: D95. **gt_v176:** sin color, 206 / 207 / 212 preguntan «¿De qué color?», 215 apagado) |
 | Grampeado | sí | 130 propios (234 a 240 entraron con D22 y D26) |
 | Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos (13 discontinuos: 6 desde D22 y los 7 G y W desde el 02/10, no se listan) |
 | Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`). Acepta **cualquier** producto, pero si no salió de Contraído **avisa y pide confirmar** (v11.0, D17) |
@@ -461,6 +461,21 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   **D74 (Thomas: «no»):** ninguna pide cantidad. **D75 (Thomas: «sí»):** quedan los nombres cortos.
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
+
+### gt_v176 — Corte de la bandeja 13x30: sin códigos por color, pregunta «¿De qué color?» (Thomas, 21/10/2026, D9)
+
+- *«Los códigos de rosa o celeste que no existan, y cuando cortan 012 13 cm que pregunte qué color.»* La moldura 012 de la
+  bandeja se corta **ya pintada**, Rosa o Celeste.
+- **206 / 207 / 212** quedan como el tablero «Corte 90°»: «012 Corte Chico · Bandeja 13x30 (536)» 13 cm, «012 Corte Grande ·
+  Bandeja 13x30 (536) y 30x30 (538)» 27.5 cm, «Manija Madera · Bandeja 536, 535 y 538». Rendimiento los sigue agrupando
+  igual («Mold 012 · 13 cm»).
+- Al **terminar** cualquiera de los tres: **«¿De qué color?» Rosa / Celeste** → `detalle.color` (`gt.rubro_pasos` CORTE 2, 3 y
+  4, `si_campo = 'codigo'`, el mecanismo de la 1.65). 207 y 212 también [Probable]: son el corte grande y la manija de la misma
+  bandeja. Cero cambios en la app.
+- **213 / 214** quedan sólo como Cajón Porta Cubiertos (045 Chico / Grande): **ya no preguntan «¿Qué cortaste?»** (esas dos filas
+  de `rubro_pasos` pasaron a ser la pregunta del color: el conector no deja `DELETE`). **215** «Manija 03 Celeste» apagado.
+- ⚠ El stock del depósito «corte» va por código: Rosa y Celeste del 206 suman juntas. Los cortes de Luis del 07/10 quedan como se
+  cargaron (206 / 207 / 212 × 400 / 400 / 200 y 215 × 200, sin color). `sql/gt_v176_corte_bandeja_pregunta_color.sql`.
 
 ### gt_v175 — Porta Cubo Colgante sin vidrio y dónde se descuenta el de la Caja de Té (Thomas, 21/10/2026: D6, D7)
 
