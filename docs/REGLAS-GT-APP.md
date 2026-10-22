@@ -82,7 +82,7 @@ sigo» cierra y vuelve a la botonera. En Guardado aparecen ahí también los pen
 | área | pide código | lista |
 |---|---|---|
 | Corte | sí | 233 activos (el 21/10 entraron 38 del tablero «Corte 90° Grados»: 200–205, 208–211, 225 de bandejas y 241–258 / 265–273 de Cajón 2 Tablas, gt_v174) · 174 propios (Corte 45°; 157 y 158 entraron con D22, 159 a 168 con D27; el 07/10 206 / 207 «012 Rosa 13 y 27,5 cm» y 212 «Manija 03 Rosa», tipeados esa mañana fuera de lista, y sus Celeste 213 / 214 / 215, números elegidos por Claude: D95. **gt_v176:** sin color, 206 / 207 / 212 preguntan «¿De qué color?» Rosa / Natural / Celeste (gt_v179), 215 apagado) |
-| Grampeado | sí | 130 propios (234 a 240 entraron con D22 y D26) |
+| Grampeado | sí | 128 propios activos (234 a 240 entraron con D22 y D26; 236 / 237 apagados en gt_v180: eran el 105 / 107) |
 | Encolado · Montaje · Gancho · Emblistado · Contraído | sí | 323 productos (13 discontinuos: 6 desde D22 y los 7 G y W desde el 02/10, no se listan) |
 | Guardado a góndola | sí | los 323 productos + pide cajas. **Se nutre de Contraído** (v8.0): al empezar muestra como botones lo contraído y todavía no guardado (`gt_contraido_pendiente`). Acepta **cualquier** producto, pero si no salió de Contraído **avisa y pide confirmar** (v11.0, D17) |
 | Deco | sí | 121 de operación activos (gt_v178: 3002 y 3060 apagados, D103 · el 21/10 entraron los 16 del cartel «Codigos Perforado-Lijado-Calado»: 6001–6006, 7006–7011, 8001–8004, gt_v177 · el 21/10 entraron los 15 del tablero «Codigos Corte Vidrio», **2001–2015** «Corte Vidrio · 10\*15…», gt_v171, el 2012 apagado, y los 24 del tablero «Codigos Sublimado», **5101–5124**, 19 activos: gt_v173) (tablero «08. Sector Deco»: 71; los 13 de artículos discontinuados salieron con D64; el 07/10 entraron el **7001** «Perforado — Cajas de Té» y 15 de la foto del tablero de bastidores y aros: 3010–3013, 3018, 3028–3036, 3043. ⚠ 3031/3033/3035 «Bastidor» se superponen con 3084/3086/3088 «Panal + Bastidor + Tapa»: D96) |
@@ -461,6 +461,25 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   **D74 (Thomas: «no»):** ninguna pide cantidad. **D75 (Thomas: «sí»):** quedan los nombres cortos.
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
+
+### gt_v180 — Grampeado: 22 aros 3P con la medida de la fila de arriba (22/10/2026)
+
+- Foto del operario: el **118** salía «3P 1/2 Bco P · 30\*120». En la planilla «Códigos para planilla diaria de grampeado» el
+  118 es **40\*50** y no existe 3P 1/2 de 30\*120.
+- La transcripción del 01/10 (`gt_codigos_corte_grampeado.sql`) se salteó las filas **30\*30** y **60\*80** y corrió una fila
+  hacia arriba todo el bloque 3P desde 29\*40: 1/2 Bco P **118** · 3/4 Bco P **103 116 100 093 106 096 099 112 102 111 105** ·
+  3/4 Negro **104 101 094 108 097 098 110 095 109 107**. El 124 y el 115 (27,5\*40) estaban bien.
+- **Sin historia que rehacer**: 0 registros de Grampeado con esos 22 códigos (80 en total al 22/10 10:08). Piezas por aro,
+  aro por producto, movimientos y demanda son vistas: se corrigieron solas (220 → 105 / 107, 221 → 111 / 109,
+  222 → 112 / 110, 223 → 106 / 108, 229 → 106, 237 → 102 / 095).
+- Arrastres de decisiones tomadas sobre la medida mal leída:
+  - **236 / 237** (D22, «no hay aro 60\*80») son el 105 / 107 del tablero: apagados.
+  - Receta de corte D27 «Bco P 29\*40 = 168 + 116» pasó del aro 116 al **103**. La D23 del 103 («27,5\*40») se borró: no hay
+    3/4 Bco P de 27,5\*40. El **116** (30\*30) se resuelve solo: 114 ×4.
+  - Corte **167** «3P 1/2 Bco 120 cm» (D27, sólo para el 118) apagado. Corte **166** «3P 3/4 Negro» pasó de 27,5 a **29 cm**
+    (sólo servía al lado corto del 104, que ahora es 29\*40).
+- ⚠ **228** Vintage c/Vidrio (D21, «Bco P») sigue en el aro 103, que ahora es 29\*40: falta confirmar con Thomas.
+- `select * from gt.aro_piezas where pieza is null` sigue vacía. `sql/gt_v180_grampeado_3p_medidas_tablero.sql`.
 
 ### gt_v179 — la pregunta de color de la bandeja suma «Natural» (Thomas, 21/10/2026)
 
@@ -1124,7 +1143,8 @@ el pedido es una **orden de fabricación**, no de despacho: no se arma y sale en
   alguien lo tipea igual, entra como código no registrado y avisa por Telegram. `select codigo, discontinuado_nota
   from gt.codigos where not activo;`
 - **D22 aros nuevos** en Grampeado (hay que agregarlos al tablero físico): **234** 3P 3/4 Bco P 30*40 y **235** 3P 3/4
-  Negro 30*40 (224 Porta Gigante), **236** Bco P 60*80 y **237** Negro 60*80 (220), **238** 03 Negro 15*21 (sets 408 /
+  Negro 30*40 (224 Porta Gigante), **236** Bco P 60*80 y **237** Negro 60*80 (220; ⚠ gt_v180: apagados, el tablero ya los
+  tiene como **105 / 107** — NO agregarlos), **238** 03 Negro 15*21 (sets 408 /
   409), **239** 012 Nat 10*10 (281). Y dos piezas de Corte, **157** 03 Negro 15 cm y **158** 03 Negro 21 cm, porque el
   tablero de Corte no las tenía y sin ellas el 238 quedaba sin receta. Todas resuelven solas (`gt.aro_piezas`).
 - **D22 713 y 714 son Roble** → aros 017 / 020. **Un color se cambia con `select gt.color_fijar('713',

@@ -1,3 +1,5 @@
+-- ⚠ gt_v180 (22/10/2026): NO volver a correr las 2 filas del aro 103. En el tablero el 103 es 3/4 Bco P 29*40, no 27.5*40
+--   (no hay 3/4 Bco P de 27.5*40): se borraron y el 103 tomó la receta D27 (168 + 116).
 -- GT — D23 (Thomas, 01/10/2026: «ok»): los aros 3P 3/4 Bco P con lados de 20, 25 y 27,5 cm toman esos lados de
 -- las piezas Bco Total de Corte (140 = 20 cm, 142 = 25 cm, 143 = 27,5 cm); los lados de 30 y 40 siguen saliendo
 -- de la lista «3P 3/4 Bco» (114 = 30 cm, 116 = 40 cm). Misma regla que los chicos 066 a 068 (D6 / D16).

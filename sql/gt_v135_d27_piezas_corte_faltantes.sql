@@ -1,3 +1,5 @@
+-- ⚠ gt_v180 (22/10/2026): la receta «Bco P 29*40» de abajo es del aro 103, no del 116 (el 116 es 30*30): ya se pasó al 103.
+--   El 167 (para el 118 «30*120», que es 40*50) quedó apagado y el 166 pasó a 29 cm (el 104 es 29*40). NO re-correr tal cual.
 -- GT — D27 (Thomas, 01/10/2026: «creemoslos»): las piezas de Corte que les faltaban a los 10 aros sin receta.
 -- Los Trav 20mm ya existían en Corte (151, 153, 154, 155, 156) pero SIN medida (no se leía en la foto del tablero):
 -- se les pone la medida que piden sus aros (el código más bajo = el lado más corto); al Celeste le faltaba una.
