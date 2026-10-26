@@ -21,11 +21,6 @@ _Movido desde `CLAUDE.md` el 2026-10-13 (poda de tokens). Reglas sin cambios._
    empleados activos → **elige su nombre** y **confirma «¿Sos Walter Saucedo?»** (1.49).
 3. La sesión dura **el día**: al recargar no se vuelve a pedir el código.
 
-4. **Con Google** (1.63): `public.gt_google_llave()` mira el mail del token. Si está en `gt.clave_personal.email` entra como
-   ese empleado (hoy sólo Darío, `dariomendez1541@gmail.com`); si está en **`gt.config.google_vista_mails`** (separados por
-   coma) entra con la clave de vista: elige a cualquiera y **no graba** (gt_v181, temporal: `loekemeyer.n8n@gmail.com`).
-   `sql/gt_v181_google_vista_mails.sql`.
-
 ⚠ **No es un candado**: el monitor lee el código con la clave pública. Sirve para que se entre
 estando en la planta. La semilla es propia (`:gt-clave:`): el código de GT nunca coincide con el
 de Virgilio.
