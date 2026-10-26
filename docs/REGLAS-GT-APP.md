@@ -462,6 +462,42 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
 
+### gt_v182 — el stock de CAJAS: armar suma, contraer resta, y `gt.demanda_cajas` para el monitor (26/10/2026)
+
+- Pedido (cuando se anota *Armado de cajas* en Contraído): *«arman las cajas para todo lo que van a [contraer]. Pueden armar la 4015 y capaz
+  arman 50: no son de un solo artículo, se usan a lo largo del día o de más de un día para todos los artículos. Tiene que aparecerles botones
+  con los números de caja, que anoten la cantidad, y que eso aumente el stock de cajas armadas y descuente del stock de cajas como insumo. Y
+  cuando contrajeron el 134, si armaron 10 cajas, descuente 10 cajas de la caja 4015»* (la «4015» es la caja **40\*15**). Los botones ya estaban (1.67).
+- **La caja armada es de la CAJA, no del artículo.** Se cuenta por número de caja: armar 50 de la 40\*15 no dice para qué artículo.
+- **Armado de cajas** (cierre con cantidad, código = la caja): **+** depósito `caja_armada` de esa caja y **−** el insumo `CAJA <caja>` (la caja plana
+  que se compra; 22 filas nuevas en `gt.insumos`). El descuento de la plana usa lo que ya había: `gt.codigos_rubro.insumo` / `insumo_cant = -1`
+  (igual que el vidrio de Deco), sin tocar la vista.
+- **Contraído** (cierre con cantidad, en cajas): **−** `caja_armada` de la caja que usa ese artículo (`gt.codigos.caja`, gt_v181): 10 cajas del 134 = 10 de
+  la 40\*15. Un artículo sin caja cargada no descuenta nada. Si la cantidad del código va en unidades se divide por la UxB.
+  **[Probable]** la lectura de «comprar» del pedido es *contraer* (es donde se cuentan cajas, y la caja se arma dentro de Contraído).
+- `gt.movimientos` y `gt.stock` (unidad «cajas») se cambiaron sobre la definición viva, con control de que el ancla apareciera 1 sola vez
+  y `security_invoker` conservado. Probado en transacción abortada: armado 50 de la 40\*15 + Contraído 10 del 134 + 2 del set 136 + 3 del 456 (sin caja) →
+  `caja_armada` 40\*15 **+38**, insumo `CAJA 40\*15` **−50**, 3 filas nuevas (el 456 no suma). Rollback probado también: las demás 1.982 filas no cambian.
+- **`gt.demanda_cajas`** (base del monitor): por caja, `hacen_falta` = Σ por artículo que GT fabrica de `a_fabricar_cajas` menos lo ya contraído (depósito
+  `contraido`), `armadas`, `a_armar`, `planas`, `a_comprar` y `estado` (`armar N` · **`NO ARMAR MÁS: alcanzan (sobran N)`** · `sin demanda` · `sin conteo…`).
+  Al registrar un armado el estado se corrige solo (es una vista). Fila `(sin caja)` = artículos con demanda y sin caja cargada.
+  Medido el 26/10 sin conteos: 40\*15 → 551 cajas (46 artículos) · 40\*50 → 192 · 15 → 138 · 30 → 129 · `(sin caja)` → 40 artículos, 48 cajas.
+- ⚠ **Sin conteo físico no hay stock.** El Contraído desde el 02/10 ya descuenta (40\*15: −777 con 0 armadas contadas) y el armado empezó el 21/10 (9 cierres, 150 cajas).
+  Hasta que se cuenten, las armadas y las planas valen 0 en `gt.demanda_cajas` y el estado lo dice. El conteo va en `gt.stock_inicial`: `deposito = 'caja_armada'`
+  (código = la caja) y `deposito = 'insumo'` (código = `CAJA <caja>`), con `contado_en`: lo anterior deja de contar solo.
+- 6 cajas del tablero no las usa ningún artículo de la planilla (2, 22, Exhi 2 Porta, Exhi 3 Porta, Exhi Cuadro, Tapa + Base) y otras 2 sólo las usan artículos
+  sin demanda hoy (29 → el 920, que no se fabrica · Caja Cuadros Set → el 089): las 8 salen `sin demanda`. Se pueden armar y suman, pero nada las descuenta.
+- `sql/gt_v182_cajas_stock_y_demanda.sql` · rollback `sql/gt_v182_rollback.sql`. **Falta el monitor** (pestaña del admin, en vivo) y los botones ya existen.
+
+### gt_v181 — qué caja usa cada artículo (planilla «Cajas según Cód», 26/10/2026)
+
+- **`gt.codigos.caja`** (texto): el número de caja del tablero «Num Caja» (`gt.codigos_rubro`, rubro `ARMCAJ`). Cargados **187 artículos** de la planilla (185 activos, 16 cajas
+  distintas: 40\*15 → 48 · 30 → 36 · 15 → 25 · 40\*50 → 17 · 38\*38 → 17 · 12 → 9 · 5 y 16 → 7 c/u · 14 → 5 · 10 → 4 · 13, 20\*50 e IMP → 3 c/u · 29, Caja Cuadros Set y Caja Notebook → 1 c/u).
+  Todas las cajas de la planilla existen en el tablero. Nulo = sin dato: **133 activos** no están en la planilla.
+- La UxB de la planilla **no se carga** (`gt.codigos.uxb` ya existe y mueve el stock). Difieren 2: **471** (planilla 5 / base 8) y **214** (planilla 12 / base 16).
+- Contraído tiene 7 cierres (69 cajas) de códigos sin caja: 220, 222, 411, 426, 456, 557. `sql/gt_v181_caja_por_articulo.sql`
+  (rollback: `update gt.codigos set caja = null`).
+
 ### gt_v180 — Grampeado: 22 aros 3P con la medida de la fila de arriba (22/10/2026)
 
 - Foto del operario: el **118** salía «3P 1/2 Bco P · 30\*120». En la planilla «Códigos para planilla diaria de grampeado» el
@@ -602,6 +638,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 ### 1.67 — Armado de cajas pregunta QUÉ caja, con el tablero «Num Caja» (Thomas, 19/10/2026)
 
 - Pedido: *«Ahí debería preguntar qué número de caja va a armar»*, con la foto del tablero: **22 cajas**.
+- ⚠ **Desde gt_v182 (26/10) las cajas SÍ mueven stock** (armar suma `caja_armada`, Contraído resta): el «no mueve stock» de abajo vale para el stock de productos.
 - **Las 22 van a `gt.codigos_rubro` (rubro `ARMCAJ`), no a `gt.codigo_area`**: ésa es para los 331 productos, y el «2» de
   una caja no es el producto 2. `gt_codigos_area2` ya une las dos tablas, así que la app las ve sin tocar ninguna función.
   `gt.rubros.pide_codigo = true` para `ARMCAJ`. **Cero cambios en funciones o vistas.**
