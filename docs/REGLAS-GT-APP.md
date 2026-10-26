@@ -473,12 +473,15 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 - **Entra en MODO VISTA (1.52)**: para esa clave `gt_clave_validar` devuelve `vista = true`, `personal = false` y la lista con
   ella sola. La app (1.67, **sin cambios**) muestra un solo nombre, sin «¿Sos …?», y simula todo en el celular: sin INGRESO,
   sin stock, sin Producción ni Rendimiento. Tampoco queda «👷 Entrar como …» en el celular.
+- **Pregunta «¿En qué planta?» (Pellegrini / Esnaola)**: tiene las dos en `gt.empleado_planta`, como Darío y Luis. En la
+  primera carga faltaban y entraba directo en Pellegrini (*«no deja elegir entre pellegrini y esnaola»*). Con el código de
+  Esnaola no aparece: esa lista también filtra `e.activo`.
 - ⚠ Depende de `gt_google_llave` aceptar `e.prueba`. La rama `claude/wonderful-feynman-x3yo6o` (revierte gt_v181) trae una
   versión de 1.63 que pide `e.activo`: si se aplica tal cual, el mail de n8n deja de entrar. Hay que partir de la viva.
 - Sacarla: `update gt.clave_personal set activo = false where empleado_id = 10`.
 - Probado contra la base (transacción abortada): mail de n8n → su llave · otro mail → «mail no habilitado» · su clave → vista,
   lista = «Persona de Prueba» · monitor → 9 nombres, sin ella · Darío igual que antes · `gt_registrar` → rechazado, 0 filas.
-  `sql/gt_v183_persona_prueba_n8n.sql` · `tests/esnaola.cjs` (4 chequeos nuevos).
+  `sql/gt_v183_persona_prueba_n8n.sql` · `tests/esnaola.cjs` (6 chequeos nuevos).
 
 ### gt_v180 — Grampeado: 22 aros 3P con la medida de la fila de arriba (22/10/2026)
 

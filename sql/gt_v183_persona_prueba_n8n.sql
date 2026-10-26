@@ -31,6 +31,11 @@ select c, (select id from gt.empleados where prueba order by id limit 1), null, 
    and not exists (select 1 from gt.clave_personal k where lower(k.email) = 'loekemeyer.n8n@gmail.com')
  limit 1;
 
+-- 26/10: trabaja en las dos plantas, como Darío y Luis: sin estas filas no pregunta «¿En qué planta?» (queda en la principal)
+insert into gt.empleado_planta (empleado_id, planta)
+select e.id, p.codigo from gt.empleados e cross join (values ('PELL'), ('ESNA')) p(codigo)
+ where e.prueba and not exists (select 1 from gt.empleado_planta x where x.empleado_id = e.id and x.planta = p.codigo);
+
 CREATE OR REPLACE FUNCTION public.gt_google_llave()
  RETURNS jsonb
  LANGUAGE plpgsql
