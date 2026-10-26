@@ -9,6 +9,7 @@ const A = (codigo, nombre, orden, planta) => ({ codigo, nombre, unidad: "metros"
 const AREAS = [A("CORTE", "Corte", 1, "PELL"), A("MOLDU", "Moldurado", 21, "ESNA"), A("LIJA", "Lijado", 22, "ESNA")];
 const PELL = { codigo: "PELL", nombre: "Pellegrini" }, ESNA = { codigo: "ESNA", nombre: "Esnaola" };
 const DARIO = { id: 6, nombre: "Dario Mendez", plantas: [PELL, ESNA] }, LUIS = { id: 5, nombre: "Luis Luna", plantas: [PELL, ESNA] };
+const PRUEBA = { id: 10, nombre: "Persona de Prueba", plantas: [PELL] };   // gt_v183: sólo con el mail de n8n
 const filas = [], llamadas = [];
 let cambio = false;   // el «minuto» del código de planta: lo da vuelta el test
 const srv = http.createServer((req, res) => {
@@ -18,9 +19,10 @@ const srv = http.createServer((req, res) => {
       llamadas.push(fn);
       if (fn === "gt_registrar") (b.p_filas || []).forEach((f) => { if (!filas.some((x) => x.client_id === f.client_id)) filas.push(f); });
       const out = fn === "gt_clave_validar" ? (b.p_clave === "123456" ? { ok: true, personal: true, da_codigo: "ESNA", principal: "PELL", empleados: [DARIO] }
+          : b.p_clave === "654321" ? { ok: true, vista: true, personal: false, principal: "PELL", empleados: [PRUEBA] }
           : b.p_clave === "5300" ? { ok: true, planta: "ESNA", principal: "PELL", empleados: [LUIS, DARIO] }
           : b.p_clave === "1234" ? { ok: true, principal: "PELL", empleados: [LUIS, DARIO, { id: 7, nombre: "Ximena Ortiz", plantas: [PELL] }] } : { ok: false })
-        : fn === "gt_google_llave" ? (req.headers.authorization === "Bearer tokD" ? { ok: true, llave: "123456" } : { ok: false, email: "otro@gmail.com" })
+        : fn === "gt_google_llave" ? (req.headers.authorization === "Bearer tokD" ? { ok: true, llave: "123456" } : req.headers.authorization === "Bearer tokN" ? { ok: true, llave: "654321" } : { ok: false, email: "otro@gmail.com" })
         : fn === "gt_codigo_planta" ? (b.p_llave === "123456" ? { ok: true, planta: "ESNA", planta_nombre: "Esnaola", clave: cambio ? "6411" : "5300", cambia_en_s: 2 } : { ok: false })
         : fn.startsWith("gt_botones") ? AREAS
         : fn === "gt_registrar" ? { ok: (b.p_filas || []).map((f) => f.client_id), rechazados: [] } : [];
@@ -81,6 +83,18 @@ srv.listen(0, async () => {
     await g.click("#plantaOpts button[data-planta='ESNA']"); await g.waitForSelector("#optionsScreen:not(.hidden)");
     chk((await g.textContent("#opName")).includes("Dario Mendez") && await g.isVisible("#monitorBox"), "Google con su mail: entra como Dario Mendez en Esnaola con el monitor abajo");
     await cG.close();
+    // gt_v183: el mail de n8n → la lista con la Persona de Prueba sola, sin «¿Sos …?», en modo vista y sin grabar nada
+    const cN = await br.newContext({ viewport: { width: 360, height: 640 } }), n = await cN.newPage();
+    await n.goto(url + "#access_token=tokN&token_type=bearer"); await n.waitForSelector("#nombreScreen:not(.hidden)");
+    const soloPrueba = await n.$$eval("#nombreLista button", (bs) => bs.map((b) => b.dataset.nombre).join(","));
+    chk(soloPrueba === "Persona de Prueba", "Google con el mail de n8n: sólo aparece la Persona de Prueba (" + soloPrueba + ")");
+    await n.click("#nombreLista button[data-id='10']"); await n.waitForSelector("#optionsScreen:not(.hidden)"); await n.waitForTimeout(400);
+    chk((await n.textContent("#opName")).startsWith("👁") && await n.isHidden("#avisoPop"), "entra en modo vista (👁), sin «¿Sos …?»");
+    await n.click(".box[data-cod=CORTE]"); await n.waitForTimeout(400);
+    chk(!filas.some((f) => f.empleado_id === 10), "la Persona de Prueba no graba nada (ni INGRESO ni áreas)");
+    await n.click("#salirBtn"); await n.waitForSelector("#claveScreen:not(.hidden)");
+    chk(await n.isHidden("#llaveBtn"), "no queda «Entrar como Persona de Prueba» en el celular");
+    await cN.close();
     const cL = await br.newContext({ viewport: { width: 360, height: 640 } }), l = await cL.newPage();
     await l.goto(url);
     await l.fill("#claveInput", "5300"); await l.click("#claveBtn"); await l.waitForSelector("#nombreScreen:not(.hidden)");

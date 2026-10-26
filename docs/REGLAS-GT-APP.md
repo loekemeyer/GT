@@ -462,6 +462,24 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
 
+### gt_v183 — «Persona de Prueba», sólo con el mail de n8n (26/10/2026)
+
+- Pedido: *«haceme una persona de prueba que solo sea visible al entrar con el mail de n8n»*.
+- **`gt.empleados.prueba`** (nuevo). La persona de prueba (**id 10**) es `activo = false` + `prueba = true`: todo lo que filtra
+  `e.activo` —lista del monitor, Esnaola, parejas, Asistencia, aviso de llegada por Telegram, cierre automático— no la ve, y
+  `gt_registrar` la rechaza («empleado inexistente o inactivo»). **No puede grabar un evento aunque algo falle.**
+- Tiene una **clave personal de 6 números** en `gt.clave_personal` (al azar, **no se escribe en el repo**) con
+  `email = loekemeyer.n8n@gmail.com`. `gt_google_llave` y `gt_clave_validar` la aceptan aunque esté inactiva, si es `prueba`.
+- **Entra en MODO VISTA (1.52)**: para esa clave `gt_clave_validar` devuelve `vista = true`, `personal = false` y la lista con
+  ella sola. La app (1.67, **sin cambios**) muestra un solo nombre, sin «¿Sos …?», y simula todo en el celular: sin INGRESO,
+  sin stock, sin Producción ni Rendimiento. Tampoco queda «👷 Entrar como …» en el celular.
+- ⚠ Depende de `gt_google_llave` aceptar `e.prueba`. La rama `claude/wonderful-feynman-x3yo6o` (revierte gt_v181) trae una
+  versión de 1.63 que pide `e.activo`: si se aplica tal cual, el mail de n8n deja de entrar. Hay que partir de la viva.
+- Sacarla: `update gt.clave_personal set activo = false where empleado_id = 10`.
+- Probado contra la base (transacción abortada): mail de n8n → su llave · otro mail → «mail no habilitado» · su clave → vista,
+  lista = «Persona de Prueba» · monitor → 9 nombres, sin ella · Darío igual que antes · `gt_registrar` → rechazado, 0 filas.
+  `sql/gt_v183_persona_prueba_n8n.sql` · `tests/esnaola.cjs` (4 chequeos nuevos).
+
 ### gt_v180 — Grampeado: 22 aros 3P con la medida de la fila de arriba (22/10/2026)
 
 - Foto del operario: el **118** salía «3P 1/2 Bco P · 30\*120». En la planilla «Códigos para planilla diaria de grampeado» el
