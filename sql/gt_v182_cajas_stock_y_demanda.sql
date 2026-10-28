@@ -111,7 +111,7 @@ with falta as (   -- por artículo que GT fabrica: las cajas que todavía se van
            on st.codigo = d.codigo
 ),
 nec as (
-  select coalesce(caja, '(sin caja)') as caja, count(*) as articulos, sum(cajas) as cajas
+  select coalesce(caja, '(sin caja)') as caja, count(*) filter (where cajas > 0) as articulos, sum(cajas) as cajas
     from falta
    group by 1
 ),

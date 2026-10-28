@@ -481,7 +481,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 - **`gt.demanda_cajas`** (base del monitor): por caja, `hacen_falta` = Σ por artículo que GT fabrica de `a_fabricar_cajas` menos lo ya contraído (depósito
   `contraido`), `armadas`, `a_armar`, `planas`, `a_comprar` y `estado` (`armar N` · **`NO ARMAR MÁS: alcanzan (sobran N)`** · `sin demanda` · `sin conteo…`).
   Al registrar un armado el estado se corrige solo (es una vista). Fila `(sin caja)` = artículos con demanda y sin caja cargada.
-  Medido el 26/10 sin conteos: 40\*15 → 551 cajas (46 artículos) · 40\*50 → 192 · 15 → 138 · 30 → 129 · `(sin caja)` → 40 artículos, 48 cajas.
+  Medido el 26/10 sin conteos: 40\*15 → 551 cajas (46 artículos) · 40\*50 → 192 · 15 → 138 · 30 → 129 · `(sin caja)` → 38 artículos, 46 cajas (el 28/10: «artículos» cuenta sólo los que tienen cajas por contraer).
 - ⚠ **Sin conteo físico no hay stock.** El Contraído desde el 02/10 ya descuenta (40\*15: −777 con 0 armadas contadas) y el armado empezó el 21/10 (9 cierres, 150 cajas).
   Hasta que se cuenten, las armadas y las planas valen 0 en `gt.demanda_cajas` y el estado lo dice. El conteo va en `gt.stock_inicial`: `deposito = 'caja_armada'`
   (código = la caja) y `deposito = 'insumo'` (código = `CAJA <caja>`), con `contado_en`: lo anterior deja de contar solo.
