@@ -462,6 +462,19 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
 
+### gt_v183 — la caja de los artículos que faltaban (Angely, 28/10/2026)
+
+- Angely devolvió la planilla «Cajas pendientes por artículo» con la columna **Caja** completa para los **39 artículos con demanda** que no estaban en la
+  planilla de gt_v181. Su caja manda sobre la deducción de Claude: difieren **608 y 745** (16, no 15), **311** (40\*15, no 40\*50) y **335 y 343** (15, no IMP).
+  Los 781E / 782E (Caja Exhibidora) van a **Exhi 2 Porta / Exhi 3 Porta**: esas dos cajas del tablero ya tienen artículos.
+- Se suman **426** (40\*15) y **456** (10) de la hoja «Ya contraídos»: propuestas de Claude (39 y 3 artículos de la misma moldura, medida y UxB con esa caja) que
+  la hoja devolvió sin tocar. Sólo completa lo vacío (`caja is null`): no pisa gt_v181. Total con caja: **228** (187 de gt_v181 + 41 de acá).
+- Quedan sin caja el **557** y el **220** (cierres de Contraído, hoja devuelta en blanco) y **92 activos** (32 de reventa y **60 que se fabrican pero hoy no tienen demanda**).
+  `gt.demanda_cajas` ya no tiene fila `(sin caja)`: hoy todo lo que hay que fabricar tiene caja. Hacen falta: 40\*15 → 534 · 40\*50 → 178 · 15 → 142 · 30 → 136 ·
+  38\*38 → 25 · 5 → 22 · 16 → 21 · 12 → 20 · 14 → 18 · 10 → 15 · 20\*50 → 14 · IMP → 13 · 13 → 3 · Caja Notebook → 2 · Exhi 2 Porta → 1 · Exhi 3 Porta → 1.
+- ⚠ El **426** de Walter y Javier (05/10 14:24, 25 cajas cada uno, abiertos con 1,5 s de diferencia) puede ser un solo trabajo anotado dos veces: con su caja cargada
+  descuenta 50 cajas armadas en lugar de 25. Pendiente de confirmar. `sql/gt_v183_caja_pendientes.sql` (rollback: `update gt.codigos set caja = null where codigo in (…)`).
+
 ### gt_v182 — el stock de CAJAS: armar suma, contraer resta, y `gt.demanda_cajas` para el monitor (26/10/2026)
 
 - Pedido (cuando se anota *Armado de cajas* en Contraído): *«arman las cajas para todo lo que van a [contraer]. Pueden armar la 4015 y capaz
