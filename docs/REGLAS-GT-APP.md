@@ -462,6 +462,14 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
 
+### Corte de cajas del 29/10/2026 11:55 (Angely)
+
+- Planilla manuscrita: **cajas armadas = 0** y **14 artículos emblistados = 206 cajas** (299=15 · 458=15 · 394=16 · 396=12 · 395=18 · 181=13 · 872=16 · 163=30 · 782=13 · 781=5 · 134=15 · 189=8 · 135=10 · 584=20). El 163 coincide con
+  el Emblistado de 30 que se había cerrado a las 11:19. La columna «A emblistar» (233, 189, 406, 416, 414, 878) **no** se carga: entra sola cuando se registre Emblistado.
+- Cargado en `gt.stock_inicial` (`sql/gt_corte_cajas_20261029.sql`): 22 filas de `caja_armada` (todas en 0) y 230 de `emblistado` (en 0 las que no figuran, para que el historial anterior no cuente). Desde ahí
+  `gt.demanda_cajas` da: **40\*15 → armar 81** (6 artículos) · **40\*50 → 56** (3) · **30 → 31** (2) · **38\*38 → 20** (1) · **15 → 18** (2).
+- ⚠ Se leyeron **781 y 782 sin la E** (Porta Mold 03, caja 15), no 781E / 782E (Caja Exhibidora). Si una anotación de Contraído llega antes que el Armado de cajas, las armadas quedan en negativo hasta que se anote el armado.
+
 ### 1.68 / gt_v185 — las dos pantallas de cajas: «armar N» en cada botón y la pestaña 🗃️ Cajas del admin (Angely, 29/10/2026: D4 «sí»)
 
 - **Celular** (`app.js`, `etiquetarCajas`): en «¿Qué caja vas a armar?» cada botón suma una línea chica: **«armar N»** (naranja) · **«NO ARMAR MÁS»** (rojo) · **«sin emblistado»** (apagado). La lee de
