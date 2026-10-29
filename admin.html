@@ -78,6 +78,9 @@
     .cel iframe{width:100%;height:100%;border:0;display:block;}
     td input.arm{width:64px;font:inherit;font-size:14px;text-align:center;padding:4px;border-radius:8px;border:1px solid var(--borde);background:var(--card);color:var(--fg);}
     .c-mut{background:var(--borde);color:var(--mut);}
+    /* CAJAS (1.68) */
+    .aviso-c{background:var(--warn-bg);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);color:var(--warn);border-radius:10px;padding:7px 10px;font-size:13px;font-weight:600;margin:0 auto 10px;width:fit-content;max-width:100%;}
+    td.caja-n{font-weight:700;font-size:16px;} td.caja-armar{color:var(--warn);font-weight:700;} td.caja-nomas{background:var(--err-bg);color:var(--err);font-weight:800;}
   </style>
 </head>
 <body>
@@ -91,6 +94,7 @@
     <button class="tab" data-tab="prod">📊 Producción</button>
     <button class="tab" data-tab="asis">⏰ Asistencia</button>
     <button class="tab" data-tab="ped">📦 Pedidos</button>
+    <button class="tab" data-tab="cajas">🗃️ Cajas</button>
     <button class="tab" data-tab="rend">📈 Rendimiento</button>
     <button class="tab" data-tab="bot">👁 Botonera</button>
   </nav>
@@ -144,6 +148,14 @@
     <div id="pedLista"></div>
   </section>
 
+  <!-- CAJAS (1.68, Angely 29/10/2026: D4 «sí»): cuántas cajas hay que armar, EN VIVO. Sale de lo emblistado que todavía no se contrajo
+       menos las cajas armadas, por número de caja (gt_admin_cajas → gt.demanda_cajas). Hasta el corte de conteo no muestra números. -->
+  <section id="cajas" class="vista panel hidden">
+    <div class="barra"><button id="cajasRef">↻ Actualizar</button><span class="info" id="cajasInfo"></span></div>
+    <div id="cajasAviso"></div>
+    <div class="bloque"><div id="cajasTabla"></div></div>
+  </section>
+
   <!-- BOTONERA DEL OPERARIO (1.66, Thomas 19/10/2026: «un módulo para ver botonera de operario sin mover stocks ni
        contabilizar para productividad»): es la app REAL (index.html) en modo vista (1.52) dentro de un iframe, abierta con
        ?vista=1 y el código del monitor en ?cod=. En modo vista nada sale del celular: no hay INGRESO, no hay «Empecé» ni
@@ -154,7 +166,7 @@
     <div class="cel"><iframe id="botFrame" title="Botonera del operario (modo vista)" referrerpolicy="no-referrer"></iframe></div>
   </section>
 
-  <script src="config.js?v=1.67"></script>
+  <script src="config.js?v=1.68"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -231,7 +243,7 @@
       document.querySelectorAll(".vista").forEach((v) => v.classList.toggle("hidden", v.id !== t));
       if (t !== "bot") apagarBotonera();   // 1.66: fuera de la pestaña el iframe no queda corriendo
       if (t === "monitor") pedir(primera); else if (t === "prod") cargarProd(); else if (t === "ped") cargarPed();
-      else if (t === "rend") cargarRend(); else if (t === "bot") abrirBotonera(); else cargarAsis();
+      else if (t === "rend") cargarRend(); else if (t === "bot") abrirBotonera(); else if (t === "cajas") cargarCajas(); else cargarAsis();
     }
     function sinPermiso() { olvidarPass(); verLogin("Clave incorrecta"); }
 
@@ -551,6 +563,37 @@
       f.removeAttribute("src"); f.dataset.ok = ""; $("botInfo").textContent = "";
     }
 
+    /* ---------- CAJAS (1.68, Angely 29/10/2026): cuántas cajas hay que armar, en vivo ---------- */
+    // hacen_falta = lo emblistado que todavía no se contrajo (en cajas) · armadas = el stock de cajas armadas · a_armar = la diferencia.
+    // Contraer baja las dos a la vez, así que «armar N» no se mueve al contraer. Hasta el corte de conteo no hay números.
+    const entero = (n) => num(Math.round(Number(n) || 0));
+    async function cargarCajas(silencioso) {
+      if (!silencioso) $("cajasInfo").textContent = "Cargando…";
+      let rows;
+      try { rows = await rpc("gt_admin_cajas", { p_pass: pass || "" }); }
+      catch (e) { $("cajasInfo").textContent = "⚠ No pude leer las cajas (" + e.message + ")"; return; }
+      if (!rows.length && !(await claveOk())) return;
+      const corte = rows.length ? rows[0].corte_en : null, sinCaja = rows.find((r) => r.caja === "(sin caja)");
+      const cajas = rows.filter((r) => r.caja !== "(sin caja)");
+      const fCorte = corte ? new Date(corte).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" }).replace(",", "") : "";
+      $("cajasInfo").textContent = (corte ? "Corte " + fCorte + " · " : "") + "actualizado " + hora() + " · se actualiza solo cada 10 s";
+      if (!corte) {
+        $("cajasAviso").innerHTML = '<div class="aviso-c">⚠ Falta el corte de conteo: cargar las cajas armadas y lo emblistado. Hasta entonces no hay números.</div>';
+        $("cajasTabla").innerHTML = '<div class="vacio">Sin corte.</div>';
+        return;
+      }
+      $("cajasAviso").innerHTML = sinCaja && Number(sinCaja.articulos) > 0
+        ? '<div class="aviso-c">⚠ ' + sinCaja.articulos + " artículos emblistados sin caja cargada (" + entero(sinCaja.hacen_falta) + " cajas): no cuentan en ninguna fila.</div>" : "";
+      const orden = { armar: 0, nomas: 1, nada: 2 };
+      const con = cajas.filter((r) => r.tono !== "nada").sort((a, b) => (orden[a.tono] - orden[b.tono]) || (Number(b.a_armar) - Number(a.a_armar)) || (Number(b.hacen_falta) - Number(a.hacen_falta)));
+      const sin = cajas.filter((r) => r.tono === "nada").map((r) => r.caja);
+      $("cajasTabla").innerHTML = (con.length ? "<table><tr><th>Caja</th><th>Artíc.</th><th>Emblist.<br>(cajas)</th><th>Arma-<br>das</th><th>Estado</th></tr>" +
+        con.map((r) => "<tr><td class=\"caja-n\">" + esc(r.caja) + "</td><td>" + num(r.articulos) + "</td><td>" + entero(r.hacen_falta) + "</td><td>" +
+          (r.armadas == null ? "—" : entero(r.armadas)) + "</td><td class=\"" + (r.tono === "nomas" ? "caja-nomas" : "caja-armar") + "\">" + esc(r.estado) + "</td></tr>").join("") + "</table>"
+        : '<div class="vacio">Nada emblistado ni armado.</div>') +
+        (sin.length ? '<div class="desc" style="margin-top:8px;text-align:center">Sin emblistado ni armadas: ' + sin.map(esc).join(" · ") + "</div>" : "");
+    }
+
     /* ---------- eventos ---------- */
     $("prodDia").value = $("asisDia").value = hoyAR();
     $("tabs").addEventListener("click", (e) => { const b = e.target.closest(".tab"); if (b) verTab(b.dataset.tab); });
@@ -559,6 +602,8 @@
     ["fArea", "fOper", "fFam"].forEach((id) => { $(id).onchange = pintarProd; });
     $("rendRef").onclick = cargarRend; $("rendDesde").onchange = cargarRend; $("rendHasta").onchange = cargarRend;
     $("botRef").onclick = () => abrirBotonera(true);
+    $("cajasRef").onclick = () => cargarCajas();
+    setInterval(() => { if (!document.hidden && tab === "cajas") cargarCajas(true); }, 10000);   // 1.68: en vivo
     setInterval(() => { if (document.hidden) return; if (tab === "prod" && $("prodDia").value === hoyAR()) cargarProd();
                         if (tab === "asis" && $("asisDia").value === hoyAR()) cargarAsis(); }, 60000);
     document.addEventListener("visibilitychange", () => { if (!document.hidden && tab === "monitor") pedir(); });

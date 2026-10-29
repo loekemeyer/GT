@@ -1,3 +1,4 @@
+-- ⚠ La definición vigente de gt.demanda_cajas está en gt_v185 (suma tono, etiqueta y corte_en al final). Esta queda como historia.
 -- gt_v184 (29/10/2026): cuántas cajas hay que armar, en función de lo que está EMBLISTADO (Angely, 29/10).
 --   «A las 12 te paso cuántas cajas armadas hay y cuántos artículos emblistados hay en ese momento, para hacer un corte.
 --    Desde ahí te dice cuántas cajas tienen que armar en función de lo que se emblista, y descuenta cuando se contrae.»

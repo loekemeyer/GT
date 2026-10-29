@@ -935,6 +935,22 @@
       return String(a.codigo).localeCompare(String(b.codigo), "es");
     });
   }
+  // 1.68 (Angely, 29/10/2026: D4 «sí»): en «¿Qué caja vas a armar?» cada botón dice cuántas faltan armar, según lo emblistado que todavía
+  // no se contrajo menos las cajas armadas (gt_cajas_estado, gt_v185). «NO ARMAR MÁS» sólo AVISA: la caja se puede armar igual (Angely:
+  // «no les limita armar ese número»). Sin red, sin corte de conteo o con la lista vacía, los botones salen como siempre.
+  async function etiquetarCajas(opts, tok) {
+    let l;
+    try { l = await rpc("gt_cajas_estado", {}); } catch { return; }
+    if (tok !== st.cajasTok || !opts.isConnected || !Array.isArray(l)) return;
+    const por = {}; l.forEach((x) => { if (x && x.etiqueta) por[x.caja] = x; });
+    let hay = false;
+    opts.querySelectorAll("button").forEach((b) => {
+      const x = por[b.dataset.cod]; if (!x) return;
+      hay = true; b.classList.add(x.tono);
+      b.insertAdjacentHTML("beforeend", '<small class="caja-est">' + esc(x.etiqueta) + "</small>");
+    });
+    if (hay) opts.insertAdjacentHTML("beforebegin", '<div class="cajas-nota">Faltan armar, según lo emblistado · el aviso no impide armar</div>');
+  }
   function prepararInput(inputId, hintId, a) {
     const lista = codigosDe(a);
     const el = $(inputId);
@@ -944,6 +960,9 @@
     opts.classList.toggle("hidden", !conOpc);
     opts.classList.toggle("muchas", conOpc && lista.length > OPCIONES_MAX);   // 1.67: 22 cajas entran como grilla compacta
     opts.innerHTML = conOpc ? ordenOpciones(lista).map((c) => '<button data-cod="' + esc(c.codigo) + '">' + esc(c.descripcion || c.codigo) + "</button>").join("") : "";
+    opts.parentNode.querySelectorAll(".cajas-nota").forEach((n) => n.remove());
+    st.cajasTok = (st.cajasTok || 0) + 1;                     // 1.68: una respuesta vieja no pinta una pantalla nueva
+    if (conOpc && a.codigo === "ARMCAJ") etiquetarCajas(opts, st.cajasTok);
     el.value = ""; el.dataset.area = a.codigo; el.dataset.hint = hintId;
     // 1.42 (Elías: «que todos los inputs para poner código sean numéricos y con un botón al lado para agregar a ese código o
     // sacarle (en caso de doble tap) una E»): teclado numérico siempre (inputmode en index.html) y, al lado, la E. Si la

@@ -178,6 +178,13 @@ body.sin-scroll{overflow:hidden;}
 .cod-opts button{min-height:84px;border:2px solid var(--borde);background:var(--bg);color:var(--txt);font-size:21px;font-weight:700;}
 .cod-opts button:active{border-color:var(--acc);background:var(--acc-bg);}
 .cod-opts button small{display:block;font-size:13px;font-weight:500;color:var(--mut);margin-top:4px;line-height:1.2;}   /* 1.59: el artículo del 3080 */
+/* 1.68: Armado de cajas, cuántas faltan armar en cada botón */
+.cod-opts button small.caja-est{font-weight:700;font-size:13px;margin-top:1px;color:var(--mut);}
+.cod-opts button.armar small.caja-est{color:var(--warn);}
+.cod-opts button.nomas{border-color:var(--err);background:color-mix(in srgb,var(--err) 12%,var(--bg));}
+.cod-opts button.nomas small.caja-est{color:var(--err);}
+.cod-opts button.nada{opacity:.6;}
+.cajas-nota{text-align:center;font-size:13px;color:var(--mut);margin-top:6px;}
 .cod-opts.muchas{gap:8px;}
 .cod-opts.muchas button{min-height:52px;font-size:17px;padding:6px 8px;line-height:1.2;}
 .cod-opts.muchas button:last-child:nth-child(odd){grid-column:1/-1;}   /* sin hueco al lado del último */

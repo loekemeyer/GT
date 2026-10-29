@@ -11,7 +11,7 @@ _Movido desde `CLAUDE.md` el 2026-10-13 (poda de tokens). Reglas sin cambios._
 | config (URL + clave **publishable**) | `config.js` |
 | base | proyecto Supabase **`hrxfctzncixxqmpfhskv`** (el de Virgilio), **schema `gt`** |
 | estructura de la base | `sql/gt_schema_v3.sql` (con rollback en la cabecera y los datos iniciales al final) |
-| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API, y el 3080 de Deco que pregunta el artículo) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse —también desde «¿Con qué seguís?»—, el aviso de más de 10 cajas, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) · `node tests/vista.cjs` (el modo vista y las áreas de un solo empleado) · `node tests/resync.cjs` (el celular recarga con la base caída o con un envío en camino y no pierde lo abierto) · `node tests/esnaola.cjs` (Esnaola sin monitor: la clave del encargado y el código para el compañero) · `node tests/admin-botonera.cjs` (la pestaña 👁 Botonera del admin: entra sola con el código del monitor, se toca todo y no graba nada) · `node tests/cola.cjs` (la cola: reintento cada 5 s, aviso de errores de envío, una fila mala que no traba, la copia en IndexedDB y el service worker que manda con la app cerrada) |
+| prueba | `node tests/smoke.cjs` (base simulada, no pega a Supabase) · `node tests/nombres16.cjs` (16 operarios en 16 tamaños de pantalla, y el «¿Sos …?») · `node tests/botonera.cjs` (las áreas, ídem) · `node tests/pausas.cjs` (el tiempo sin las pausas) · `node tests/codigos.cjs` (la lista de códigos entera, con el tope de 1.000 filas de la API, y el 3080 de Deco que pregunta el artículo) · `node tests/parejas.cjs` (Encolado / Contraído de a dos: sumarse —también desde «¿Con qué seguís?»—, el aviso de más de 10 cajas, los avisos, «Me fui», se va uno y se suma otro, termina el que empezó; tres celulares) · `node tests/letras.cjs` (el código con la E al lado) · `node tests/muerto.cjs` (el tiempo muerto) · `node tests/puesta.cjs` (la puesta a punto dentro de Encolado) · `node tests/vista.cjs` (el modo vista y las áreas de un solo empleado) · `node tests/resync.cjs` (el celular recarga con la base caída o con un envío en camino y no pierde lo abierto) · `node tests/esnaola.cjs` (Esnaola sin monitor: la clave del encargado y el código para el compañero) · `node tests/cajas.cjs` (1.68: «armar N» en los botones de Armado de cajas y la pestaña 🗃️ Cajas del admin, en vivo) · `node tests/admin-botonera.cjs` (la pestaña 👁 Botonera del admin: entra sola con el código del monitor, se toca todo y no graba nada) · `node tests/cola.cjs` (la cola: reintento cada 5 s, aviso de errores de envío, una fila mala que no traba, la copia en IndexedDB y el service worker que manda con la app cerrada) |
 
 ### Cómo entra el operario (≡ clave de la TV de Virgilio, v23.82)
 
@@ -461,6 +461,18 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   **D74 (Thomas: «no»):** ninguna pide cantidad. **D75 (Thomas: «sí»):** quedan los nombres cortos.
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
+
+### 1.68 / gt_v185 — las dos pantallas de cajas: «armar N» en cada botón y la pestaña 🗃️ Cajas del admin (Angely, 29/10/2026: D4 «sí»)
+
+- **Celular** (`app.js`, `etiquetarCajas`): en «¿Qué caja vas a armar?» cada botón suma una línea chica: **«armar N»** (naranja) · **«NO ARMAR MÁS»** (rojo) · **«sin emblistado»** (apagado). La lee de
+  `gt_cajas_estado()` al abrir la pantalla (también desde «¿Con qué seguís?» al terminar Contraído). **Sólo avisa: la caja se arma igual** (Angely: *«no les limita armar ese número»*, así pueden
+  dejar cajas armadas de reserva). Sin red, sin corte de conteo o con la lista vacía, los 22 botones salen como siempre.
+- **Admin** (`admin.html`, pestaña **🗃️ Cajas**): una fila por caja con artículos, emblistado (cajas), armadas y estado, **las que hay que armar primero** (mayor a menor) y después las que alcanzan. Las cajas
+  sin emblistado ni armadas van juntas en una línea al pie (sin filas vacías). Avisa los artículos emblistados sin caja cargada. **Se actualiza sola cada 10 s** mientras la pestaña está abierta. Sin corte
+  de conteo dice «Falta el corte de conteo» y no muestra números. Las planas (pallet) no se muestran.
+- **Base** (`sql/gt_v185_cajas_pantallas.sql`): `gt.demanda_cajas` suma al final `tono` (armar · nomas · nada), `etiqueta` y `corte_en`; `public.gt_cajas_estado()` (pública, sólo caja / tono / etiqueta) y
+  `public.gt_admin_cajas(p_pass)` (clave del monitor). Probado en transacción abortada con corte simulado.
+- `tests/cajas.cjs` (27 controles: 320 y 390 px, «NO ARMAR MÁS» igual abre el armado, sin corte, base caída, admin en vivo). Versión 1.68.
 
 ### gt_v184 — cuántas cajas armar, en función de lo EMBLISTADO, con un corte de conteo (Angely, 29/10/2026)
 
