@@ -462,6 +462,21 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
 
+### gt_v184 — cuántas cajas armar, en función de lo EMBLISTADO, con un corte de conteo (Angely, 29/10/2026)
+
+- Pedido: *«A las 12 te paso cuántas cajas armadas hay y cuántos artículos emblistados hay en ese momento, para hacer un corte. Desde ahí te dice cuántas
+  cajas tienen que armar en función de lo que se emblista, y descuenta cuando las contraen.»* («enlistados» es [Probable] «emblistados».) Y: *«el stock de cajas está en
+  dos estadios: la caja plana en pallet y la caja armada, que dura muy poco hasta que se contrae. Por ahora no me importa el stock en pallet, sino el de cajas armadas.»*
+- **Cambia el cálculo de gt_v182.** `gt.demanda_cajas.hacen_falta` ya no es la demanda: es **lo emblistado que todavía no se contrajo**, en cajas (stock `emblistado` / UxB), sumado por la caja
+  del artículo. `a_armar = hacen_falta − armadas` (mínimo 0). Emblistar sube el `hacen_falta`. **Contraer baja a la vez el emblistado y las armadas**: el `a_armar` no se mueve. Armar
+  suma a las armadas. Con las armadas alcanzando, `estado = NO ARMAR MÁS: alcanzan (sobran N)` (sólo avisa, no bloquea: Angely, 29/10).
+- **El corte.** Hasta que haya un conteo de `emblistado` en `gt.stock_inicial` el estado dice `falta el corte de emblistado` (el saldo desde el 02/10 es sólo movimiento: −861 cajas netas
+  en 72 artículos). El corte se carga con `contado_en` = la hora del conteo y **una fila por cada caja (22, en 0 si no hay) en `caja_armada` y una por cada artículo con movimientos de
+  emblistado o con caja (en 0 si no hay) en `emblistado`**, `medida = ''`. Sin la fila en cero el historial anterior seguiría contando. Lo posterior a `contado_en` suma solo.
+- Las planas (pallet) se siguen descontando al armar, pero no se muestran: las columnas `planas` / `a_comprar` quedan en la vista por compatibilidad.
+- Probado en transacción abortada (40\*15: 10 cajas del 134 y 5 del 183 emblistadas, 20 armadas → NO ARMAR MÁS, sobran 5 · contraen 2 del 134 y emblistan 6 del 183 → hacen falta 19, armadas 18, **armar 1** ·
+  arman 3 → NO ARMAR MÁS, sobran 2 · sin corte → `falta el corte de emblistado`). `sql/gt_v184_cajas_por_emblistado.sql` (rollback: el `create or replace view` de gt_v182).
+
 ### gt_v183 — la caja de los artículos que faltaban (Angely, 28/10/2026)
 
 - Angely devolvió la planilla «Cajas pendientes por artículo» con la columna **Caja** completa para los **39 artículos con demanda** que no estaban en la
