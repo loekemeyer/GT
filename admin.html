@@ -78,6 +78,24 @@
     .cel iframe{width:100%;height:100%;border:0;display:block;}
     td input.arm{width:64px;font:inherit;font-size:14px;text-align:center;padding:4px;border-radius:8px;border:1px solid var(--borde);background:var(--card);color:var(--fg);}
     .c-mut{background:var(--borde);color:var(--mut);}
+    /* EMPLEADOS (1.69) */
+    .barra button.prim,.ped-acc button.prim{background:var(--acc);border-color:var(--acc);color:#fff;}
+    .ef-fila{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 16px;margin-bottom:10px;}
+    .ef-fila label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mut);font-weight:600;}
+    .ef-fila label.ef-chk,.ef-chk{flex-direction:row;align-items:center;gap:6px;font-size:14px;color:var(--fg);font-weight:500;}
+    .ef-chk{display:flex;gap:14px;}
+    .ef-fila input[type=text]{font:inherit;font-size:15px;padding:7px 10px;border-radius:10px;border:1px solid var(--borde);background:var(--card);color:var(--fg);width:220px;}
+    #efLegajo{width:90px !important;}
+    #efSemana input[type=time]{font:inherit;font-size:14px;padding:4px 6px;border-radius:8px;border:1px solid var(--borde);background:var(--card);color:var(--fg);}
+    #efSemana input[type=time]:disabled{opacity:.35;}
+    #efSemana td.dia{text-align:left;font-weight:600;}
+    #efSemana tr.libre td{color:var(--mut);}
+    #empForm button{border:1px solid var(--borde);background:var(--card);color:var(--fg);border-radius:10px;padding:7px 12px;font-size:14px;}
+    #empForm button.prim{background:var(--acc);border-color:var(--acc);color:#fff;}
+    #efMsg.err{color:var(--err);font-weight:600;}
+    td.acc button{border:1px solid var(--borde);background:var(--card);color:var(--fg);border-radius:8px;padding:4px 10px;font-size:13px;margin:0 2px;}
+    td.acc button.peligro{color:var(--err);}
+    tr.baja td{color:var(--mut);}
     /* CAJAS (1.68) */
     .aviso-c{background:var(--warn-bg);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);color:var(--warn);border-radius:10px;padding:7px 10px;font-size:13px;font-weight:600;margin:0 auto 10px;width:fit-content;max-width:100%;}
     td.caja-n{font-weight:700;font-size:16px;} td.caja-armar{color:var(--warn);font-weight:700;} td.caja-nomas{background:var(--err-bg);color:var(--err);font-weight:800;}
@@ -93,6 +111,7 @@
     <button class="tab on" data-tab="monitor">📺 Monitor</button>
     <button class="tab" data-tab="prod">📊 Producción</button>
     <button class="tab" data-tab="asis">⏰ Asistencia</button>
+    <button class="tab" data-tab="emp">👥 Empleados</button>
     <button class="tab" data-tab="ped">📦 Pedidos</button>
     <button class="tab" data-tab="cajas">🗃️ Cajas</button>
     <button class="tab" data-tab="rend">📈 Rendimiento</button>
@@ -127,6 +146,29 @@
     <div class="bloque"><h2>Por área</h2><div id="prodArea"></div></div>
     <div class="bloque"><h2>Ritmo por operario</h2><div id="prodRitmo"></div></div>
     <div class="bloque"><h2>Por operario</h2><div id="prodOp"></div></div>
+  </section>
+
+  <!-- EMPLEADOS (1.69, Angely 30/10/2026): «un módulo para ingresar o dar de baja a los empleados… sus datos y su horario, para que el programa
+       pueda controlar su fichada». Alta y baja (activo = false: no se borra nada, el historial queda) con el horario por día de la semana.
+       El horario lo leen Asistencia, los avisos de llegada y el cierre automático (gt_v186 / gt_v187). -->
+  <section id="emp" class="vista panel hidden">
+    <div class="barra"><button id="empNuevo" class="prim">＋ Alta de empleado</button><button id="empRef">↻ Actualizar</button>
+      <label class="info"><input type="checkbox" id="empBajas" checked /> ver dados de baja</label><span class="info" id="empInfo"></span></div>
+    <div id="empForm" class="bloque hidden">
+      <h2 id="efTit">Alta de empleado</h2>
+      <div class="ef-fila">
+        <label>Nombre y apellido<input type="text" id="efNombre" autocomplete="off" maxlength="60" /></label>
+        <label>Legajo<input type="text" id="efLegajo" autocomplete="off" maxlength="12" placeholder="t175" /></label>
+        <div class="ef-chk" id="efPlantas"></div>
+      </div>
+      <table id="efSemana"></table>
+      <div class="ef-fila">
+        <label class="ef-chk"><input type="checkbox" id="efFlex" /> Almuerzo flexible (cada día come a otra hora: no se controla)</label>
+        <button id="efCopiar" type="button">Copiar el lunes a lun–vie</button>
+      </div>
+      <div class="ped-acc"><button id="efGuardar" class="prim">Guardar</button><button id="efCancelar" type="button">Cancelar</button><span class="ped-msg" id="efMsg"></span></div>
+    </div>
+    <div class="bloque"><div id="empLista"></div></div>
   </section>
 
   <section id="asis" class="vista panel hidden">
@@ -166,7 +208,7 @@
     <div class="cel"><iframe id="botFrame" title="Botonera del operario (modo vista)" referrerpolicy="no-referrer"></iframe></div>
   </section>
 
-  <script src="config.js?v=1.68"></script>
+  <script src="config.js?v=1.69"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -243,7 +285,7 @@
       document.querySelectorAll(".vista").forEach((v) => v.classList.toggle("hidden", v.id !== t));
       if (t !== "bot") apagarBotonera();   // 1.66: fuera de la pestaña el iframe no queda corriendo
       if (t === "monitor") pedir(primera); else if (t === "prod") cargarProd(); else if (t === "ped") cargarPed();
-      else if (t === "rend") cargarRend(); else if (t === "bot") abrirBotonera(); else if (t === "cajas") cargarCajas(); else cargarAsis();
+      else if (t === "rend") cargarRend(); else if (t === "bot") abrirBotonera(); else if (t === "cajas") cargarCajas(); else if (t === "emp") cargarEmp(); else cargarAsis();
     }
     function sinPermiso() { olvidarPass(); verLogin("Clave incorrecta"); }
 
@@ -431,17 +473,19 @@
       const esHoy = dia === hoyAR();
       const ahora = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 19);   // hora AR, mismo formato que la base
       $("asisInfo").textContent = "Cargando…";
-      let rows;
-      try { rows = await rpc("gt_admin_asistencia2", { p_pass: pass || "", p_dia: dia }); }   // 1.33: + ingreso con código y 1.er trabajo (gt_v147)
-      catch {
-        try { rows = await rpc("gt_admin_asistencia", { p_pass: pass || "", p_dia: dia }); }
-        catch (e) { $("asisInfo").textContent = "⚠ No pude leer la asistencia (" + e.message + ")"; return; }
+      let rows = null;
+      // 1.69: asistencia3 suma «libre» (franco) · 1.33: asistencia2 suma el ingreso con código y el 1.er trabajo (gt_v147)
+      for (const fn of ["gt_admin_asistencia3", "gt_admin_asistencia2", "gt_admin_asistencia"]) {
+        try { rows = await rpc(fn, { p_pass: pass || "", p_dia: dia }); break; }
+        catch (e) { if (fn === "gt_admin_asistencia") { $("asisInfo").textContent = "⚠ No pude leer la asistencia (" + e.message + ")"; return; } }
       }
       if (!rows.length && !(await claveOk())) return;
       const corre = (ts, min) => { const d = new Date(String(ts).replace(" ", "T") + "Z"); d.setUTCMinutes(d.getUTCMinutes() + min); return d.toISOString().slice(0, 19); };
       const t19 = (ts) => String(ts).replace(" ", "T").slice(0, 19);
-      let faltas = 0;
+      let faltas = 0, francos = 0;
       const html = rows.map((r) => {
+        // 1.69: el día de franco no se espera que fiche: «Franco», no «No vino» (si vino igual, se muestra como siempre)
+        if (r.libre && !r.entrada) { francos++; return "<tr class=baja><td class=izq><b>" + esc(r.empleado) + '</b> <span class="desc">' + esc(r.legajo || "") + '</span></td><td colspan="4" class="desc">Franco</td><td class=izq><span class="chip c-mut">Franco</span></td></tr>'; }
         const tol = r.tolerancia_min || 5, chips = [];
         let ent, alm = "—", sal = "—", prod = "—";
         if (!r.entrada) { ent = '<span class="t-err">—</span>'; chips.push('<span class="chip c-err">No vino</span>'); }
@@ -489,7 +533,7 @@
           (r.almuerzo_desde ? '<div class="desc">' + hhmm(r.almuerzo_desde) + "–" + hhmm(r.almuerzo_hasta) + "</div>" : "") + "</td><td>" + sal +
           '<div class="desc">' + hhmm(r.salida_prevista) + "</div></td><td class=izq>" + chips.join("") + "</td></tr>";
       }).join("");
-      $("asisInfo").textContent = rows.length + " operarios · " + faltas + " con faltas · abajo de cada hora, la que le toca";
+      $("asisInfo").textContent = rows.length + " operarios · " + faltas + " con faltas" + (francos ? " · " + francos + " de franco" : "") + " · abajo de cada hora, la que le toca";
       $("asisTabla").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Ingreso</th><th>1.er<br>trabajo</th><th>Almuerzo</th><th>Salida</th><th>Estado</th></tr>" + html + "</table>"
         : '<div class="vacio">Sin datos.</div>';
     }
@@ -563,6 +607,148 @@
       f.removeAttribute("src"); f.dataset.ok = ""; $("botInfo").textContent = "";
     }
 
+    /* ---------- EMPLEADOS (1.69, Angely 30/10/2026): alta, baja y horario por día ---------- */
+    // Alta y baja de los empleados con SU horario: lo leen Asistencia, los avisos de llegada y el cierre automático. La baja no borra nada:
+    // activo = false (el historial queda). Las plantas sólo se suman: sacar una es un borrado y todavía no se hace desde acá.
+    const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"], h5 = (t) => String(t == null ? "" : t).slice(0, 5);
+    let emps = [], gral = null, editId = null;
+    function plantaNombre(c) { const p = ((gral && gral.plantas) || []).find((x) => x.codigo === c); return p ? p.nombre : c; }
+    function resumenHorario(e) {
+      if (!e.con_horario) return '<span class="desc">general ' + h5(gral.entrada) + "–" + h5(gral.salida) + " · alm " + h5(gral.almuerzo_desde) + "–" + h5(gral.almuerzo_hasta) + "</span>";
+      const firma = (d) => d.libre ? "L" : [d.entrada, d.almuerzo_desde, d.almuerzo_hasta, d.sin_almuerzo ? 1 : 0, d.salida].join("|");
+      const por = {}; (e.horario || []).forEach((d) => { por[d.dow] = d; });
+      const grupos = []; let ult = null;
+      for (let dow = 1; dow <= 7; dow++) {
+        const d = por[dow];
+        if (!d) { ult = null; continue; }
+        if (ult && ult.f === firma(d)) ult.hasta = dow; else { ult = { f: firma(d), desde: dow, hasta: dow, d }; grupos.push(ult); }
+      }
+      return grupos.filter((g) => !g.d.libre).map((g) => {
+        const d = g.d, rango = g.desde === g.hasta ? DIAS[g.desde - 1] : DIAS[g.desde - 1] + "–" + DIAS[g.hasta - 1];
+        return "<b>" + rango + "</b> " + d.entrada + "–" + d.salida +
+          (e.flexible ? ' <span class="desc">alm flexible</span>' : d.sin_almuerzo ? ' <span class="desc">de corrido</span>' : ' <span class="desc">alm ' + d.almuerzo_desde + "–" + d.almuerzo_hasta + "</span>");
+      }).join("<br>") || '<span class="desc">sin días de trabajo</span>';
+    }
+    async function cargarEmp() {
+      $("empInfo").textContent = "Cargando…";
+      let r;
+      try {
+        r = await rpc("gt_admin_empleados", { p_pass: pass || "", p_bajas: $("empBajas").checked });
+        gral = await rpc("gt_admin_horario_general", { p_pass: pass || "" });
+      } catch (e) { $("empInfo").textContent = "⚠ No pude leer los empleados (" + e.message + ")"; return; }
+      if (!r.length && !(await claveOk())) return;
+      emps = r;
+      const act = r.filter((e) => e.activo).length;
+      $("empInfo").textContent = act + " activos" + (r.length > act ? " · " + (r.length - act) + " de baja" : "") + " · actualizado " + hora();
+      $("empLista").innerHTML = r.length ? "<table><tr><th>Legajo</th><th>Nombre</th><th>Plantas</th><th>Horario</th><th>Estado</th><th></th></tr>" + r.map((e) =>
+        '<tr class="' + (e.activo ? "" : "baja") + '"><td>' + esc(e.legajo || "—") + "</td><td class=izq><b>" + esc(e.nombre) + "</b></td><td>" +
+        ((e.plantas && e.plantas.length) ? e.plantas.map((c) => esc(plantaNombre(c))).join(" · ") : esc(plantaNombre(gral.principal))) + "</td><td class=izq>" + resumenHorario(e) + "</td><td>" +
+        (e.activo ? '<span class="chip c-ok">Activo</span>' : '<span class="chip c-mut">De baja' + (e.baja_en ? " " + ddmm(String(e.baja_en).slice(0, 10)) : "") + "</span>") +
+        '</td><td class="acc"><button data-acc="editar" data-id="' + e.id + '">Editar</button>' +
+        (e.activo ? '<button data-acc="baja" data-id="' + e.id + '" class="peligro">Dar de baja</button>' : '<button data-acc="alta" data-id="' + e.id + '">Reactivar</button>') + "</td></tr>").join("") + "</table>"
+        : '<div class="vacio">No hay empleados cargados.</div>';
+    }
+    // el horario de arranque: el del empleado, o el general (lunes a viernes; sábado y domingo de franco)
+    function horarioBase(e) {
+      const por = {}; ((e && e.horario) || []).forEach((d) => { por[d.dow] = d; });
+      const out = {};
+      for (let dow = 1; dow <= 7; dow++) {
+        const d = por[dow];
+        out[dow] = d ? { libre: !!d.libre, entrada: h5(d.entrada), almuerzo_desde: h5(d.almuerzo_desde), almuerzo_hasta: h5(d.almuerzo_hasta), sin_almuerzo: !!d.sin_almuerzo, salida: h5(d.salida) }
+          : dow <= 5 && !(e && e.con_horario) ? { libre: false, entrada: h5(gral.entrada), almuerzo_desde: h5(gral.almuerzo_desde), almuerzo_hasta: h5(gral.almuerzo_hasta), sin_almuerzo: false, salida: h5(gral.salida) }
+          : { libre: true, entrada: "", almuerzo_desde: "", almuerzo_hasta: "", sin_almuerzo: false, salida: "" };
+      }
+      return out;
+    }
+    function pintarSemana(h) {
+      let t = "<tr><th></th><th>Trabaja</th><th>Entrada</th><th>Almuerzo<br>desde</th><th>Almuerzo<br>hasta</th><th>De<br>corrido</th><th>Salida</th></tr>";
+      for (let dow = 1; dow <= 7; dow++) {
+        const d = h[dow];
+        t += '<tr data-dow="' + dow + '"><td class="dia">' + DIAS[dow - 1] + '</td><td><input type="checkbox" class="ef-trab"' + (d.libre ? "" : " checked") + "></td>" +
+          '<td><input type="time" class="ef-ent" value="' + d.entrada + '"></td><td><input type="time" class="ef-ad" value="' + d.almuerzo_desde + '"></td>' +
+          '<td><input type="time" class="ef-ah" value="' + d.almuerzo_hasta + '"></td><td><input type="checkbox" class="ef-sin"' + (d.sin_almuerzo ? " checked" : "") + '></td>' +
+          '<td><input type="time" class="ef-sal" value="' + d.salida + '"></td></tr>';
+      }
+      $("efSemana").innerHTML = t; actualizarSemana();
+    }
+    // lo que no corresponde se apaga: un día de franco no tiene horas, «de corrido» o el almuerzo flexible no tienen almuerzo
+    function actualizarSemana() {
+      const flex = $("efFlex").checked;
+      document.querySelectorAll("#efSemana tr[data-dow]").forEach((tr) => {
+        const trab = tr.querySelector(".ef-trab").checked, sin = tr.querySelector(".ef-sin").checked;
+        tr.classList.toggle("libre", !trab);
+        tr.querySelector(".ef-ent").disabled = tr.querySelector(".ef-sal").disabled = !trab;
+        tr.querySelector(".ef-sin").disabled = !trab || flex;
+        tr.querySelector(".ef-ad").disabled = tr.querySelector(".ef-ah").disabled = !trab || sin || flex;
+      });
+    }
+    function efMsg(t, err) { $("efMsg").textContent = t || ""; $("efMsg").classList.toggle("err", !!err); }
+    function abrirForm(e) {
+      editId = e ? e.id : null;
+      $("efTit").textContent = e ? "Editar: " + e.nombre : "Alta de empleado";
+      $("efNombre").value = e ? e.nombre : ""; $("efLegajo").value = e && e.legajo ? e.legajo : "";
+      $("efFlex").checked = !!(e && e.flexible);
+      const tiene = e && e.plantas && e.plantas.length ? e.plantas : [gral.principal];
+      $("efPlantas").innerHTML = (gral.plantas || []).map((p) => {
+        const ya = !!(e && e.plantas && e.plantas.includes(p.codigo));   // una planta que ya tiene no se puede sacar desde acá
+        return '<label class="ef-chk"><input type="checkbox" class="ef-pl" value="' + esc(p.codigo) + '"' + (tiene.includes(p.codigo) ? " checked" : "") + (ya ? ' disabled title="Sacarle una planta no se puede desde acá todavía"' : "") + "> " + esc(p.nombre) + "</label>";
+      }).join("");
+      pintarSemana(horarioBase(e)); efMsg("");
+      $("empForm").classList.remove("hidden"); $("efNombre").focus();
+    }
+    function cerrarForm() { $("empForm").classList.add("hidden"); editId = null; efMsg(""); }
+    function copiarLunes() {
+      const lun = document.querySelector('#efSemana tr[data-dow="1"]');
+      for (let dow = 2; dow <= 5; dow++) {
+        const tr = document.querySelector('#efSemana tr[data-dow="' + dow + '"]');
+        ["trab", "sin"].forEach((c) => { tr.querySelector(".ef-" + c).checked = lun.querySelector(".ef-" + c).checked; });
+        ["ent", "ad", "ah", "sal"].forEach((c) => { tr.querySelector(".ef-" + c).value = lun.querySelector(".ef-" + c).value; });
+      }
+      actualizarSemana();
+    }
+    // lee el formulario y lo valida igual que la base (la base lo vuelve a validar)
+    function leerForm() {
+      const nombre = $("efNombre").value.trim().replace(/\s+/g, " "), flex = $("efFlex").checked, horario = [];
+      if (!nombre) return { err: "Falta el nombre" };
+      let trab = 0;
+      for (const tr of document.querySelectorAll("#efSemana tr[data-dow]")) {
+        const dow = Number(tr.dataset.dow), q = (c) => tr.querySelector(".ef-" + c);
+        if (!q("trab").checked) { horario.push({ dow, libre: true }); continue; }
+        const d = { dow, libre: false, entrada: q("ent").value, salida: q("sal").value, sin_almuerzo: q("sin").checked && !flex, almuerzo_desde: q("ad").value, almuerzo_hasta: q("ah").value };
+        const dia = DIAS[dow - 1];
+        if (!d.entrada || !d.salida || d.entrada >= d.salida) return { err: dia + ": la entrada tiene que ser antes que la salida" };
+        if (!d.sin_almuerzo && !flex && !(d.almuerzo_desde && d.almuerzo_hasta && d.entrada < d.almuerzo_desde && d.almuerzo_desde < d.almuerzo_hasta && d.almuerzo_hasta < d.salida))
+          return { err: dia + ": el almuerzo tiene que quedar entre la entrada y la salida" };
+        horario.push(d); trab++;
+      }
+      if (!trab) return { err: "Tiene que trabajar al menos un día" };
+      const plantas = [...document.querySelectorAll("#efPlantas .ef-pl:checked")].map((c) => c.value);
+      if (!plantas.length) return { err: "Elegí al menos una planta" };
+      return { nombre, legajo: $("efLegajo").value.trim(), flex, horario, plantas };
+    }
+    async function guardarEmp() {
+      const x = leerForm();
+      if (x.err) { efMsg("⚠ " + x.err, true); return; }
+      $("efGuardar").disabled = true; efMsg("Guardando…");
+      let r;
+      try { r = await rpc("gt_admin_empleado_guardar", { p_pass: pass || "", p_id: editId, p_nombre: x.nombre, p_legajo: x.legajo || null, p_plantas: x.plantas, p_flexible: x.flex, p_horario: x.horario }); }
+      catch (e) { efMsg("⚠ No pude guardar (" + e.message + ")", true); $("efGuardar").disabled = false; return; }
+      $("efGuardar").disabled = false;
+      if (!r || !r.ok) { if (r && r.error === "clave") { sinPermiso(); return; } efMsg("⚠ " + ((r && r.mensaje) || "no se pudo guardar"), true); return; }
+      const nuevo = editId === null; cerrarForm(); await cargarEmp();
+      $("empInfo").textContent = "✓ " + (nuevo ? "Alta hecha: " : "Cambios guardados: ") + r.nombre;
+    }
+    async function bajaEmp(id, activo) {
+      const e = emps.find((x) => x.id === id); if (!e) return;
+      if (!window.confirm(activo ? "¿Reactivar a " + e.nombre + "? Vuelve a salir en la app y en Asistencia."
+        : "¿Dar de baja a " + e.nombre + "? Deja de salir en la app, en Asistencia y en los avisos. El historial queda.")) return;
+      let r;
+      try { r = await rpc("gt_admin_empleado_baja", { p_pass: pass || "", p_id: id, p_activo: activo }); }
+      catch (err) { $("empInfo").textContent = "⚠ No pude cambiar el estado (" + err.message + ")"; return; }
+      if (!r || !r.ok) { if (r && r.error === "clave") { sinPermiso(); return; } $("empInfo").textContent = "⚠ " + ((r && r.mensaje) || "no se pudo"); return; }
+      await cargarEmp(); $("empInfo").textContent = "✓ " + e.nombre + (activo ? " reactivado" : " dado de baja");
+    }
+
     /* ---------- CAJAS (1.68, Angely 29/10/2026): cuántas cajas hay que armar, en vivo ---------- */
     // hacen_falta = lo emblistado que todavía no se contrajo (en cajas) · armadas = el stock de cajas armadas · a_armar = la diferencia.
     // Contraer baja las dos a la vez, así que «armar N» no se mueve al contraer. Hasta el corte de conteo no hay números.
@@ -602,6 +788,14 @@
     ["fArea", "fOper", "fFam"].forEach((id) => { $(id).onchange = pintarProd; });
     $("rendRef").onclick = cargarRend; $("rendDesde").onchange = cargarRend; $("rendHasta").onchange = cargarRend;
     $("botRef").onclick = () => abrirBotonera(true);
+    $("empNuevo").onclick = () => { if (gral) abrirForm(null); else cargarEmp().then(() => gral && abrirForm(null)); };
+    $("empRef").onclick = cargarEmp; $("empBajas").onchange = cargarEmp; $("efGuardar").onclick = guardarEmp; $("efCancelar").onclick = cerrarForm;
+    $("efCopiar").onclick = copiarLunes; $("efFlex").onchange = actualizarSemana; $("efSemana").addEventListener("change", actualizarSemana);
+    $("empLista").addEventListener("click", (ev) => {
+      const b = ev.target.closest("button[data-acc]"); if (!b) return;
+      const id = Number(b.dataset.id), e = emps.find((x) => x.id === id);
+      if (b.dataset.acc === "editar" && e) abrirForm(e); else bajaEmp(id, b.dataset.acc === "alta");
+    });
     $("cajasRef").onclick = () => cargarCajas();
     setInterval(() => { if (!document.hidden && tab === "cajas") cargarCajas(true); }, 10000);   // 1.68: en vivo
     setInterval(() => { if (document.hidden) return; if (tab === "prod" && $("prodDia").value === hoyAR()) cargarProd();

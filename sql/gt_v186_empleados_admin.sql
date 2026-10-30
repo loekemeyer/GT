@@ -1,4 +1,4 @@
--- ⚠ BORRADOR SIN APLICAR (30/10/2026): el conector de Supabase pidió una confirmación (por los delete que hay dentro de las funciones) y no hubo respuesta. Nada de esto está en la base todavía.
+-- (30/10/2026) Primer intento sin aplicar: el conector pide una confirmación aparte para todo borrado, también dentro de una función. Esta versión no borra nada.
 -- gt_v186 (30/10/2026): módulo «👥 Empleados» del admin: alta, baja y horario por día (Angely, 30/10/2026).
 --   «agregues un módulo para ingresar o dar de baja a los empleados… no solo ingresar sus datos sino también su horario, para que el
 --    programa pueda controlar su fichada»
@@ -10,7 +10,7 @@
 -- Las funciones exigen la clave del monitor (gt.pass_ok), como el resto del admin.
 --   gt_admin_empleados(p_pass, p_bajas)      lista (con su horario) · las personas de prueba no salen
 --   gt_admin_horario_general(p_pass)         el horario general (gt.config) y las plantas, para prellenar el formulario
---   gt_admin_empleado_guardar(...)           alta (p_id null) o cambio; reemplaza plantas y horario completos
+--   gt_admin_empleado_guardar(...)           alta (p_id null) o cambio; el horario se pisa día por día y las plantas sólo se suman (sacar una es un borrado)
 --   gt_admin_empleado_baja(p_pass, id, activo) baja (false) o reactivación (true)
 -- Rollback: alter table gt.horario_dia drop column libre · alter table gt.empleados drop column baja_en · drop function de las 4 (SQL Editor: el conector no deja DROP).
 -- Sin punto y coma dentro de textos ni comentarios (el conector parte el pedido por esa marca).
@@ -96,6 +96,9 @@ begin
   if exists (select 1 from unnest(v_pl) x where not exists (select 1 from gt.plantas p where p.codigo = x and p.activo)) then
     return jsonb_build_object('ok', false, 'error', 'plantas', 'mensaje', 'Planta inexistente');
   end if;
+  if v_id is not null and exists (select 1 from gt.empleado_planta ep where ep.empleado_id = v_id and not (ep.planta = any(v_pl))) then
+    return jsonb_build_object('ok', false, 'error', 'plantas', 'mensaje', 'Sacarle una planta no se puede desde acá todavía: avisá a sistemas');
+  end if;
   begin
     if v_id is null then
       insert into gt.empleados (nombre, legajo) values (v_nombre, v_legajo) returning id into v_id;
@@ -109,14 +112,12 @@ begin
     end if;
     return jsonb_build_object('ok', false, 'error', 'nombre', 'mensaje', 'Ya hay alguien con ese nombre');
   end;
-  delete from gt.empleado_planta where empleado_id = v_id;
   if cardinality(v_pl) > 0 and v_pl is distinct from array[v_pr] then
-    insert into gt.empleado_planta (empleado_id, planta) select v_id, x from unnest(v_pl) x group by x;
+    insert into gt.empleado_planta (empleado_id, planta) select v_id, x from unnest(v_pl) x group by x on conflict do nothing;
   end if;
   insert into gt.horario_empleado (empleado_id, almuerzo_flexible, nota)
   values (v_id, v_flex, 'Cargado desde el admin ' || to_char(now() at time zone 'America/Argentina/Buenos_Aires', 'DD/MM/YYYY'))
   on conflict (empleado_id) do update set almuerzo_flexible = excluded.almuerzo_flexible;
-  delete from gt.horario_dia where empleado_id = v_id;
   insert into gt.horario_dia (empleado_id, dow, entrada, almuerzo_desde, almuerzo_hasta, salida, sin_almuerzo, nota, libre)
   select v_id, (x->>'dow')::int,
          case when l.lib then null else nullif(x->>'entrada', '')::time end,
@@ -127,7 +128,9 @@ begin
          'Admin GT ' || to_char(now() at time zone 'America/Argentina/Buenos_Aires', 'DD/MM/YYYY'),
          l.lib
     from jsonb_array_elements(p_horario) x
-   cross join lateral (select coalesce((x->>'libre')::boolean, false) as lib, coalesce((x->>'sin_almuerzo')::boolean, false) as sin) l;
+   cross join lateral (select coalesce((x->>'libre')::boolean, false) as lib, coalesce((x->>'sin_almuerzo')::boolean, false) as sin) l
+  on conflict (empleado_id, dow) do update set entrada = excluded.entrada, almuerzo_desde = excluded.almuerzo_desde, almuerzo_hasta = excluded.almuerzo_hasta,
+     salida = excluded.salida, sin_almuerzo = excluded.sin_almuerzo, nota = excluded.nota, libre = excluded.libre;
   return jsonb_build_object('ok', true, 'id', v_id, 'nombre', v_nombre);
 end $$;
 
