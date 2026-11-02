@@ -469,6 +469,13 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 - Distancias reales en «Terminé» (Contraído con «Terminar e ir a Armado de cajas», 320/360/390 px): «🏁 Terminé el día» queda a **10 px** a la derecha de «🍽️ Me voy a almorzar» y a **8 px** (320) / **10 px** (360 y 390) debajo de «Terminar e ir a Armado de cajas»; cada botón mide 50 px de alto. El «toque sin querer» de Javier es **[Probable]**, no probado: no hay registro de qué botón tocó.
 - `tests/smoke.cjs` (+1 control: dice que no → no registra FIN, sigue en la pantalla con el 30 tipeado; dice que sí → registra).
 
+### Contraído 426 del 05/10 cargado dos veces — corregido a mano (Angely, 02/11/2026: D7 / D21)
+
+- Walter y Javier abrieron el 426 con 1,5 s de diferencia **sin tocar «Tocá para sumarte»** y cerraron con 0,3 s de diferencia, cada uno con 25 cajas: el programa lo leyó como dos trabajos (50 cajas = 800 u). Emblistado había hecho 25 cajas (400 u) ese día, así que el trabajo fue de 25 [Probable]. Casos parecidos: 05/10 (137) y 08/10 (Encolado 136, 456, 547); desde el 09/10 no hay ninguno.
+- **Cómo cuenta el programa una caja:** `gt.movimientos` multiplica las cajas cargadas por `gt.codigos.uxb` al consultar (el 426: 16 u por caja; los 283 activos que se fabrican van de 1 a 28, el más común 16 con 99 artículos). Cada cierre de 25 cajas del 426 = Contraído +400, Emblistado −400, FILM −400 y 25 cajas armadas de la `40*15`.
+- **Corrección** (`sql/gt_dato_426_pareja_20261102.sql`, ya aplicada): fila 150 en `gt.parejas` (Walter empezó, Javier se sumó) + `_une` / `_invitado` / `pareja` en las 2 filas de Javier, cantidad vacía en su cierre, «con Javier Burgos» en las 2 de Walter. Verificado: Contraído 426 **+560 → +160** u, FILM **−21.600 → −21.200**; Emblistado 426 y la caja `40*15` no cambian (conteo del 29/10). No se borró ninguna fila ni se tocó ningún trigger, función o vista.
+- El ✏️ de Producción no sirve para esto: sólo permite poner un número, no dejar la cantidad vacía, y el Rendimiento solo reconoce la pareja si existe la fila en `gt.parejas`.
+
 ### REGLA de publicación (Angely, 02/11/2026): no tocar a los operarios mientras trabajan
 
 *«Si algún cambio afecta el uso del programa mientras lo están usando, avisame y esperamos que los empleados se vayan. Afectar = que se les cierre la app o que no se les guarde lo que hacen.»* Está en `CLAUDE.md`.
