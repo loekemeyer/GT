@@ -78,6 +78,12 @@
     .cel iframe{width:100%;height:100%;border:0;display:block;}
     td input.arm{width:64px;font:inherit;font-size:14px;text-align:center;padding:4px;border-radius:8px;border:1px solid var(--borde);background:var(--card);color:var(--fg);}
     .c-mut{background:var(--borde);color:var(--mut);}
+    /* TRAMOS (1.70) */
+    .ef-fila input[type=time],.ef-fila input[type=number]{font:inherit;font-size:15px;padding:7px 10px;border-radius:10px;border:1px solid var(--borde);background:var(--card);color:var(--fg);width:130px;}
+    #trForm button{border:1px solid var(--borde);background:var(--card);color:var(--fg);border-radius:10px;padding:7px 12px;font-size:14px;}
+    #trForm button.prim{background:var(--acc);border-color:var(--acc);color:#fff;}
+    #trMsg.err{color:var(--err);font-weight:600;}
+    #prodOp td.acc{white-space:nowrap;} #prodOp td.acc button{border:1px solid var(--borde);background:var(--card);border-radius:8px;padding:2px 7px;font-size:13px;margin:0 1px;}
     /* EMPLEADOS (1.69) */
     .barra button.prim,.ped-acc button.prim{background:var(--acc);border-color:var(--acc);color:#fff;}
     .ef-fila{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 16px;margin-bottom:10px;}
@@ -140,6 +146,17 @@
   </main>
 
   <section id="prod" class="vista panel hidden">
+    <!-- 1.70 (Angely, 02/11/2026): corregir a mano un tramo mal marcado. La duración, el ritmo, el rendimiento y el stock se recalculan solos de los horarios. -->
+    <div id="trForm" class="bloque hidden">
+      <h2 id="trTit">Corregir un tramo</h2>
+      <div class="ef-fila">
+        <label>Desde<input type="time" id="trDesde" step="60" /></label>
+        <label id="trHastaL">Hasta<input type="time" id="trHasta" step="60" /></label>
+        <label id="trCantL">Cantidad<input type="number" id="trCant" min="0" step="any" /></label>
+        <span class="info" id="trDur"></span>
+      </div>
+      <div class="ped-acc"><button id="trGuardar" class="prim">Guardar</button><button id="trCancelar" type="button">Cancelar</button><span class="ped-msg" id="trMsg"></span></div>
+    </div>
     <div class="barra"><input type="date" id="prodDia" /><button id="prodRef">↻ Actualizar</button>
       <select id="fArea" aria-label="Área"></select><select id="fOper" aria-label="Operario"></select><select id="fFam" aria-label="Familia"></select>
       <span class="info" id="prodInfo"></span></div>
@@ -208,7 +225,7 @@
     <div class="cel"><iframe id="botFrame" title="Botonera del operario (modo vista)" referrerpolicy="no-referrer"></iframe></div>
   </section>
 
-  <script src="config.js?v=1.69"></script>
+  <script src="config.js?v=1.70"></script>
   <script>
   (function () {
     const CFG = window.GT_CFG, CIRC = 263.9, LS_PASS = "gt_monitor_pass";
@@ -325,10 +342,13 @@
       const dia = $("prodDia").value || hoyAR();
       $("prodInfo").textContent = "Cargando…";
       let rows;
-      try { rows = await rpc("gt_admin_produccion3", { p_pass: pass || "", p_dia: dia }); }   // 1.32: + «familia» (gt_v145)
+      try { rows = await rpc("gt_admin_produccion4", { p_pass: pass || "", p_dia: dia }); }   // 1.70: + id_apertura / id_cierre (editar y eliminar, gt_v188)
       catch {
-        try { rows = await rpc("gt_admin_produccion2", { p_pass: pass || "", p_dia: dia }); }   // 1.14: + «auto»
-        catch (e) { $("prodInfo").textContent = "⚠ No pude leer la producción (" + e.message + ")"; return; }
+        try { rows = await rpc("gt_admin_produccion3", { p_pass: pass || "", p_dia: dia }); }   // 1.32: + «familia» (gt_v145)
+        catch {
+          try { rows = await rpc("gt_admin_produccion2", { p_pass: pass || "", p_dia: dia }); }   // 1.14: + «auto»
+          catch (e) { $("prodInfo").textContent = "⚠ No pude leer la producción (" + e.message + ")"; return; }
+        }
       }
       if (!rows.length && !(await claveOk())) return;
       $("prodInfo").textContent = rows.length + " tramos · actualizado " + new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
@@ -368,6 +388,11 @@
         iv.forEach(([a, b]) => { if (!cur || a > cur[1]) { if (cur) tot += cur[1] - cur[0]; cur = [a, b]; } else cur[1] = Math.max(cur[1], b); });
         return cur ? tot + cur[1] - cur[0] : tot;
       };
+      // 1.70 (Angely: «se marcó por error dos tareas al mismo tiempo»): dos tramos del MISMO operario que se pisan más de 5 s y donde ninguno está
+      // adentro del otro (un baño dentro de un área es normal) se marcan para corregirlos
+      const ini = (q) => new Date(q.desde).getTime(), fin = (q) => new Date(q.hasta || ahora).getTime();
+      const solapa = (r) => todos.some((q) => q !== r && q.empleado === r.empleado && Math.min(fin(q), fin(r)) - Math.max(ini(q), ini(r)) > 5000 &&
+        !(ini(q) >= ini(r) && fin(q) <= fin(r)) && !(ini(r) >= ini(q) && fin(r) <= fin(q)));
       const rows = todos.filter((r) => pasa(r.area, r.empleado, r.familia));
       // por área: lo cerrado suma; lo en curso se cuenta aparte
       const porArea = new Map();
@@ -384,18 +409,20 @@
           "</td><td class=num>" + (a.conUnid ? num(a.unid) : "—") + "</td><td>" + a.ops.size + "</td><td>" + (a.curso || "—") + "</td></tr>").join("") + "</table>"
         : '<div class="vacio">Sin producción registrada' + (fa || fo || ff ? " con ese filtro" : " ese día") + ".</div>";
       let prev = null;
-      $("prodOp").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Área</th><th>Código</th><th>Familia</th><th>Desde</th><th>Hasta</th><th>Dur.</th><th>Cant.</th><th>Unid.</th></tr>" +
+      $("prodOp").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Área</th><th>Código</th><th>Familia</th><th>Desde</th><th>Hasta</th><th>Dur.</th><th>Cant.</th><th>Unid.</th><th></th></tr>" +
         rows.map((r) => {
           const nuevo = r.empleado !== prev; prev = r.empleado;
           const cls = ((r.hasta ? (r.auto ? "auto" : "") : "curso") + (nuevo ? " sep" : "")).trim();
-          return '<tr class="' + cls + '"><td class=izq>' + (nuevo ? "<b>" + esc(r.empleado) + "</b>" : "") + "</td><td>" + esc(r.area) +
+          return '<tr class="' + cls + '"><td class=izq>' + (nuevo ? "<b>" + esc(r.empleado) + "</b>" : "") + "</td><td>" + esc(r.area) + (solapa(r) ? '<br><span class="chip c-err">⚠ se superpone</span>' : "") +
             "</td><td class=izq>" + esc(r.codigo || "—") + (r.descripcion ? ' <span class="desc">' + esc(r.descripcion) + "</span>" : "") +
             // 1.32 (Elías): la familia (grupo de fabricación: moldura + medida); un código que va solo, «—»
             "</td><td>" + (r.familia && !/^Código /.test(r.familia) ? esc(r.familia) : "—") +
             "</td><td>" + hhmmTz(r.desde) + "</td><td>" + (r.hasta ? hhmmTz(r.hasta) + (r.auto ? '<br><span class="desc">🔒 cerrado solo</span>' : "") : "en curso") + "</td><td>" +
             hm(Math.max(0, Math.round((new Date(r.hasta || ahora) - new Date(r.desde) - pausaMs(r)) / 60000))) +
             (pausaMs(r) >= 60000 ? '<br><span class="desc">−' + hm(Math.round(pausaMs(r) / 60000)) + " pausa</span>" : "") + "</td><td class=num>" +
-            (r.cantidad == null ? "—" : num(r.cantidad)) + "</td><td class=num>" + (r.unidades == null ? "—" : num(r.unidades)) + "</td></tr>";
+            (r.cantidad == null ? "—" : num(r.cantidad)) + "</td><td class=num>" + (r.unidades == null ? "—" : num(r.unidades)) + "</td><td class=\"acc\">" +
+            (r.id_apertura ? '<button data-tr="editar" data-ia="' + r.id_apertura + '" data-ic="' + (r.id_cierre || "") + '" title="Corregir los horarios">✏️</button>' +
+              '<button data-tr="eliminar" data-ia="' + r.id_apertura + '" data-ic="' + (r.id_cierre || "") + '" class="peligro" title="Eliminar el tramo">🗑️</button>' : "") + "</td></tr>";
         }).join("") + "</table>" : '<div class="vacio">—</div>';
       // 1.32: el ritmo no cuenta los tramos de menos de 2 min (D35), netos de pausas; si sólo hubo de ésos, se dice
       const cortos = rows.filter((r) => r.hasta && r.cantidad != null && new Date(r.hasta) - new Date(r.desde) - pausaMs(r) < 120000).length;
@@ -607,6 +634,53 @@
       f.removeAttribute("src"); f.dataset.ok = ""; $("botInfo").textContent = "";
     }
 
+    /* ---------- TRAMOS (1.70, Angely 02/11/2026): corregir a mano un tramo mal marcado ---------- */
+    // Editar = cambiar el desde / hasta (y la cantidad) · Eliminar = el tramo deja de contar (opcion AREAX, no se borra ninguna fila). Todo lo calculado
+    // (duración neta de pausas, ritmo, rendimiento, stock) sale de esos horarios y se recalcula al volver a pedir la pantalla.
+    let trEdit = null;
+    const hhmmAR = (ts) => ts ? new Date(ts).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" }) : "";
+    const fechaAR = (ts) => new Date(ts).toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+    const isoAR = (ts0, hhmm) => fechaAR(ts0) + "T" + hhmm + ":00-03:00";
+    function trMsg(t, err) { $("trMsg").textContent = t || ""; $("trMsg").classList.toggle("err", !!err); }
+    function trDur() {
+      if (!trEdit || !trEdit.id_cierre) { $("trDur").textContent = ""; return; }
+      const d = $("trDesde").value, h = $("trHasta").value;
+      $("trDur").textContent = d && h ? "Dura " + hm(Math.max(0, Math.round((new Date(isoAR(trEdit.hasta, h)) - new Date(isoAR(trEdit.desde, d))) / 60000))) + " (sin descontar pausas)" : "";
+    }
+    function abrirTramo(r) {
+      trEdit = r;
+      $("trTit").textContent = "Corregir: " + r.empleado + " · " + r.area + (r.codigo && r.codigo !== "—" ? " · " + r.codigo : "");
+      $("trDesde").value = hhmmAR(r.desde);
+      $("trHasta").value = r.hasta ? hhmmAR(r.hasta) : ""; $("trHastaL").classList.toggle("hidden", !r.id_cierre);
+      $("trCant").value = r.cantidad == null ? "" : r.cantidad; $("trCantL").classList.toggle("hidden", !r.id_cierre);
+      trMsg(""); trDur(); $("trForm").classList.remove("hidden"); $("trForm").scrollIntoView({ block: "nearest" });
+    }
+    function cerrarTramo() { $("trForm").classList.add("hidden"); trEdit = null; trMsg(""); }
+    async function guardarTramo() {
+      const r = trEdit; if (!r) return;
+      const d = $("trDesde").value, h = $("trHasta").value;
+      if (!d) { trMsg("⚠ Falta la hora de inicio", true); return; }
+      if (r.id_cierre && !h) { trMsg("⚠ Falta la hora de fin", true); return; }
+      const desde = isoAR(r.desde, d), hasta = r.id_cierre ? isoAR(r.hasta, h) : null;
+      if (hasta && new Date(hasta) <= new Date(desde)) { trMsg("⚠ El «hasta» tiene que ser después del «desde»", true); return; }
+      $("trGuardar").disabled = true; trMsg("Guardando…");
+      let x;
+      try { x = await rpc("gt_admin_tramo_editar", { p_pass: pass || "", p_id_apertura: r.id_apertura, p_id_cierre: r.id_cierre || null, p_desde: desde, p_hasta: hasta, p_cantidad: r.id_cierre && $("trCant").value !== "" ? Number($("trCant").value) : null }); }
+      catch (e) { trMsg("⚠ No pude guardar (" + e.message + ")", true); $("trGuardar").disabled = false; return; }
+      $("trGuardar").disabled = false;
+      if (!x || !x.ok) { if (x && x.error === "clave") { sinPermiso(); return; } trMsg("⚠ " + ((x && x.mensaje) || "no se pudo guardar"), true); return; }
+      cerrarTramo(); await cargarProd(); $("prodInfo").textContent = "✓ Tramo corregido: la duración se recalculó · " + $("prodInfo").textContent;
+    }
+    async function eliminarTramo(r) {
+      if (!window.confirm("¿Eliminar este tramo?\n\n" + r.empleado + " · " + r.area + (r.codigo && r.codigo !== "—" ? " · " + r.codigo : "") + " · " + hhmmAR(r.desde) + (r.hasta ? "–" + hhmmAR(r.hasta) : " (en curso)") +
+        (r.cantidad != null ? "\n\nTenía " + num(r.cantidad) + " cargadas: dejan de contar en Producción y en el stock." : "") + "\n\nNo se borra nada de la base: el tramo deja de contar y queda anotado.")) return;
+      let x;
+      try { x = await rpc("gt_admin_tramo_eliminar", { p_pass: pass || "", p_id_apertura: r.id_apertura, p_id_cierre: r.id_cierre || null }); }
+      catch (e) { $("prodInfo").textContent = "⚠ No pude eliminar el tramo (" + e.message + ")"; return; }
+      if (!x || !x.ok) { if (x && x.error === "clave") { sinPermiso(); return; } $("prodInfo").textContent = "⚠ " + ((x && x.mensaje) || "no se pudo eliminar"); return; }
+      cerrarTramo(); await cargarProd(); $("prodInfo").textContent = "✓ Tramo eliminado: ya no cuenta · " + $("prodInfo").textContent;
+    }
+
     /* ---------- EMPLEADOS (1.69, Angely 30/10/2026): alta, baja y horario por día ---------- */
     // Alta y baja de los empleados con SU horario: lo leen Asistencia, los avisos de llegada y el cierre automático. La baja no borra nada:
     // activo = false (el historial queda). Las plantas sólo se suman: sacar una es un borrado y todavía no se hace desde acá.
@@ -788,6 +862,12 @@
     ["fArea", "fOper", "fFam"].forEach((id) => { $(id).onchange = pintarProd; });
     $("rendRef").onclick = cargarRend; $("rendDesde").onchange = cargarRend; $("rendHasta").onchange = cargarRend;
     $("botRef").onclick = () => abrirBotonera(true);
+    $("trGuardar").onclick = guardarTramo; $("trCancelar").onclick = cerrarTramo; $("trDesde").oninput = $("trHasta").oninput = trDur;
+    $("prodOp").addEventListener("click", (ev) => {
+      const b = ev.target.closest("button[data-tr]"); if (!b || !prodDatos) return;
+      const r = prodDatos.rows.find((x) => x.id_apertura === b.dataset.ia && (x.id_cierre || "") === b.dataset.ic); if (!r) return;
+      if (b.dataset.tr === "editar") abrirTramo(r); else eliminarTramo(r);
+    });
     $("empNuevo").onclick = () => { if (gral) abrirForm(null); else cargarEmp().then(() => gral && abrirForm(null)); };
     $("empRef").onclick = cargarEmp; $("empBajas").onchange = cargarEmp; $("efGuardar").onclick = guardarEmp; $("efCancelar").onclick = cerrarForm;
     $("efCopiar").onclick = copiarLunes; $("efFlex").onchange = actualizarSemana; $("efSemana").addEventListener("change", actualizarSemana);

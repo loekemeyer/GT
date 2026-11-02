@@ -644,7 +644,7 @@
     vigente = vigente || (() => st.codPara && st.codPara.codigo === a.codigo);
     const box = $(boxId), clave = boxId === "codJunta" ? "unirse" : "unirseS";
     box.classList.add("hidden"); box.innerHTML = ""; st[clave] = [];
-    if (!DE_A_DOS.includes(a.codigo)) return;
+    if (!DE_A_DOS.includes(a.codigo) || st.prueba) return;   // 1.70: la persona de prueba no suma a nadie
     let l = [];
     try { l = await rpc("gt_pareja_abiertos", { p_empleado: st.emp, p_rubro: a.codigo }); } catch { return; }   // sin red: arranca solo
     if (!vigente()) return;   // ya salió de la pantalla
@@ -1129,7 +1129,7 @@
   function cancelarCod() { st.codPara = null; show("optionsScreen"); renderBotonera(); }
 
   /* ---------- 1.24: preguntas del área (gt.rubro_pasos) ---------- */
-  function pasosDe(a, momento) { return a ? st.pasos.filter((p) => p.rubro === a.codigo && (p.momento || "empezar") === momento) : []; }
+  function pasosDe(a, momento) { return a ? st.pasos.filter((p) => p.rubro === a.codigo && (p.momento || "empezar") === momento && !(st.prueba && p.fuente === "companeros")) : []; }   // 1.70: la de prueba no pregunta «¿Con quién?»
   function esMoldura(a) { return st.pasos.some((p) => p.rubro === a.codigo && p.campo === "texto" && p.fuente === "molduras"); }
   function cuantas(unidad) { return /^(metros?|kilos?|kg|litros?|pedidos?|paquetes?|aros?|rollos?)\b/i.test(unidad || "") ? "¿Cuántos " : "¿Cuántas "; }
   // las respuestas: `texto` va en texto (la moldura); el resto, en detalle
@@ -1259,12 +1259,18 @@
     }
     st.vistaClave = !!r.vista || VISTA_URL;   // 1.52: la clave del administrador (gt.config.clave_vista): elegir a quién ver, sin grabar
     $("nombreLista").classList.toggle("vista", st.vistaClave);
-    const emps = r.empleados || [];
+    let emps = r.empleados || [];
+    st.empsPrueba = {};
+    // 1.70 (Angely, 02/11/2026): en MODO VISTA (la Botonera del admin y la clave de vista) se suma la «🧪 Persona de Prueba»: ve todas las áreas, en las
+    // dos plantas, y nada de lo que haga se guarda (en vista no sale nada del celular). Sin la función en la base, la lista de siempre.
+    if (st.vistaClave) {
+      try { const pr = await rpc("gt_empleado_prueba", {}); if (pr && pr.id) { emps = [pr].concat(emps.filter((e) => e.id !== pr.id)); st.empsPrueba[pr.id] = true; } } catch { /* nada */ }
+    }
     st.principal = r.principal || null;
     st.empsPlantas = {}; emps.forEach((e) => { st.empsPlantas[e.id] = e.plantas || []; });
     $("nombreLista").innerHTML = emps.length ? emps.map((e) =>
       '<button data-id="' + e.id + '" data-nombre="' + esc(e.nombre) + '" data-ini="' +
-        esc(e.nombre.split(/\s+/).map((x) => x[0] || "").join("").slice(0, 2).toUpperCase()) + '"><span>' + esc(e.nombre) + "</span></button>").join("") :
+        esc(e.nombre.replace(/^[^\p{L}]+/u, "").split(/\s+/).map((x) => x[0] || "").join("").slice(0, 2).toUpperCase()) + '"><span>' + esc(e.nombre) + "</span></button>").join("") :
       '<div class="error">No hay empleados cargados en GT.</div>';
     show("nombreScreen");
   }
@@ -1333,6 +1339,7 @@
   // 1.22: después del nombre, si trabaja en más de una planta, «¿En qué planta trabajás hoy?»
   // 1.31 (Elías): sin «Cambiar de planta» en la botonera: para cambiar, ‹ y volver a entrar con el código del monitor
   function elegirEmpleado(id, nombre) {
+    st.prueba = !!(st.empsPrueba && st.empsPrueba[id]);   // 1.70: la persona de prueba no pide sumar a la 2.ª persona
     const pl = (st.empsPlantas && st.empsPlantas[id]) || [];
     if (st.plantaFija) { entrar(id, nombre, st.plantaFija, pl, st.principal, true, st.vistaClave); return; }   // 1.53
     if (pl.length < 2) { entrar(id, nombre, pl[0] ? pl[0].codigo : null, pl, st.principal, true, st.vistaClave); return; }
