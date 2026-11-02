@@ -462,7 +462,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
 
-### 1.70 / gt_v188 — corregir a mano un tramo (editar y eliminar) y la 🧪 Persona de Prueba en la Botonera del admin (Angely, 02/11/2026)
+### 1.70 / gt_v189 — corregir a mano un tramo (editar y eliminar) y la 🧪 Persona de Prueba en la Botonera del admin (Angely, 02/11/2026)
 
 - Pedido: *«se marcó por error dos tareas al mismo tiempo (Walter: Encolado y Limpieza 08:33): agregá la opción de editar y eliminar para corregir a mano. Cuando se edite o elimine algún tiempo, el programa debe volver a hacer los cálculos
   de la duración. En la botonera del admin, un empleado de prueba que me permita probar todas las funciones y que lo que haga no se guarde. En las tareas de a 2 personas que no pida que se sume la 2.ª.»*
@@ -471,7 +471,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   adentro del otro (un baño dentro de un área es normal) salen con **«⚠ se superpone»**: es lo que pasó con Walter.
 - **La duración se recalcula sola**: Producción, Ritmo, Rendimiento, Asistencia y el stock (`gt.movimientos`) se calculan de las filas de `gt.registros` cada vez que se piden; no hay nada guardado aparte. Al corregir, la pantalla se vuelve a pedir y la duración del
   área descuenta de nuevo las pausas que quedaron adentro (probado: la limpieza corregida a 09:20–09:24 queda adentro del Encolado y éste pasa de 0:51 a 0:47 con «−0:04 pausa»).
-- **Base** (`sql/gt_v188_tramos_y_prueba.sql`): `gt_admin_produccion4` (= la 3 + `id_apertura` / `id_cierre`), `gt_admin_tramo_editar` (rechaza hasta ≤ desde, horas futuras, cantidad negativa y ids que no son del mismo tramo), `gt_admin_tramo_eliminar` y la tabla
+- **Base** (`sql/gt_v189_tramos_y_prueba.sql`, aplicada como migración `gt_v188_tramos_y_prueba`: otra sesión usó gt_v188 para el 3043 el mismo día): `gt_admin_produccion4` (= la 3 + `id_apertura` / `id_cierre`), `gt_admin_tramo_editar` (rechaza hasta ≤ desde, horas futuras, cantidad negativa y ids que no son del mismo tramo), `gt_admin_tramo_eliminar` y la tabla
   **`gt.registro_correcciones`** (cada edición o baja queda anotada con cómo estaba antes y cómo quedó; RLS prendida, sólo la lee el servicio). Todas con la clave del monitor y **sin ningún `delete`** (el conector pide confirmación por cada borrado).
   Deshacer una baja: `update gt.registros set opcion = 'AREA' where id in (…)` con los ids de `gt.registro_correcciones`.
 - ⚠ Una **pareja** (Encolado / Contraído de a dos) tiene un tramo por persona: se corrige cada uno por separado. Editar la hora de inicio de una apertura que ya tenía una pareja armada no actualiza `gt.parejas.ts` (sólo importa para las abiertas de hoy).

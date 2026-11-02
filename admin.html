@@ -342,7 +342,7 @@
       const dia = $("prodDia").value || hoyAR();
       $("prodInfo").textContent = "Cargando…";
       let rows;
-      try { rows = await rpc("gt_admin_produccion4", { p_pass: pass || "", p_dia: dia }); }   // 1.70: + id_apertura / id_cierre (editar y eliminar, gt_v188)
+      try { rows = await rpc("gt_admin_produccion4", { p_pass: pass || "", p_dia: dia }); }   // 1.70: + id_apertura / id_cierre (editar y eliminar, gt_v189)
       catch {
         try { rows = await rpc("gt_admin_produccion3", { p_pass: pass || "", p_dia: dia }); }   // 1.32: + «familia» (gt_v145)
         catch {

@@ -1,4 +1,4 @@
--- gt_v188 (02/11/2026): corregir a mano un tramo mal marcado y la «Persona de Prueba» de la Botonera del admin (Angely).
+-- gt_v189 (02/11/2026, aplicada en la base con el nombre de migración gt_v188_tramos_y_prueba: otra sesión usó gt_v188 el mismo día): corregir a mano un tramo mal marcado y la «Persona de Prueba» de la Botonera del admin (Angely).
 --   «Se marcó por error dos tareas al mismo tiempo: quiero la opción de editar y eliminar. Cuando se edite o elimine algún tiempo, el
 --    programa debe volver a hacer los cálculos del tiempo de duración.»
 --   «En la botonera del admin, un empleado de prueba que me permita probar todas las funciones y que lo que haga no se guarde. En las
