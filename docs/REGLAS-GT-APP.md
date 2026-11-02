@@ -469,6 +469,15 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 - Distancias reales en «Terminé» (Contraído con «Terminar e ir a Armado de cajas», 320/360/390 px): «🏁 Terminé el día» queda a **10 px** a la derecha de «🍽️ Me voy a almorzar» y a **8 px** (320) / **10 px** (360 y 390) debajo de «Terminar e ir a Armado de cajas»; cada botón mide 50 px de alto. El «toque sin querer» de Javier es **[Probable]**, no probado: no hay registro de qué botón tocó.
 - `tests/smoke.cjs` (+1 control: dice que no → no registra FIN, sigue en la pantalla con el 30 tipeado; dice que sí → registra).
 
+### gt_v190 — 222, 220, 661 y 662 no se emblistan: su Contraído ya no resta de Emblistado (Angely, 02/11/2026: D12 / D23 / D26)
+
+- Angely: *«222, 661, 662 y 220 no se emblistan; el resto sí, y el resto debe haber sido olvido»*. Hasta hoy **todo** Contraído restaba de Emblistado (`gt.movimientos`), así que esos 4 dejaban el stock en negativo (661 −18 y 662 −7 el 08/10; 220 y 222 −4 el 26/10, todos de Javier; el conteo del 29/10 los puso en 0).
+- **Cambio:** columna `gt.codigos.sin_emblistado` (falso por defecto; verdadero en 220, 222, 661 y 662) y la rama de `gt.movimientos` «Contraído resta Emblistado» con `AND NOT rp.sin_embl`. El Contraído de esos códigos **sigue** sumando Contraído, descontando FILM y caja armada. Un código nuevo que tampoco se emblista se marca con un UPDATE, sin tocar la vista.
+- Medido: 2.692 → 2.688 movimientos; stock de Emblistado de los 4 = 0; `security_invoker` conservado; solo `gt.stock` lee `gt.movimientos`. `sql/gt_v190_sin_emblistado.sql`.
+- **El 535 queda fuera**: tiene 2 Emblistados anotados, a veces sí pasa por ahí.
+- **Contraído sin Emblistado de los que SÍ se emblistan (D12):** 878 (05/10 Walter 3 cajas; 07/10 Javier 15; 08/10 Javier 13; 02/11 Javier 15 y Walter 15 contra 15 de Emblistado del 30/10 de Federico → hoy −90 u), 244 (09/10 Federico 10 cajas), 245 (08/10 Federico 8), 276 (07/10 Javier 3), 405 (09/10 Federico 3), 249 (07/10 Javier 1), 557 (07/10 Javier 1). Solo el 878 tiene efecto hoy (los demás son anteriores al conteo). La base dice quién anotó el Contraído, **no** quién debía anotar el Emblistado.
+- **D11 (Angely: «se encajan y luego van a Contraído»):** los 6 códigos de Deco «Armado Cajón 2 Tablas» son 3064 → 563, 3065 → 564, 3066 → 565, 3070 → 583, 3071 → 584, 3072 → 585. Hoy Deco no mueve stock de cajas y el Contraído de esos 6 descuenta caja armada (251 cajas contraídas: 154 de `38*38` antes del conteo y 20 después, 77 de la `5`). Pendiente D24: cuántas cajas de cartón se gastan por cajón armado en Deco.
+
 ### Contraído 426 del 05/10 cargado dos veces — corregido a mano (Angely, 02/11/2026: D7 / D21)
 
 - Walter y Javier abrieron el 426 con 1,5 s de diferencia **sin tocar «Tocá para sumarte»** y cerraron con 0,3 s de diferencia, cada uno con 25 cajas: el programa lo leyó como dos trabajos (50 cajas = 800 u). Emblistado había hecho 25 cajas (400 u) ese día, así que el trabajo fue de 25 [Probable]. Casos parecidos: 05/10 (137) y 08/10 (Encolado 136, 456, 547); desde el 09/10 no hay ninguno.
