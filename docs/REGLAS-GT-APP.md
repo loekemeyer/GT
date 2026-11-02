@@ -462,6 +462,17 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   Nombres cortos para que entren: con 16 áreas, «Guardado a góndola» se sale 5 px en 320×480 y 640×300 (sólo en la botonera
   de Javier). `sql/gt_v162_vista_admin_y_areas_javier.sql`.
 
+### 1.71 — «Terminé el día» pide confirmar (Angely, 02/11/2026)
+
+- Pedido: *«¿podés agregar que pida confirmación al terminar el día?»*, a raíz de Javier Burgos: su app «se cerró» y tuvo que entrar con el código. Causa medida: a las 13:53:08 se registró un **FIN** con «Terminé el día» (no fue la actualización de las 13:04); `finDelDia()` borra la sesión del celular y vuelve a la pantalla del código.
+- `confirmarCant()`, con `p.modo === "fin"`: después de validar la cantidad y **antes de registrar nada**, `confirm("¿Terminar el día? Se cierra tu sesión: para volver a trabajar hay que ingresar de nuevo con el código de la TV.")`. Si dice que no, **no se registra ni el cierre del área ni el FIN** y se queda en la pantalla «Terminé» con la cantidad tipeada. Vale para los dos caminos (`#cantFinBtn` y `🏁 Terminar día` con un área abierta). Sin área abierta, `terminarDia()` ya pedía confirmar.
+- Distancias reales en «Terminé» (Contraído con «Terminar e ir a Armado de cajas», 320/360/390 px): «🏁 Terminé el día» queda a **10 px** a la derecha de «🍽️ Me voy a almorzar» y a **8 px** (320) / **10 px** (360 y 390) debajo de «Terminar e ir a Armado de cajas»; cada botón mide 50 px de alto. El «toque sin querer» de Javier es **[Probable]**, no probado: no hay registro de qué botón tocó.
+- `tests/smoke.cjs` (+1 control: dice que no → no registra FIN, sigue en la pantalla con el 30 tipeado; dice que sí → registra).
+
+### REGLA de publicación (Angely, 02/11/2026): no tocar a los operarios mientras trabajan
+
+*«Si algún cambio afecta el uso del programa mientras lo están usando, avisame y esperamos que los empleados se vayan. Afectar = que se les cierre la app o que no se les guarde lo que hacen.»* Está en `CLAUDE.md`.
+
 ### Admin más ancho: sin scroll horizontal (Angely, 02/11/2026) — sólo `admin.html`, la app sigue en 1.70
 
 - Pedido: *«se ve mal el admin, no veo todas las opciones: agrandá la pantalla para que se vea todo sin scrollear horizontalmente»* (captura de ~930 px con la tabla «Por operario» cortada: la 1.70 le había sumado la columna de ✏️ 🗑️).

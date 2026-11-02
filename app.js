@@ -855,6 +855,9 @@
         " cajas, tocá de nuevo para confirmar.";
       $("cantInput").focus(); return;
     }
+    // 1.71 (Angely, 02/11/2026): «Terminé el día» cierra la sesión del celular, y está pegado a «Me voy a almorzar» y a «Terminar e ir a…»: pide confirmar
+    // antes de registrar nada. Si dice que no, se queda en esta pantalla con lo que tipeó.
+    if (p.modo === "fin" && !confirm("¿Terminar el día?\n\nSe cierra tu sesión: para volver a trabajar hay que ingresar de nuevo con el código de la TV.")) return;
     const sigue = seguir && p.modo !== "fin" ? p.sigue : null;
     const une = sigue && p.une && sigue.codigo === p.une.rubro ? p.une : null;   // 1.61 (D100): se suma a un compañero
     let nuevo = null;

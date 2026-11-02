@@ -285,7 +285,15 @@ srv.listen(0, async () => {
     chk(db[db.length - 2].rubro === "ALMU" && db[db.length - 2].ts_inicio && db[db.length - 1].rubro === "CORTE", "volvió de almorzar y siguió en Corte");
     // terminar el día con Corte abierto
     await termino("CORTE");
-    await pg.fill("#cantInput", "30"); await pg.click("#cantFinBtn"); await alDia();
+    await pg.fill("#cantInput", "30");
+    // 1.71 (Angely): «Terminé el día» pide confirmar. Si dice que no, no se registra nada y se queda en la pantalla con la cantidad tipeada.
+    let dlg = null; pg.once("dialog", (d) => { dlg = d.message(); d.dismiss(); });
+    await pg.click("#cantFinBtn"); await pg.waitForTimeout(400);
+    const colaFin = await pg.evaluate(() => JSON.parse(localStorage.getItem("gt_queue_v3") || "[]").filter((r) => r.opcion === "FIN").length);
+    chk(dlg && /¿Terminar el día\?/.test(dlg) && /ingresar de nuevo/.test(dlg) && colaFin === 0 && !db.some((r) => r.opcion === "FIN") && await pg.isVisible("#cantScreen") && (await pg.inputValue("#cantInput")) === "30",
+        "«Terminé el día» pregunta antes; si dice que no, no registra el FIN, no cierra Corte y sigue en la pantalla con el 30 tipeado");
+    pg.once("dialog", (d) => d.accept());
+    await pg.click("#cantFinBtn"); await alDia();
     chk(db[db.length - 1].opcion === "FIN" && db[db.length - 2].rubro === "CORTE" && db[db.length - 2].cantidad === 30, "cerró Corte y registró el fin del día");
     await pg.waitForSelector("#claveScreen:not(.hidden)");
     chk(!(await pg.evaluate(() => localStorage.getItem("gt_sesion_v2"))), "al terminar el día vuelve a la pantalla del código de la TV (sin sesión)");

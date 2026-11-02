@@ -695,6 +695,17 @@ select n.nspname, c.relname
 
 
 
+## ⚠ REGLA (Angely, 02/11/2026): no publicar nada que afecte a los operarios mientras trabajan
+
+*«Si algún cambio afecta el uso del programa mientras lo están usando, avisame y esperamos que los empleados se vayan para no afectar su trabajo. Afectar = que se les cierre la app, o que no se les guarde lo que hacen.»*
+
+Antes de publicar (a `main` o a la base), mirar si el cambio **afecta a los celulares en uso**. Si afecta: **avisar a quien pide, no publicar y esperar** a que no haya nadie trabajando (pasadas las 17:30, o cuando lo confirme) y a su «sí».
+
+1. **Afecta:** cualquier cambio en `app.js`, `index.html`, `styles.css`, `config.js`, `cola-idb.js`, `sw.js` o `version.json` que **suba la versión** (los celulares se recargan solos cuando cambia `version.json`: `tests/autoupdate.cjs`).
+2. **Afecta:** cambiar o reemplazar en la base lo que usa el celular: `gt_registrar`, `gt_registros_hoy*`, `gt_clave_validar`, `gt_botones*`, `gt_codigos_area2`, `gt_pasos`, `gt_pareja_*`, `gt_log_envio`, `gt_cajas_estado`, `gt_empleado_prueba`, y los triggers/vistas de `gt.registros`.
+3. **No afecta (se puede publicar a cualquier hora):** `admin.html` sin subir la versión, `docs/`, `tests/`, `sql/` que no se aplican, y funciones o vistas que sólo lee el admin (`gt_admin_*`, `gt.demanda_cajas` para el monitor).
+4. Si hay duda, se trata como «afecta». Subir la versión de la app **sólo** cuando el cambio es de la app: el admin solo no la sube.
+
 ## 📚 ÍNDICE — reglas movidas a `docs/` (poda de tokens 2026-10-13)
 
 > Las reglas son las mismas: se movieron a `docs/` para no cargarlas en cada sesión. **Antes de tocar un tema, abrir y leer ENTERO su archivo.** Si una regla de un archivo choca con este `CLAUDE.md`, manda `CLAUDE.md`.
