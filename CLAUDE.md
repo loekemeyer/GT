@@ -165,6 +165,22 @@ ese dato no se puede agrupar ni parseando.
 El precedente de que un trailer fijo funciona es `Claude-Session:`, presente en **238 de 309
 commits (77%)**.
 
+**PILOTO AUTOMÁTICO** (Thomas, 31/10/2026: *«hay veces que mando el mensaje para que se cierre la tarea y no quiero que me
+preguntes nada más, solamente que ejecutes lo que te pedí … lo único que habilitaría que no lo hagas es porque no entiendas mi planteo»*)
+- **Dos modos.** *Manual* (el de siempre): el cierre lista las decisiones D# y termina con *«¿Las definís vos o las resuelvo en
+  piloto automático?»*. *Piloto automático*: lo prende el que habla escribiendo «piloto automático» (o «PA») y dura toda la sesión,
+  hasta que diga «piloto manual».
+- **En piloto automático no se pregunta**: cada decisión que habría ido como D# se resuelve con la recomendación propia, se ejecuta
+  completa (código, base, tests, commit, push, publicación, Planify, auditoría) y el cierre la informa como **«Resuelto en piloto
+  automático: D# → qué se eligió y por qué»**, una línea cada una, para que se pueda revertir.
+- **La única razón para frenar es no entender el pedido**: una sola pregunta concreta sobre qué se quiso decir.
+- **No cubre** lo que ya es del dueño por otra regla: decisiones comerciales (Claude no las propone) y lo que borra datos reales o
+  manda algo afuera (mail, WhatsApp, ISIS): eso se sigue preguntando. Fuente canónica y test: `CLAUDE.md` y
+  `tests/regla-piloto-automatico.cjs` de Gestion-Virgilio.
+- **1 h sin respuesta = piloto automático** (Thomas, 04/11): un cierre con D# arma UN `send_later` a 60 min (borra el anterior);
+  si llega sin mensaje nuevo, resuelve esas D# en piloto y lo informa. Un mensaje antes lo cancela.
+  El mismo recordatorio cumple la «alerta de inactividad» de Planify: lista las tareas abiertas.
+
 ## 🟥 REGLA RECTORA (Luis, 28/09/2026): OPTIMIZACIÓN DE ESPACIO EN TABLAS Y VISUALES
 
 **Vale para TODOS los repos y TODA pantalla, tabla, ficha o reporte** (copiar este bloque al
