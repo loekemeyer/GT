@@ -136,6 +136,12 @@
     .ppp-card .cli{font-weight:700;font-size:15px;}
     .ppp-card .m3{font-weight:700;color:var(--acc);}
     .ppp-card .meta{font-size:12.5px;color:var(--mut);display:flex;flex-wrap:wrap;gap:3px 10px;align-items:center;}
+    .ppp-card .c-izq{display:inline-flex;flex-direction:column;align-items:center;line-height:1.15;}
+    .ppp-card .c-izq .c-fecha{font-size:12px;color:var(--mut);}
+    .ppp-card .c-izq .c-cod{font-size:15px;font-weight:700;}
+    .ppp-card .c-np{font-size:15px;font-weight:700;}
+    .ppp-card .c-zona{font-size:14.5px;}
+    .ppp-card .c-extra{font-size:12px;color:var(--mut);}
     .ppp-badge{font-size:11px;font-weight:700;border-radius:999px;padding:1px 8px;background:var(--acc-bg);color:var(--acc);}
     .ppp-badge.sup{background:var(--warn-bg);color:var(--warn);}
     #ppp table{border-collapse:collapse;width:auto;font-size:13px;margin-top:4px;}
@@ -788,6 +794,7 @@
     const num3 = (n) => (n == null ? "—" : Number(n).toLocaleString("es-AR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }));
     const PPP_DOW = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
     function fmtDia(s) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ""); if (!m) return s || "Sin fecha"; const d = new Date(+m[1], +m[2] - 1, +m[3]); return PPP_DOW[d.getDay()] + " " + m[3] + "/" + m[2]; }
+    function fmtDM(s) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ""); return m ? (m[3] + "/" + m[2]) : (s || "—"); }
     function fcMixLbl(mix) {
       const inp = mix.querySelector(".fc-pct-in"), lbl = mix.querySelector(".fc-mix-lbl");
       const v = (inp && inp.value !== "") ? Number(inp.value) : null;
@@ -899,14 +906,14 @@
               '<span class="fc-mix-lbl">' + esc(lbl) + "</span></span></span>";
           }
           return '<div class="ppp-card"><input type="checkbox" class="ap-chk" data-id="' + esc(r.id) + '" data-m3="' + (Number(r.m3) || 0) + '">' +
+            '<span class="c-izq"><span class="c-fecha">' + esc(fmtDM(r.fecha_recep)) + '</span><span class="c-cod">' + (r.cod != null ? esc(r.cod) : "—") + "</span></span>" +
             '<span class="cli">' + esc(r.cliente || "—") + "</span>" +
             '<span class="ppp-badge' + (sup ? " sup" : "") + '">' + (sup ? "Súper" : "Común") + "</span>" +
             '<span class="m3">' + m3fmt(r.m3) + "</span>" + fc +
-            '<span class="meta"><span>NP ' + esc(r.np) + "</span>" +
-            (r.cod ? "<span>cód " + esc(r.cod) + "</span>" : "") +
-            (r.barrio ? "<span>" + esc(r.barrio) + "</span>" : "") +
-            (r.rent ? "<span>" + esc(r.rent) + "</span>" : "") +
-            (r.oc ? "<span>" + esc(r.oc) + "</span>" : "") + "</span></div>";
+            '<span class="c-np">NP ' + esc(r.np) + "</span>" +
+            '<span class="c-zona">' + esc(r.barrio || "—") + "</span>" +
+            ((r.rent || r.oc) ? '<span class="c-extra">' + esc([r.rent, r.oc].filter(Boolean).join(" · ")) + "</span>" : "") +
+            "</div>";
         }).join("");
         h += "</div>";
       });
