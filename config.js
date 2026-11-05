@@ -6,6 +6,6 @@ window.GT_CFG = {
   APP_VERSION: "1.70",
   // Cargar pedido (Tomás G, 05/11/2026): mismo patrón que GV («Cargar pedido» = iframe al admin, no copia de código).
   // GT embebe el admin del mayorista de TN en modo solo-carga (gt_cp=1#carga-pedidos). La carga vive en el mayorista
-  // (proyecto zjvpzqhbekxnwxdczpof): lo que cambie ahí se ve acá solo. Cambiar la base acá si el dominio pasa a tierravintage.com.ar.
-  MAYORISTA_ADMIN_URL: "https://loekemeyer.github.io/Elias/admin.html",
+  // (proyecto zjvpzqhbekxnwxdczpof): lo que cambie ahí se ve acá solo. Cuando el dominio pase a tierravintage.com.ar, cambiar la base acá.
+  MAYORISTA_ADMIN_URL: "https://tierranativa.github.io/tierranativa/admin.html",
 };
