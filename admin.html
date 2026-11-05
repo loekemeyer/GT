@@ -144,6 +144,13 @@
     .fc-btn+.fc-btn{border-left:1px solid var(--borde);}
     .fc-btn.on[data-v="factura"]{background:var(--ok);color:#fff;}
     .fc-btn.on[data-v="cotizador"]{background:var(--acc);color:#fff;}
+    .ap-chk{width:18px;height:18px;cursor:pointer;flex:0 0 auto;}
+    .ap-bar{position:sticky;bottom:0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--card);border-top:1px solid var(--borde);padding:10px 12px;margin-top:10px;}
+    .ap-bar #apSel{font-weight:700;} .ap-bar .ap-sp{flex:1;}
+    .ap-bar label{font-size:13px;color:var(--mut);display:flex;align-items:center;gap:6px;}
+    .ap-bar input[type=date]{padding:6px 8px;border:1px solid var(--borde);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;}
+    #apEnviar{background:var(--acc);color:#fff;border:1px solid var(--acc);border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;}
+    #apEnviar:disabled{opacity:.5;cursor:not-allowed;}
   </style>
   <link rel="manifest" href="manifest-admin.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -305,6 +312,12 @@
       <span class="info" id="pppInfo"></span>
     </div>
     <div id="pppBody"></div>
+    <div id="apBar" class="ap-bar hidden">
+      <span id="apSel"></span>
+      <span class="ap-sp"></span>
+      <label>Día de entrega <input type="date" id="apFecha"></label>
+      <button id="apEnviar">Enviar a Programación →</button>
+    </div>
   </section>
   <section id="fact" class="vista panel hidden">
     <div class="constr"><h2>🧾 Facturación</h2>
@@ -743,12 +756,33 @@
       if (!pass) return;
       document.querySelectorAll(".ppp-sub").forEach((b) => b.classList.toggle("on", b.dataset.sub === pppSub));
       const body = $("pppBody"); $("pppInfo").textContent = "Cargando…";
+      $("apBar").classList.add("hidden");   // la barra de "enviar a Programación" sólo aparece en A Programar con selección
       try {
-        if (pppSub === "aprog") renderAprog(await rpc("gt_admin_ppp_a_programar", { p_pass: pass }) || []);
+        if (pppSub === "aprog") renderAprog(await rpc("gt_admin_ppp_a_programar2", { p_pass: pass }) || []);
         else if (pppSub === "prog") renderProg(await rpc("gt_admin_ppp_programacion2", { p_pass: pass }) || []);
         else if (pppSub === "entreg") renderEntreg(await rpc("gt_admin_ppp_entregados", { p_pass: pass, p_limit: 300 }) || []);
         else renderPick(await rpc("gt_admin_ppp_picking", { p_pass: pass, p_limit: 500 }) || []);
       } catch (e) { body.innerHTML = '<div class="vacio">⚠ No pude leer la PPP (' + esc(e.message || e) + ").</div>"; $("pppInfo").textContent = ""; }
+    }
+    // A Programar: barra para enviar los pedidos elegidos a Programación con un día (como GV).
+    function apActualizar() {
+      const chks = [...document.querySelectorAll(".ap-chk:checked")], bar = $("apBar");
+      if (!chks.length || pppSub !== "aprog") { bar.classList.add("hidden"); return; }
+      const m = chks.reduce((a, c) => a + (Number(c.dataset.m3) || 0), 0);
+      $("apSel").textContent = chks.length + " seleccionado" + (chks.length > 1 ? "s" : "") + " · " + m3fmt(m);
+      bar.classList.remove("hidden");
+    }
+    async function apEnviar() {
+      const chks = [...document.querySelectorAll(".ap-chk:checked")];
+      if (!chks.length) return;
+      const fecha = $("apFecha").value;
+      if (!fecha) { $("apFecha").focus(); $("pppInfo").textContent = "Elegí el día de entrega"; return; }
+      const ids = chks.map((c) => Number(c.dataset.id));
+      $("apEnviar").disabled = true;
+      try { await rpc("gt_admin_ppp_programar", { p_pass: pass, p_ids: ids, p_fecha: fecha }); }
+      catch (e) { $("pppInfo").textContent = "⚠ " + (e.message || e); $("apEnviar").disabled = false; return; }
+      $("apEnviar").disabled = false; $("apFecha").value = "";
+      cargarPPP();
     }
     function renderAprog(rows) {
       const body = $("pppBody");
@@ -764,7 +798,8 @@
         h += '<div class="ppp-grp">' + k + " (" + grp[k].length + ')</div><div class="ppp-cards">';
         h += grp[k].map((r) => {
           const sup = k === "Supermercados";
-          return '<div class="ppp-card"><span class="cli">' + esc(r.cliente || "—") + "</span>" +
+          return '<div class="ppp-card"><input type="checkbox" class="ap-chk" data-id="' + esc(r.id) + '" data-m3="' + (Number(r.m3) || 0) + '">' +
+            '<span class="cli">' + esc(r.cliente || "—") + "</span>" +
             '<span class="ppp-badge' + (sup ? " sup" : "") + '">' + (sup ? "Súper" : "Común") + "</span>" +
             '<span class="m3">' + m3fmt(r.m3) + "</span>" +
             '<span class="meta"><span>NP ' + esc(r.np) + "</span>" +
@@ -1069,6 +1104,8 @@
       wrap.querySelectorAll(".fc-btn").forEach((x) => x.classList.toggle("on", nv && x.dataset.v === nv));
       try { await rpc("gt_admin_ppp_set_fc", { p_pass: pass, p_id: id, p_valor: nv }); } catch (_e) { cargarPPP(); }
     });
+    $("pppBody").addEventListener("change", (e) => { if (e.target.classList.contains("ap-chk")) apActualizar(); });
+    $("apEnviar").onclick = apEnviar;
     $("trGuardar").onclick = guardarTramo; $("trCancelar").onclick = cerrarTramo; $("trDesde").oninput = $("trHasta").oninput = trDur;
     $("prodOp").addEventListener("click", (ev) => {
       const b = ev.target.closest("button[data-tr]"); if (!b || !prodDatos) return;
