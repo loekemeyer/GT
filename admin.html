@@ -139,6 +139,11 @@
     #ppp th,#ppp td{border-bottom:1px solid var(--borde);padding:4px 10px;text-align:center;white-space:nowrap;}
     #ppp th{font-weight:700;color:var(--mut);}
     #ppp td.l{text-align:left;} #ppp td.r{text-align:right;}
+    .ppp-fc{display:inline-flex;border:1px solid var(--borde);border-radius:999px;overflow:hidden;}
+    .fc-btn{border:0;background:var(--card);color:var(--mut);padding:2px 10px;font-size:11.5px;font-weight:700;cursor:pointer;}
+    .fc-btn+.fc-btn{border-left:1px solid var(--borde);}
+    .fc-btn.on[data-v="factura"]{background:var(--ok);color:#fff;}
+    .fc-btn.on[data-v="cotizador"]{background:var(--acc);color:#fff;}
   </style>
   <link rel="manifest" href="manifest-admin.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -740,7 +745,7 @@
       const body = $("pppBody"); $("pppInfo").textContent = "Cargando…";
       try {
         if (pppSub === "aprog") renderAprog(await rpc("gt_admin_ppp_a_programar", { p_pass: pass }) || []);
-        else if (pppSub === "prog") renderProg(await rpc("gt_admin_ppp_programacion", { p_pass: pass }) || []);
+        else if (pppSub === "prog") renderProg(await rpc("gt_admin_ppp_programacion2", { p_pass: pass }) || []);
         else if (pppSub === "entreg") renderEntreg(await rpc("gt_admin_ppp_entregados", { p_pass: pass, p_limit: 300 }) || []);
         else renderPick(await rpc("gt_admin_ppp_picking", { p_pass: pass, p_limit: 500 }) || []);
       } catch (e) { body.innerHTML = '<div class="vacio">⚠ No pude leer la PPP (' + esc(e.message || e) + ").</div>"; $("pppInfo").textContent = ""; }
@@ -787,9 +792,12 @@
         h += '<div class="ppp-grp">📅 Entrega ' + esc(k) + " (" + arr.length + " · " + m3fmt(m) + ')</div><div class="ppp-cards">';
         h += arr.map((r) => {
           const sup = SUP.test(r.cliente || "");
+          const fc = sup ? "" : ('<span class="ppp-fc" data-id="' + esc(r.id) + '">' +
+            '<button class="fc-btn' + (r.fc_cotizador === "factura" ? " on" : "") + '" data-v="factura">Factura</button>' +
+            '<button class="fc-btn' + (r.fc_cotizador === "cotizador" ? " on" : "") + '" data-v="cotizador">Cotizador</button></span>');
           return '<div class="ppp-card"><span class="cli">' + esc(r.cliente || "—") + "</span>" +
             '<span class="ppp-badge' + (sup ? " sup" : "") + '">' + (sup ? "Súper" : "Común") + "</span>" +
-            '<span class="m3">' + m3fmt(r.m3) + "</span>" +
+            '<span class="m3">' + m3fmt(r.m3) + "</span>" + fc +
             '<span class="meta"><span>NP ' + esc(r.np) + "</span>" +
             (r.cod ? "<span>cód " + esc(r.cod) + "</span>" : "") +
             (r.barrio ? "<span>" + esc(r.barrio) + "</span>" : "") +
@@ -1051,6 +1059,16 @@
     $("cargaAbrir").onclick = abrirCargaTab;
     document.querySelectorAll(".ppp-sub").forEach((b) => { b.onclick = () => { pppSub = b.dataset.sub; cargarPPP(); }; });
     $("pppRef").onclick = cargarPPP;
+    // Marcar Factura/Cotizador en Programación (sólo cards de comunes). Tocar el ya marcado = destildar.
+    $("pppBody").addEventListener("click", async (e) => {
+      const b = e.target.closest(".fc-btn"); if (!b) return;
+      const wrap = b.closest(".ppp-fc"); if (!wrap) return;
+      const id = Number(wrap.dataset.id), v = b.dataset.v;
+      const cur = wrap.querySelector(".fc-btn.on");
+      const nv = (cur && cur.dataset.v === v) ? null : v;
+      wrap.querySelectorAll(".fc-btn").forEach((x) => x.classList.toggle("on", nv && x.dataset.v === nv));
+      try { await rpc("gt_admin_ppp_set_fc", { p_pass: pass, p_id: id, p_valor: nv }); } catch (_e) { cargarPPP(); }
+    });
     $("trGuardar").onclick = guardarTramo; $("trCancelar").onclick = cerrarTramo; $("trDesde").oninput = $("trHasta").oninput = trDur;
     $("prodOp").addEventListener("click", (ev) => {
       const b = ev.target.closest("button[data-tr]"); if (!b || !prodDatos) return;
