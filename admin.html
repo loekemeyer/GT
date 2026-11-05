@@ -127,7 +127,9 @@
     /* PPP (Tomás G 05/11) — sub-tabs formato GV + cards */
     .ppp-sub{border:1px solid var(--borde);background:var(--card);color:var(--fg);border-radius:999px;padding:6px 14px;font-size:14px;font-weight:600;cursor:pointer;}
     .ppp-sub.on{background:var(--acc);border-color:var(--acc);color:#fff;}
-    #pppBuscar{padding:6px 12px;border:1px solid var(--borde);border-radius:999px;background:var(--card);color:var(--fg);font:inherit;font-size:13px;min-width:230px;}
+    #pppBuscar{display:block;width:100%;margin:8px 0 12px;padding:11px 16px 11px 42px;border:1px solid var(--borde);border-radius:12px;color:var(--fg);font:inherit;font-size:15px;
+      background:var(--card) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="%23888" stroke-width="2" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><line x1="12.5" y1="12.5" x2="17" y2="17"/></svg>') no-repeat 14px center;}
+    #pppBuscar:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-bg);}
     .ppp-grp{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--mut);margin:12px 0 4px;}
     .ppp-cards{display:flex;flex-direction:column;gap:8px;}
     .ppp-card{border:1px solid var(--borde);background:var(--card);border-radius:12px;padding:9px 12px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;}
@@ -316,9 +318,9 @@
       <button class="ppp-sub" data-sub="entreg">✅ Entregados</button>
       <button class="ppp-sub" data-sub="pick">📦 Reporte Picking</button>
       <button id="pppRef">↻ Actualizar</button>
-      <input id="pppBuscar" type="search" placeholder="🔎 Cliente, código o NP…" autocomplete="off">
       <span class="info" id="pppInfo"></span>
     </div>
+    <input id="pppBuscar" type="search" placeholder="Buscar: NP, cliente, código…" autocomplete="off">
     <div id="pppBody"></div>
     <div id="apBar" class="ap-bar hidden">
       <span id="apSel"></span>
