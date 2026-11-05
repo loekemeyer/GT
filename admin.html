@@ -147,6 +147,11 @@
     .fc-btn+.fc-btn{border-left:1px solid var(--borde);}
     .fc-btn.on[data-v="factura"]{background:var(--ok);color:#fff;}
     .fc-btn.on[data-v="cotizador"]{background:var(--acc);color:#fff;}
+    .fc-btn.on[data-v="mixto"]{background:var(--warn);color:#fff;}
+    .fc-mix{display:flex;flex-basis:100%;align-items:center;gap:10px;margin-top:4px;font-size:12px;color:var(--mut);}
+    .fc-mix label{display:flex;align-items:center;gap:6px;}
+    .fc-pct-in{width:64px;padding:3px 8px;border:1px solid var(--borde);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;font-size:12px;}
+    .fc-mix-lbl{font-weight:700;color:var(--fg);}
     .ap-chk{width:18px;height:18px;cursor:pointer;flex:0 0 auto;}
     .ap-bar{position:sticky;bottom:0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--card);border-top:1px solid var(--borde);padding:10px 12px;margin-top:10px;}
     .ap-bar #apSel{font-weight:700;} .ap-bar .ap-sp{flex:1;}
@@ -764,6 +769,11 @@
     const num3 = (n) => (n == null ? "—" : Number(n).toLocaleString("es-AR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }));
     const PPP_DOW = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
     function fmtDia(s) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ""); if (!m) return s || "Sin fecha"; const d = new Date(+m[1], +m[2] - 1, +m[3]); return PPP_DOW[d.getDay()] + " " + m[3] + "/" + m[2]; }
+    function fcMixLbl(mix) {
+      const inp = mix.querySelector(".fc-pct-in"), lbl = mix.querySelector(".fc-mix-lbl");
+      const v = (inp && inp.value !== "") ? Number(inp.value) : null;
+      lbl.textContent = (v == null) ? "" : (num(v) + "% fact · " + num(100 - v) + "% no");
+    }
     async function cargarPPP() {
       if (!pass) return;
       document.querySelectorAll(".ppp-sub").forEach((b) => b.classList.toggle("on", b.dataset.sub === pppSub));
@@ -771,7 +781,7 @@
       $("apBar").classList.add("hidden");   // la barra de "enviar a Programación" sólo aparece en A Programar con selección
       try {
         if (pppSub === "aprog") pppRaw = await rpc("gt_admin_ppp_a_programar2", { p_pass: pass }) || [];
-        else if (pppSub === "prog") pppRaw = await rpc("gt_admin_ppp_programacion2", { p_pass: pass }) || [];
+        else if (pppSub === "prog") pppRaw = await rpc("gt_admin_ppp_programacion3", { p_pass: pass }) || [];
         else if (pppSub === "entreg") pppRaw = await rpc("gt_admin_ppp_entregados", { p_pass: pass, p_limit: 300 }) || [];
         else pppRaw = await rpc("gt_admin_ppp_picking", { p_pass: pass, p_limit: 500 }) || [];
         renderActual();
@@ -858,9 +868,18 @@
           '<span class="d-m3">' + num3(m) + ' m³</span></div><div class="ppp-cards">';
         h += arr.map((r) => {
           const sup = SUP.test(r.cliente || "");
-          const fc = sup ? "" : ('<span class="ppp-fc" data-id="' + esc(r.id) + '">' +
-            '<button class="fc-btn' + (r.fc_cotizador === "factura" ? " on" : "") + '" data-v="factura">Factura</button>' +
-            '<button class="fc-btn' + (r.fc_cotizador === "cotizador" ? " on" : "") + '" data-v="cotizador">Cotizador</button></span>');
+          let fc = "";
+          if (!sup) {
+            const v = r.fc_cotizador, pct = r.fc_pct_facturado, mixOn = v === "mixto";
+            const lbl = (mixOn && pct != null) ? (num(pct) + "% fact · " + num(100 - pct) + "% no") : "";
+            fc = '<span class="ppp-fc" data-id="' + esc(r.id) + '">' +
+              '<button class="fc-btn' + (v === "factura" ? " on" : "") + '" data-v="factura">Factura</button>' +
+              '<button class="fc-btn' + (v === "cotizador" ? " on" : "") + '" data-v="cotizador">Cotizador</button>' +
+              '<button class="fc-btn' + (mixOn ? " on" : "") + '" data-v="mixto">Mixto</button></span>' +
+              '<span class="fc-mix" data-id="' + esc(r.id) + '"' + (mixOn ? "" : ' style="display:none"') + '>' +
+              '<label>Facturado <input type="number" class="fc-pct-in" min="0" max="100" step="1" value="' + (pct == null ? "" : esc(pct)) + '"> %</label>' +
+              '<span class="fc-mix-lbl">' + esc(lbl) + "</span></span>";
+          }
           return '<div class="ppp-card"><input type="checkbox" class="ap-chk" data-id="' + esc(r.id) + '" data-m3="' + (Number(r.m3) || 0) + '">' +
             '<span class="cli">' + esc(r.cliente || "—") + "</span>" +
             '<span class="ppp-badge' + (sup ? " sup" : "") + '">' + (sup ? "Súper" : "Común") + "</span>" +
@@ -1135,9 +1154,24 @@
       const cur = wrap.querySelector(".fc-btn.on");
       const nv = (cur && cur.dataset.v === v) ? null : v;
       wrap.querySelectorAll(".fc-btn").forEach((x) => x.classList.toggle("on", nv && x.dataset.v === nv));
-      try { await rpc("gt_admin_ppp_set_fc", { p_pass: pass, p_id: id, p_valor: nv }); } catch (_e) { cargarPPP(); }
+      const card = b.closest(".ppp-card"), mix = card && card.querySelector(".fc-mix");
+      let pct = null;
+      if (nv === "mixto") {
+        if (mix) { mix.style.display = ""; const inp = mix.querySelector(".fc-pct-in"); pct = (inp && inp.value !== "") ? Number(inp.value) : null; fcMixLbl(mix); if (inp) inp.focus(); }
+      } else if (mix) { mix.style.display = "none"; const inp = mix.querySelector(".fc-pct-in"); if (inp) inp.value = ""; fcMixLbl(mix); }
+      try { await rpc("gt_admin_ppp_set_fc2", { p_pass: pass, p_id: id, p_valor: nv, p_pct: pct }); } catch (_e) { cargarPPP(); }
     });
-    $("pppBody").addEventListener("change", (e) => { if (e.target.classList.contains("ap-chk")) apActualizar(); });
+    $("pppBody").addEventListener("change", async (e) => {
+      if (e.target.classList.contains("ap-chk")) { apActualizar(); return; }
+      if (e.target.classList.contains("fc-pct-in")) {
+        const mix = e.target.closest(".fc-mix"); if (!mix) return;
+        const id = Number(mix.dataset.id);
+        const v = e.target.value === "" ? null : Math.max(0, Math.min(100, Math.round(Number(e.target.value))));
+        e.target.value = (v == null ? "" : v);
+        fcMixLbl(mix);
+        try { await rpc("gt_admin_ppp_set_fc2", { p_pass: pass, p_id: id, p_valor: "mixto", p_pct: v }); } catch (_e) {}
+      }
+    });
     $("apEnviar").onclick = apEnviar;
     $("trGuardar").onclick = guardarTramo; $("trCancelar").onclick = cerrarTramo; $("trDesde").oninput = $("trHasta").oninput = trDur;
     $("prodOp").addEventListener("click", (ev) => {
