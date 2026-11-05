@@ -148,7 +148,8 @@
     .fc-btn.on[data-v="factura"]{background:var(--ok);color:#fff;}
     .fc-btn.on[data-v="cotizador"]{background:var(--acc);color:#fff;}
     .fc-btn.on[data-v="mixto"]{background:var(--warn);color:#fff;}
-    .fc-mix{display:flex;flex-basis:100%;align-items:center;gap:10px;margin-top:4px;font-size:12px;color:var(--mut);}
+    .fc-wrap{display:inline-flex;flex-direction:column;gap:3px;align-items:flex-start;}
+    .fc-mix{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mut);}
     .fc-mix label{display:flex;align-items:center;gap:6px;}
     .fc-pct-in{width:64px;padding:3px 8px;border:1px solid var(--borde);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;font-size:12px;}
     .fc-mix-lbl{font-weight:700;color:var(--fg);}
@@ -890,12 +891,12 @@
           if (!sup) {
             const v = r.fc_cotizador, pct = r.fc_pct_facturado, mixOn = v === "mixto";
             const lbl = (mixOn && pct != null) ? (num(pct) + "% fact · " + num(100 - pct) + "% no") : "";
-            fc = '<span class="ppp-fc" data-id="' + esc(r.id) + '">' +
+            fc = '<span class="fc-wrap"><span class="ppp-fc" data-id="' + esc(r.id) + '">' +
               '<button class="fc-btn' + (v === "factura" ? " on" : "") + '" data-v="factura">Factura</button>' +
               '<button class="fc-btn' + (v === "cotizador" ? " on" : "") + '" data-v="cotizador">Cotizador</button>' +
               '<button class="fc-btn' + (mixOn ? " on" : "") + '" data-v="mixto">Mixto</button></span>' +
               '<span class="fc-mix"' + (mixOn && pct != null ? "" : ' style="display:none"') + '>' +
-              '<span class="fc-mix-lbl">' + esc(lbl) + "</span></span>";
+              '<span class="fc-mix-lbl">' + esc(lbl) + "</span></span></span>";
           }
           return '<div class="ppp-card"><input type="checkbox" class="ap-chk" data-id="' + esc(r.id) + '" data-m3="' + (Number(r.m3) || 0) + '">' +
             '<span class="cli">' + esc(r.cliente || "—") + "</span>" +
