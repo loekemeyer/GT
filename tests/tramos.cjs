@@ -61,8 +61,8 @@ srv.listen(0, async () => {
     const pg = await br.newPage({ viewport: { width: 1280, height: 900 } });
     pg.on("dialog", (d) => d.accept());
     await pg.goto(url + "admin.html"); await pg.fill("#passInput", PASS); await pg.click("#passBtn");
-    await pg.waitForSelector("#monitor:not(.hidden)");
-    await pg.click('.tab[data-tab="prod"]'); await pg.waitForSelector("#prodOp table");
+    await pg.waitForSelector("#home:not(.hidden)");
+    await pg.evaluate((t)=>window.verTab(t),"prod"); await pg.waitForSelector("#prodOp table");
     let f = await filas(pg);
     chk(f.length === 4 && (await pg.$$("#prodOp button[data-tr='editar']")).length === 4 && (await pg.$$("#prodOp button[data-tr='eliminar']")).length === 4, "producción · cada tramo tiene ✏️ y 🗑️ (4 tramos)");
     chk(/se superpone/.test(f[1][1]) && /se superpone/.test(f[2][1]) && !/se superpone/.test(f[0][1]) && !/se superpone/.test(f[3][1]), "producción · los dos que se pisan (Encolado 137 y Limpieza) se marcan, los consecutivos no (" + f.map((r) => /se superpone/.test(r[1]) ? "⚠" : "·").join("") + ")");

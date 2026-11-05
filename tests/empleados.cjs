@@ -74,8 +74,8 @@ srv.listen(0, async () => {
     const pg = await br.newPage({ viewport: { width: 1280, height: 900 } });
     pg.on("dialog", (d) => d.accept());
     await pg.goto(url + "admin.html"); await pg.fill("#passInput", PASS); await pg.click("#passBtn");
-    await pg.waitForSelector("#monitor:not(.hidden)");
-    await pg.click('.tab[data-tab="emp"]'); await pg.waitForSelector("#empLista table");
+    await pg.waitForSelector("#home:not(.hidden)");
+    await pg.evaluate((t)=>window.verTab(t),"emp"); await pg.waitForSelector("#empLista table");
     // ── lista ──
     const filas = await pg.$$eval("#empLista tr", (l) => l.slice(1).map((r) => [...r.children].map((c) => c.textContent.replace(/\s+/g, " ").trim())));
     chk(filas.length === 4 && filas[0][1] === "Javier Burgos" && filas[3][1] === "David Galarza", "lista · los activos primero y el de baja al final (" + filas.map((r) => r[1]).join(", ") + ")");
@@ -131,7 +131,7 @@ srv.listen(0, async () => {
     await pg.uncheck("#empBajas"); await pg.waitForFunction(() => !document.querySelector("#empLista").textContent.includes("David Galarza"));
     chk(true, "lista · sin «ver dados de baja» el de baja no figura");
     // ── Asistencia: el franco ──
-    await pg.click('.tab[data-tab="asis"]'); await pg.waitForSelector("#asisTabla table");
+    await pg.evaluate((t)=>window.verTab(t),"asis"); await pg.waitForSelector("#asisTabla table");
     const asis = await pg.$$eval("#asisTabla tr", (l) => l.slice(1).map((r) => r.textContent.replace(/\s+/g, " ").trim()));
     chk(/Ana Franco.*Franco/.test(asis[0]) && !/No vino/.test(asis[0]) && /Beto Faltó.*No vino/.test(asis[1]), "asistencia · el día de franco dice «Franco» y no «No vino»; quien faltó sin franco sigue como falta");
     chk((await pg.textContent("#asisInfo")).includes("1 con faltas") && (await pg.textContent("#asisInfo")).includes("1 de franco"), "asistencia · cuenta 1 con faltas y 1 de franco (" + (await pg.textContent("#asisInfo")) + ")");

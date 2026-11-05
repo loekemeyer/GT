@@ -95,8 +95,8 @@ srv.listen(0, async () => {
     datos = CON_CORTE;
     const ad = await br.newPage({ viewport: { width: 1280, height: 900 } });
     await ad.goto(url + "admin.html"); await ad.fill("#passInput", PASS); await ad.click("#passBtn");
-    await ad.waitForSelector("#monitor:not(.hidden)");
-    await ad.click('.tab[data-tab="cajas"]'); await ad.waitForSelector("#cajasTabla table", { timeout: 4000 });
+    await ad.waitForSelector("#home:not(.hidden)");
+    await ad.evaluate((t)=>window.verTab(t),"cajas"); await ad.waitForSelector("#cajasTabla table", { timeout: 4000 });
     const filasT = await ad.$$eval("#cajasTabla tr", (l) => l.slice(1).map((r) => [...r.children].map((c) => c.textContent.trim())));
     chk(filasT.length === 3 && filasT[0][0] === "40*15" && filasT[1][0] === "30" && filasT[2][0] === "12", "admin · las cajas por armar primero (mayor a menor) y después la que alcanza (" + filasT.map((r) => r[0]).join(", ") + ")");
     chk(filasT[0].join("|") === "40*15|34|529|400|armar 129", "admin · una fila: caja, artículos, emblistado, armadas y estado (" + filasT[0].join("|") + ")");

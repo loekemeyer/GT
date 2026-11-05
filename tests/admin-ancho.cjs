@@ -66,10 +66,10 @@ srv.listen(0, async () => {
     for (const w of [930, 1366]) {
       const pg = await br.newPage({ viewport: { width: w, height: 760 } });
       await pg.goto(url + "admin.html"); await pg.fill("#passInput", PASS); await pg.click("#passBtn");
-      await pg.waitForSelector("#monitor:not(.hidden)");
-      const tabs = await medir(pg, "#tabs");
-      chk(tabs.sw <= tabs.cw + 1, w + " px · las 8 pestañas del menú se ven todas, sin scrollear (" + tabs.sw + " de " + tabs.cw + ")");
-      await pg.click('.tab[data-tab="prod"]'); await pg.waitForSelector("#prodOp table");
+      await pg.waitForSelector("#home:not(.hidden)");
+      const home = await medir(pg, "#home");
+      chk(home.sw <= home.cw + 1, w + " px · el home de tiles entra sin scroll horizontal (" + home.sw + " de " + home.cw + ")");
+      await pg.evaluate((t)=>window.verTab(t),"prod"); await pg.waitForSelector("#prodOp table");
       let m = await medir(pg, "#prodOp");
       chk(m.sw <= m.cw + 1, w + " px · Producción «Por operario» entra entera: se ven las 10 columnas y los botones ✏️ 🗑️ (" + m.sw + " de " + m.cw + ")");
       const ult = await pg.$eval("#prodOp tr:nth-child(2) td:last-child button", (b) => { const r = b.getBoundingClientRect(); return { der: r.right, vw: window.innerWidth }; });
@@ -77,9 +77,9 @@ srv.listen(0, async () => {
       const arriba = await pg.$eval("#prodOp", (e) => e.getBoundingClientRect().left);
       chk(arriba >= 0, w + " px · la tabla no se corta por la izquierda");
       for (const id of ["prodArea", "prodRitmo"]) { m = await medir(pg, "#" + id); chk(m.sw <= m.cw + 1, w + " px · Producción #" + id + " sin scroll horizontal"); }
-      await pg.click('.tab[data-tab="asis"]'); await pg.waitForSelector("#asisTabla table");
+      await pg.evaluate((t)=>window.verTab(t),"asis"); await pg.waitForSelector("#asisTabla table");
       m = await medir(pg, "#asisTabla"); chk(m.sw <= m.cw + 1, w + " px · Asistencia entra entera (" + m.sw + " de " + m.cw + ")");
-      await pg.click('.tab[data-tab="emp"]'); await pg.waitForSelector("#empLista table");
+      await pg.evaluate((t)=>window.verTab(t),"emp"); await pg.waitForSelector("#empLista table");
       m = await medir(pg, "#empLista"); chk(m.sw <= m.cw + 1, w + " px · Empleados entra entero (" + m.sw + " de " + m.cw + ")");
       await pg.close();
     }

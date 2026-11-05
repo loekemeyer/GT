@@ -43,10 +43,10 @@ srv.listen(0, async () => {
     const pg = await br.newPage({ viewport: { width: 1280, height: 900 } });
     await pg.goto(url + "admin.html");
     await pg.fill("#passInput", PASS); await pg.click("#passBtn");
-    await pg.waitForSelector("#monitor:not(.hidden)");
-    chk(!!(await pg.$('.tab[data-tab="bot"]')), "el admin tiene la pestaña 👁 Botonera");
+    await pg.waitForSelector("#home:not(.hidden)");
+    chk(!!(await pg.$('.tile[data-tab="bot"]')), "el admin tiene la pestaña 👁 Botonera");
 
-    await pg.click('.tab[data-tab="bot"]');
+    await pg.evaluate((t)=>window.verTab(t),"bot");
     await pg.waitForSelector("#bot:not(.hidden)");
     await pg.waitForFunction(() => { const f = document.getElementById("botFrame"); return f && f.getAttribute("src"); });
     const src = await pg.getAttribute("#botFrame", "src");
@@ -78,9 +78,9 @@ srv.listen(0, async () => {
       "la cola del navegador quedó vacía");
 
     // salir de la pestaña apaga el iframe; volver lo reabre
-    await pg.click('.tab[data-tab="prod"]'); await pg.waitForTimeout(200);
+    await pg.evaluate((t)=>window.verTab(t),"prod"); await pg.waitForTimeout(200);
     chk(!(await pg.getAttribute("#botFrame", "src")), "al cambiar de pestaña el iframe se apaga");
-    await pg.click('.tab[data-tab="bot"]');
+    await pg.evaluate((t)=>window.verTab(t),"bot");
     await pg.waitForFunction(() => { const f = document.getElementById("botFrame"); return f && f.getAttribute("src"); });
     chk(/vista=1/.test(await pg.getAttribute("#botFrame", "src")), "al volver se reabre en modo vista");
   } catch (e) { fallas.push(String(e)); console.log("✗ " + e); }

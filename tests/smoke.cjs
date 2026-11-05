@@ -447,7 +447,7 @@ srv.listen(0, async () => {
     await ad.waitForFunction(() => document.getElementById("seg").textContent !== "--");
     const seg = Number(await ad.textContent("#seg"));
     chk(seg > 0 && seg <= 42, "monitor admin muestra el código y la cuenta regresiva (" + seg + " s)");
-    await ad.click(".tab[data-tab=prod]"); await ad.waitForSelector("#prodArea table");
+    await ad.evaluate((t)=>window.verTab(t),"prod"); await ad.waitForSelector("#prodArea table");
     chk((await ad.textContent("#prodArea")).includes("240") && (await ad.textContent("#prodOp")).includes("en curso"),
         "Producción: por área con unidades (10 cajas × 24 = 240) y lo en curso");
     chk((await ad.textContent("#prodOp")).includes("cerrado solo"), "el tramo que cerró el sistema se marca «🔒 cerrado solo» (D34)");
@@ -471,7 +471,7 @@ srv.listen(0, async () => {
     chk((await ad.textContent("#prodRitmo")).includes("el que hubo duró menos") && (await ad.textContent("#prodOp")).includes("Mold 03 · 10*30"),
         "un día con sólo un tramo corto: el ritmo dice que no cuenta los de menos de 2 min, y Por operario muestra la familia Mold 03 · 10*30");
     SOLO_CORTO = false;
-    await ad.click(".tab[data-tab=asis]"); await ad.fill("#asisDia", "2026-09-30"); await ad.dispatchEvent("#asisDia", "change");
+    await ad.evaluate((t)=>window.verTab(t),"asis"); await ad.fill("#asisDia", "2026-09-30"); await ad.dispatchEvent("#asisDia", "change");
     await ad.waitForFunction(() => document.getElementById("asisTabla").textContent.includes("No terminó"));
     const asis = await ad.textContent("#asisTabla");
     chk(asis.includes("Llegó tarde") && asis.includes("No vino") && asis.includes("Sin almuerzo") && asis.includes("No terminó el día"),
@@ -479,7 +479,7 @@ srv.listen(0, async () => {
     chk(asis.includes("Arrancó 30 min tarde") && asis.includes("Sin trabajo productivo") && asis.includes("07:42"),
         "Asistencia (1.33): ingreso y 1.er trabajo por separado · arrancó 30 min tarde · ingresó a las 07:42 (desayuno) y no trabajó");
     // 1.37 (Elías): Rendimiento — una tabla por área, filas = variable, columnas = operarios, celda = segundos por unidad
-    await ad.click(".tab[data-tab=rend]"); await ad.waitForSelector("#rendTablas table");
+    await ad.evaluate((t)=>window.verTab(t),"rend"); await ad.waitForSelector("#rendTablas table");
     const rend = await ad.textContent("#rendTablas");
     chk(rend.includes("Encolado") && rend.includes("10*30") && rend.includes("2,5") && rend.includes("4,0") && rend.includes("36,0"),
         "Rendimiento: Encolado 10*30 (Prueba 2,5 · Otro 4,0 s por unidad) y Corte Mold 03 (36,0 s por pieza)");
@@ -494,7 +494,7 @@ srv.listen(0, async () => {
         "Encolado de a dos: dice que la pareja se reparte las unidades según el tiempo de cada uno (gt_v153)");
     if (process.env.FOTO) await ad.screenshot({ path: process.env.FOTO, fullPage: true });
     // D29: Pedidos, por ahora sólo desde el admin
-    await ad.click(".tab[data-tab=ped]"); await ad.waitForSelector("#pedLista .bloque");
+    await ad.evaluate((t)=>window.verTab(t),"ped"); await ad.waitForSelector("#pedLista .bloque");
     chk((await ad.$$("#pedLista .bloque")).length === 2 && (await ad.textContent("#pedLista")).includes("VENCIDO") && (await ad.textContent("#pedInfo")).includes("1 por armar"),
         "Pedidos (D29): los pedidos de TN con su estado, el vencido marcado y cuántos faltan armar");
     chk((await ad.$$('#pedLista .bloque[data-id="1"] input.arm')).length === 2 && (await ad.$$('#pedLista .bloque[data-id="2"] input.arm')).length === 0,
@@ -508,7 +508,7 @@ srv.listen(0, async () => {
     for (let i = 0; i < 30 && ARMAR.length < 2; i++) await ad.waitForTimeout(100);
     chk(ARMAR.length === 2 && ARMAR[1].p_pedido_id === 2 && ARMAR[1].p_estado === "entregado" && ARMAR[1].p_items === null,
         "«Entregado» manda sólo el estado: el pedido cargado no reenvía armado");
-    await ad.click("#salirMon"); await ad.click(".tab[data-tab=prod]"); await ad.waitForTimeout(800); await ad.waitForSelector("#login:not(.hidden)");
+    await ad.click("#salirMon"); await ad.evaluate((t)=>window.verTab(t),"prod"); await ad.waitForTimeout(800); await ad.waitForSelector("#login:not(.hidden)");
     chk(!(await ad.isVisible("#prod")), "sin clave, Producción no muestra datos y pide la clave");
   } catch (e) { fallas.push(String(e)); console.log("✗", e.message); }
   await br.close(); srv.close();
