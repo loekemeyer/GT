@@ -192,7 +192,9 @@
     .ap-bar label{font-size:13px;color:var(--mut);display:flex;align-items:center;gap:6px;}
     .ap-bar input[type=date]{padding:6px 8px;border:1px solid var(--borde);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;}
     #apEnviar{background:var(--acc);color:#fff;border:1px solid var(--acc);border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;}
-    #apEnviar:disabled{opacity:.5;cursor:not-allowed;}
+    #apEnviar:disabled,#apAprog:disabled{opacity:.5;cursor:not-allowed;}
+    #apAprog{background:var(--card);color:var(--fg);border:1px solid var(--borde);border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;}
+    #apAprog.hidden{display:none;}
     /* Cabecera de día en Programación, estilo menú (como GV): día a la izq, m³ a la der. */
     .ppp-day{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--borde);border-radius:8px;padding:6px 12px;margin:12px 0 6px;text-transform:none;letter-spacing:0;font-size:14px;color:var(--fg);}
     .ppp-day .d-fecha{font-weight:700;color:var(--acc);}
@@ -365,6 +367,7 @@
       <span class="ap-sp"></span>
       <label>Día de entrega <input type="date" id="apFecha"></label>
       <button id="apEnviar">Enviar a Programación →</button>
+      <button id="apAprog" class="hidden">← A Programar</button>
     </div>
     <!-- Cartel para elegir los % de Mixto. Después, en la PPP sólo se ven; para cambiarlos hay que pasar a Factura/Cotizador y volver a Mixto. -->
     <div id="fcModal" class="fcm-ov hidden">
@@ -914,7 +917,19 @@
       const m = chks.reduce((a, c) => a + (Number(c.dataset.m3) || 0), 0);
       $("apSel").textContent = chks.length + " seleccionado" + (chks.length > 1 ? "s" : "") + " · " + m3fmt(m);
       $("apEnviar").textContent = (pppSub === "prog") ? "Mover al día →" : "Enviar a Programación →";
+      $("apAprog").classList.toggle("hidden", pppSub !== "prog");  // devolver a A Programar sólo desde Programación
       bar.classList.remove("hidden");
+    }
+    // Programación → A Programar: saca la fecha y vuelve el estado a a_programar (no pide día).
+    async function apAprog() {
+      const chks = [...document.querySelectorAll(".ap-chk:checked")];
+      if (!chks.length) return;
+      const ids = chks.map((c) => Number(c.dataset.id));
+      $("apAprog").disabled = true;
+      try { await rpc("gt_admin_ppp_a_aprogramar", { p_pass: pass, p_ids: ids }); }
+      catch (e) { $("pppInfo").textContent = "⚠ " + (e.message || e); $("apAprog").disabled = false; return; }
+      $("apAprog").disabled = false;
+      cargarPPP();
     }
     async function apEnviar() {
       const chks = [...document.querySelectorAll(".ap-chk:checked")];
@@ -928,6 +943,8 @@
       $("apEnviar").disabled = false; $("apFecha").value = "";
       cargarPPP();
     }
+    // A Programar: mismo formato de tarjeta que Programación (fecha+cód a la izq, cliente, m³, NP, zona),
+    // agrupado por Supermercados / Clientes comunes en vez de por día (Tomás G, 05/11).
     function renderAprog(rows) {
       const body = $("pppBody");
       if (!rows.length) { body.innerHTML = '<div class="vacio">No hay pedidos a programar.</div>'; $("pppInfo").textContent = ""; return; }
@@ -939,19 +956,22 @@
       let h = "";
       for (const k of ["Supermercados", "Clientes comunes"]) {
         if (!grp[k]) continue;
-        h += '<div class="ppp-grp">' + k + " (" + grp[k].length + ')</div><div class="ppp-cards">';
-        h += grp[k].map((r) => {
+        const arr = grp[k], m = arr.reduce((a, r) => a + (Number(r.m3) || 0), 0);
+        h += '<div class="ppp-grp ppp-day"><span class="d-fecha">' + k + "</span>" +
+          '<span class="d-cnt">' + arr.length + " ped.</span>" +
+          '<span class="d-m3">' + num3(m) + ' m³</span></div><div class="ppp-cards">';
+        h += arr.map((r) => {
           const sup = k === "Supermercados";
+          const extra = [r.entrega_retira ? "entrega " + r.entrega_retira : "", r.rent, r.oc].filter(Boolean).join(" · ");
           return '<div class="ppp-card"><input type="checkbox" class="ap-chk" data-id="' + esc(r.id) + '" data-m3="' + (Number(r.m3) || 0) + '">' +
+            '<span class="c-izq"><span class="c-fecha">' + esc(fmtDM(r.fecha_recep)) + '</span><span class="c-cod">' + (r.cod != null ? esc(r.cod) : "—") + "</span></span>" +
             '<span class="cli">' + esc(r.cliente || "—") + "</span>" +
             '<span class="ppp-badge' + (sup ? " sup" : "") + '">' + (sup ? "Súper" : "Común") + "</span>" +
             '<span class="m3">' + m3fmt(r.m3) + "</span>" +
-            '<span class="meta"><span>NP ' + esc(r.np) + "</span>" +
-            (r.cod ? "<span>cód " + esc(r.cod) + "</span>" : "") +
-            (r.fecha_recep ? "<span>recep " + esc(r.fecha_recep) + "</span>" : "") +
-            (r.entrega_retira ? "<span>entrega " + esc(r.entrega_retira) + "</span>" : "") +
-            (r.barrio ? "<span>" + esc(r.barrio) + "</span>" : "") +
-            (r.oc ? "<span>" + esc(r.oc) + "</span>" : "") + "</span></div>";
+            '<span class="c-np">NP ' + esc(r.np) + "</span>" +
+            '<span class="c-zona">' + esc(r.barrio || "—") + "</span>" +
+            (extra ? '<span class="c-extra">' + esc(extra) + "</span>" : "") +
+            "</div>";
         }).join("");
         h += "</div>";
       }
@@ -1290,6 +1310,7 @@
       try { await rpc("gt_admin_ppp_set_fc2", { p_pass: pass, p_id: ctx.id, p_valor: "mixto", p_pct: f }); } catch (_e) { cargarPPP(); }
     };
     $("apEnviar").onclick = apEnviar;
+    $("apAprog").onclick = apAprog;
     $("trGuardar").onclick = guardarTramo; $("trCancelar").onclick = cerrarTramo; $("trDesde").oninput = $("trHasta").oninput = trDur;
     $("prodOp").addEventListener("click", (ev) => {
       const b = ev.target.closest("button[data-tr]"); if (!b || !prodDatos) return;
