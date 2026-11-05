@@ -748,7 +748,9 @@
       if (!rows.length) { body.innerHTML = '<div class="vacio">No hay pedidos a programar.</div>'; $("pppInfo").textContent = ""; return; }
       const tot = rows.reduce((a, r) => a + (Number(r.m3) || 0), 0);
       $("pppInfo").textContent = rows.length + " pedidos · " + m3fmt(tot);
-      const grp = {}; rows.forEach((r) => { const k = /SUPER/i.test(r.bloque || "") ? "Supermercados" : "Clientes comunes"; (grp[k] = grp[k] || []).push(r); });
+      // Súper = SÓLO Cencosud, Inc, Coto y La Anónima (Tomás G, 05/11). El bloque del Excel no alcanza: mete comunes bajo "SUPERMERCADOS".
+      const SUPERS = /cencosud|coto|la an[oó]nima|\binc\b/i;
+      const grp = {}; rows.forEach((r) => { const k = SUPERS.test(r.cliente || "") ? "Supermercados" : "Clientes comunes"; (grp[k] = grp[k] || []).push(r); });
       let h = "";
       for (const k of ["Supermercados", "Clientes comunes"]) {
         if (!grp[k]) continue;
