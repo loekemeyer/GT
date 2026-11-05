@@ -127,6 +127,7 @@
     /* PPP (Tomás G 05/11) — sub-tabs formato GV + cards */
     .ppp-sub{border:1px solid var(--borde);background:var(--card);color:var(--fg);border-radius:999px;padding:6px 14px;font-size:14px;font-weight:600;cursor:pointer;}
     .ppp-sub.on{background:var(--acc);border-color:var(--acc);color:#fff;}
+    #pppBuscar{padding:6px 12px;border:1px solid var(--borde);border-radius:999px;background:var(--card);color:var(--fg);font:inherit;font-size:13px;min-width:230px;}
     .ppp-grp{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--mut);margin:12px 0 4px;}
     .ppp-cards{display:flex;flex-direction:column;gap:8px;}
     .ppp-card{border:1px solid var(--borde);background:var(--card);border-radius:12px;padding:9px 12px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;}
@@ -315,6 +316,7 @@
       <button class="ppp-sub" data-sub="entreg">✅ Entregados</button>
       <button class="ppp-sub" data-sub="pick">📦 Reporte Picking</button>
       <button id="pppRef">↻ Actualizar</button>
+      <input id="pppBuscar" type="search" placeholder="🔎 Cliente, código o NP…" autocomplete="off">
       <span class="info" id="pppInfo"></span>
     </div>
     <div id="pppBody"></div>
@@ -755,7 +757,7 @@
     }
 
     /* ---------- PPP (Tomás G, 05/11/2026) — Fase 1: datos importados del Excel de TN. Fuente viva (ISIS) = Fase 2. ---------- */
-    let pppSub = "aprog";
+    let pppSub = "aprog", pppRaw = [];
     const m3fmt = (n) => (n == null ? "—" : Number(n).toLocaleString("es-AR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " m³");
     const num3 = (n) => (n == null ? "—" : Number(n).toLocaleString("es-AR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }));
     const PPP_DOW = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -766,11 +768,25 @@
       const body = $("pppBody"); $("pppInfo").textContent = "Cargando…";
       $("apBar").classList.add("hidden");   // la barra de "enviar a Programación" sólo aparece en A Programar con selección
       try {
-        if (pppSub === "aprog") renderAprog(await rpc("gt_admin_ppp_a_programar2", { p_pass: pass }) || []);
-        else if (pppSub === "prog") renderProg(await rpc("gt_admin_ppp_programacion2", { p_pass: pass }) || []);
-        else if (pppSub === "entreg") renderEntreg(await rpc("gt_admin_ppp_entregados", { p_pass: pass, p_limit: 300 }) || []);
-        else renderPick(await rpc("gt_admin_ppp_picking", { p_pass: pass, p_limit: 500 }) || []);
+        if (pppSub === "aprog") pppRaw = await rpc("gt_admin_ppp_a_programar2", { p_pass: pass }) || [];
+        else if (pppSub === "prog") pppRaw = await rpc("gt_admin_ppp_programacion2", { p_pass: pass }) || [];
+        else if (pppSub === "entreg") pppRaw = await rpc("gt_admin_ppp_entregados", { p_pass: pass, p_limit: 300 }) || [];
+        else pppRaw = await rpc("gt_admin_ppp_picking", { p_pass: pass, p_limit: 500 }) || [];
+        renderActual();
       } catch (e) { body.innerHTML = '<div class="vacio">⚠ No pude leer la PPP (' + esc(e.message || e) + ").</div>"; $("pppInfo").textContent = ""; }
+    }
+    // Filtro en el front por cliente, código o NP (A Programar, Programación, Entregados, Picking).
+    function pppMatch(r, q) {
+      if (!q) return true;
+      return [r.cliente, r.cod, r.np, r.cod_cliente, r.cpbte, r.cod_articulo].some((x) => x != null && String(x).toLowerCase().includes(q));
+    }
+    function renderActual() {
+      const q = ($("pppBuscar").value || "").toLowerCase().trim();
+      const filt = q ? pppRaw.filter((r) => pppMatch(r, q)) : pppRaw;
+      if (pppSub === "aprog") renderAprog(filt);
+      else if (pppSub === "prog") renderProg(filt);
+      else if (pppSub === "entreg") renderEntreg(filt);
+      else renderPick(filt);
     }
     // A Programar: barra para enviar los pedidos elegidos a Programación con un día (como GV).
     function apActualizar() {
@@ -1106,8 +1122,9 @@
     $("rendRef").onclick = cargarRend; $("rendDesde").onchange = cargarRend; $("rendHasta").onchange = cargarRend;
     $("botRef").onclick = () => abrirBotonera(true);
     $("cargaAbrir").onclick = abrirCargaTab;
-    document.querySelectorAll(".ppp-sub").forEach((b) => { b.onclick = () => { pppSub = b.dataset.sub; cargarPPP(); }; });
+    document.querySelectorAll(".ppp-sub").forEach((b) => { b.onclick = () => { pppSub = b.dataset.sub; $("pppBuscar").value = ""; cargarPPP(); }; });
     $("pppRef").onclick = cargarPPP;
+    $("pppBuscar").addEventListener("input", renderActual);
     // Marcar Factura/Cotizador en Programación (sólo cards de comunes). Tocar el ya marcado = destildar.
     $("pppBody").addEventListener("click", async (e) => {
       const b = e.target.closest(".fc-btn"); if (!b) return;
