@@ -293,6 +293,7 @@
   <section id="ppp" class="vista panel hidden">
     <div class="barra">
       <button class="ppp-sub on" data-sub="aprog">📋 A Programar</button>
+      <button class="ppp-sub" data-sub="prog">📅 Programación</button>
       <button class="ppp-sub" data-sub="entreg">✅ Entregados</button>
       <button class="ppp-sub" data-sub="pick">📦 Reporte Picking</button>
       <button id="pppRef">↻ Actualizar</button>
@@ -739,6 +740,7 @@
       const body = $("pppBody"); $("pppInfo").textContent = "Cargando…";
       try {
         if (pppSub === "aprog") renderAprog(await rpc("gt_admin_ppp_a_programar", { p_pass: pass }) || []);
+        else if (pppSub === "prog") renderProg(await rpc("gt_admin_ppp_programacion", { p_pass: pass }) || []);
         else if (pppSub === "entreg") renderEntreg(await rpc("gt_admin_ppp_entregados", { p_pass: pass, p_limit: 300 }) || []);
         else renderPick(await rpc("gt_admin_ppp_picking", { p_pass: pass, p_limit: 500 }) || []);
       } catch (e) { body.innerHTML = '<div class="vacio">⚠ No pude leer la PPP (' + esc(e.message || e) + ").</div>"; $("pppInfo").textContent = ""; }
@@ -769,6 +771,33 @@
         }).join("");
         h += "</div>";
       }
+      body.innerHTML = h;
+    }
+    function renderProg(rows) {
+      const body = $("pppBody");
+      if (!rows.length) { body.innerHTML = '<div class="vacio">No hay pedidos programados.</div>'; $("pppInfo").textContent = ""; return; }
+      const SUP = /cencosud|coto|la an[oó]nima|\binc\b/i;
+      const tot = rows.reduce((a, r) => a + (Number(r.m3) || 0), 0);
+      $("pppInfo").textContent = rows.length + " programados · " + m3fmt(tot);
+      const grp = {}, ord = [];
+      rows.forEach((r) => { const k = r.entrega_retira || "Sin fecha"; if (!grp[k]) { grp[k] = []; ord.push(k); } grp[k].push(r); });
+      let h = "";
+      ord.forEach((k) => {
+        const arr = grp[k], m = arr.reduce((a, r) => a + (Number(r.m3) || 0), 0);
+        h += '<div class="ppp-grp">📅 Entrega ' + esc(k) + " (" + arr.length + " · " + m3fmt(m) + ')</div><div class="ppp-cards">';
+        h += arr.map((r) => {
+          const sup = SUP.test(r.cliente || "");
+          return '<div class="ppp-card"><span class="cli">' + esc(r.cliente || "—") + "</span>" +
+            '<span class="ppp-badge' + (sup ? " sup" : "") + '">' + (sup ? "Súper" : "Común") + "</span>" +
+            '<span class="m3">' + m3fmt(r.m3) + "</span>" +
+            '<span class="meta"><span>NP ' + esc(r.np) + "</span>" +
+            (r.cod ? "<span>cód " + esc(r.cod) + "</span>" : "") +
+            (r.barrio ? "<span>" + esc(r.barrio) + "</span>" : "") +
+            (r.rent ? "<span>" + esc(r.rent) + "</span>" : "") +
+            (r.oc ? "<span>" + esc(r.oc) + "</span>" : "") + "</span></div>";
+        }).join("");
+        h += "</div>";
+      });
       body.innerHTML = h;
     }
     function renderEntreg(rows) {
