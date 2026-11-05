@@ -9,7 +9,8 @@ language sql stable security definer set search_path to '' as $$
   select id,np,fecha_recep,cod,cliente,kg,m3,vend,dir_entrega,barrio,op,entrega_retira,rent,oc,aviso,bloque
     from gt.ppp_a_programar where gt.pass_ok(p_pass) and estado='a_programar' order by fecha_recep nulls last, np; $$;
 
--- Enviar a Programación: pasa los pedidos elegidos a estado='programado' con la fecha de entrega elegida.
+-- Enviar/Mover: setea estado='programado' + la fecha elegida para los ids dados. Sirve para ENVIAR (A Programar -> Programación)
+-- y para MOVER DE DÍA un ya programado (sin filtrar por estado). Tomás G, 05/11/2026.
 create or replace function public.gt_admin_ppp_programar(p_pass text, p_ids bigint[], p_fecha date)
 returns integer language plpgsql security definer set search_path to '' as $$
 declare n integer;
@@ -18,7 +19,7 @@ begin
   if p_fecha is null then raise exception 'falta la fecha'; end if;
   if p_ids is null or array_length(p_ids,1) is null then return 0; end if;
   update gt.ppp_a_programar set estado='programado', entrega_retira = to_char(p_fecha,'YYYY-MM-DD')
-   where id = any(p_ids) and estado='a_programar';
+   where id = any(p_ids);
   get diagnostics n = row_count; return n;
 end; $$;
 

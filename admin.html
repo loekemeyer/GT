@@ -151,6 +151,12 @@
     .ap-bar input[type=date]{padding:6px 8px;border:1px solid var(--borde);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;}
     #apEnviar{background:var(--acc);color:#fff;border:1px solid var(--acc);border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;}
     #apEnviar:disabled{opacity:.5;cursor:not-allowed;}
+    /* Cabecera de día en Programación, estilo menú (como GV): día a la izq, m³ a la der. */
+    .ppp-day{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--borde);border-radius:8px;padding:6px 12px;margin:12px 0 6px;text-transform:none;letter-spacing:0;font-size:14px;color:var(--fg);}
+    .ppp-day .d-fecha{font-weight:700;color:var(--acc);}
+    .ppp-day .d-hoy{font-size:10px;font-weight:800;background:var(--acc);color:#fff;border-radius:999px;padding:1px 7px;}
+    .ppp-day .d-cnt{font-size:11.5px;color:var(--mut);}
+    .ppp-day .d-m3{margin-left:auto;font-weight:700;}
   </style>
   <link rel="manifest" href="manifest-admin.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -752,6 +758,8 @@
     let pppSub = "aprog";
     const m3fmt = (n) => (n == null ? "—" : Number(n).toLocaleString("es-AR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " m³");
     const num3 = (n) => (n == null ? "—" : Number(n).toLocaleString("es-AR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }));
+    const PPP_DOW = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    function fmtDia(s) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ""); if (!m) return s || "Sin fecha"; const d = new Date(+m[1], +m[2] - 1, +m[3]); return PPP_DOW[d.getDay()] + " " + m[3] + "/" + m[2]; }
     async function cargarPPP() {
       if (!pass) return;
       document.querySelectorAll(".ppp-sub").forEach((b) => b.classList.toggle("on", b.dataset.sub === pppSub));
@@ -767,9 +775,10 @@
     // A Programar: barra para enviar los pedidos elegidos a Programación con un día (como GV).
     function apActualizar() {
       const chks = [...document.querySelectorAll(".ap-chk:checked")], bar = $("apBar");
-      if (!chks.length || pppSub !== "aprog") { bar.classList.add("hidden"); return; }
+      if (!chks.length || (pppSub !== "aprog" && pppSub !== "prog")) { bar.classList.add("hidden"); return; }
       const m = chks.reduce((a, c) => a + (Number(c.dataset.m3) || 0), 0);
       $("apSel").textContent = chks.length + " seleccionado" + (chks.length > 1 ? "s" : "") + " · " + m3fmt(m);
+      $("apEnviar").textContent = (pppSub === "prog") ? "Mover al día →" : "Enviar a Programación →";
       bar.classList.remove("hidden");
     }
     async function apEnviar() {
@@ -819,18 +828,23 @@
       const SUP = /cencosud|coto|la an[oó]nima|\binc\b/i;
       const tot = rows.reduce((a, r) => a + (Number(r.m3) || 0), 0);
       $("pppInfo").textContent = rows.length + " programados · " + m3fmt(tot);
+      const hoy = (typeof hoyAR === "function") ? hoyAR() : "";
       const grp = {}, ord = [];
       rows.forEach((r) => { const k = r.entrega_retira || "Sin fecha"; if (!grp[k]) { grp[k] = []; ord.push(k); } grp[k].push(r); });
       let h = "";
       ord.forEach((k) => {
         const arr = grp[k], m = arr.reduce((a, r) => a + (Number(r.m3) || 0), 0);
-        h += '<div class="ppp-grp">📅 Entrega ' + esc(k) + " (" + arr.length + " · " + m3fmt(m) + ')</div><div class="ppp-cards">';
+        h += '<div class="ppp-grp ppp-day"><span class="d-fecha">' + esc(fmtDia(k)) + "</span>" +
+          (k === hoy ? '<span class="d-hoy">HOY</span>' : "") +
+          '<span class="d-cnt">' + arr.length + " ped.</span>" +
+          '<span class="d-m3">' + num3(m) + ' m³</span></div><div class="ppp-cards">';
         h += arr.map((r) => {
           const sup = SUP.test(r.cliente || "");
           const fc = sup ? "" : ('<span class="ppp-fc" data-id="' + esc(r.id) + '">' +
             '<button class="fc-btn' + (r.fc_cotizador === "factura" ? " on" : "") + '" data-v="factura">Factura</button>' +
             '<button class="fc-btn' + (r.fc_cotizador === "cotizador" ? " on" : "") + '" data-v="cotizador">Cotizador</button></span>');
-          return '<div class="ppp-card"><span class="cli">' + esc(r.cliente || "—") + "</span>" +
+          return '<div class="ppp-card"><input type="checkbox" class="ap-chk" data-id="' + esc(r.id) + '" data-m3="' + (Number(r.m3) || 0) + '">' +
+            '<span class="cli">' + esc(r.cliente || "—") + "</span>" +
             '<span class="ppp-badge' + (sup ? " sup" : "") + '">' + (sup ? "Súper" : "Común") + "</span>" +
             '<span class="m3">' + m3fmt(r.m3) + "</span>" + fc +
             '<span class="meta"><span>NP ' + esc(r.np) + "</span>" +
