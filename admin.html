@@ -148,11 +148,11 @@
     .fc-btn.on[data-v="factura"]{background:var(--ok);color:#fff;}
     .fc-btn.on[data-v="cotizador"]{background:var(--acc);color:#fff;}
     .fc-btn.on[data-v="mixto"]{background:var(--warn);color:#fff;}
-    .fc-wrap{display:inline-flex;flex-direction:column;gap:3px;align-items:flex-start;}
-    .fc-mix{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mut);}
+    .fc-wrap{display:inline-flex;flex-direction:column;gap:3px;align-items:center;}
+    .fc-mix{display:flex;align-items:center;justify-content:center;gap:6px;}
     .fc-mix label{display:flex;align-items:center;gap:6px;}
     .fc-pct-in{width:64px;padding:3px 8px;border:1px solid var(--borde);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;font-size:12px;}
-    .fc-mix-lbl{font-weight:700;color:var(--fg);}
+    .fc-mix-lbl{font-weight:800;font-size:14px;color:var(--err);}
     .fcm-ov{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.4);}
     .fcm-box{background:var(--card);border:1px solid var(--borde);border-radius:14px;padding:18px 20px;width:min(340px,92vw);box-shadow:var(--sombra);}
     .fcm-box h3{margin:0 0 12px;font-size:16px;}
@@ -890,7 +890,7 @@
           let fc = "";
           if (!sup) {
             const v = r.fc_cotizador, pct = r.fc_pct_facturado, mixOn = v === "mixto";
-            const lbl = (mixOn && pct != null) ? (num(pct) + "% fact · " + num(100 - pct) + "% no") : "";
+            const lbl = (mixOn && pct != null) ? (num(pct) + "% FC · " + num(100 - pct) + "% NO FC") : "";
             fc = '<span class="fc-wrap"><span class="ppp-fc" data-id="' + esc(r.id) + '">' +
               '<button class="fc-btn' + (v === "factura" ? " on" : "") + '" data-v="factura">Factura</button>' +
               '<button class="fc-btn' + (v === "cotizador" ? " on" : "") + '" data-v="cotizador">Cotizador</button>' +
@@ -1169,7 +1169,7 @@
     function setFcCard(card, valor, pct) {
       card.querySelectorAll(".fc-btn").forEach((x) => x.classList.toggle("on", valor && x.dataset.v === valor));
       const mix = card.querySelector(".fc-mix"), lbl = mix && mix.querySelector(".fc-mix-lbl");
-      if (valor === "mixto" && pct != null) { mix.style.display = ""; if (lbl) lbl.textContent = num(pct) + "% fact · " + num(100 - pct) + "% no"; }
+      if (valor === "mixto" && pct != null) { mix.style.display = ""; if (lbl) lbl.textContent = num(pct) + "% FC · " + num(100 - pct) + "% NO FC"; }
       else if (mix) { mix.style.display = "none"; if (lbl) lbl.textContent = ""; }
     }
     let fcCtx = null;
