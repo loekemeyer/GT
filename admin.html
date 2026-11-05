@@ -124,6 +124,7 @@
     <button class="tab" data-tab="asis">⏰ Asistencia</button>
     <button class="tab" data-tab="emp">👥 Empleados</button>
     <button class="tab" data-tab="ped">📦 Pedidos</button>
+    <button class="tab" data-tab="carga">🛒 Cargar pedido</button>
     <button class="tab" data-tab="cajas">🗃️ Cajas</button>
     <button class="tab" data-tab="rend">📈 Rendimiento</button>
     <button class="tab" data-tab="bot">👁 Botonera</button>
@@ -230,6 +231,14 @@
     <div class="cel"><iframe id="botFrame" title="Botonera del operario (modo vista)" referrerpolicy="no-referrer"></iframe></div>
   </section>
 
+  <!-- CARGAR PEDIDO (Tomás G, 05/11/2026): mismo patrón que GV. Embebe el admin del mayorista de TN en modo solo-carga.
+       La carga (cotizador, PDF Krikos, Excel, sin cot) vive en el mayorista; acá sólo es la ventana. La sesión la valida
+       el propio admin embebido (login del mayorista). URL en config.js (MAYORISTA_ADMIN_URL). -->
+  <section id="carga" class="vista hidden" style="padding:0;">
+    <div class="barra" style="margin:0;"><button id="cargaRef">↻ Recargar</button><span class="info" id="cargaInfo"></span></div>
+    <iframe id="cargaFrame" title="Cargar pedido — Tierra Nativa" style="display:block;width:100%;height:calc(100vh - 185px);border:0;background:#fff;"></iframe>
+  </section>
+
   <script src="config.js?v=1.71"></script>
   <script>
   (function () {
@@ -307,7 +316,7 @@
       document.querySelectorAll(".vista").forEach((v) => v.classList.toggle("hidden", v.id !== t));
       if (t !== "bot") apagarBotonera();   // 1.66: fuera de la pestaña el iframe no queda corriendo
       if (t === "monitor") pedir(primera); else if (t === "prod") cargarProd(); else if (t === "ped") cargarPed();
-      else if (t === "rend") cargarRend(); else if (t === "bot") abrirBotonera(); else if (t === "cajas") cargarCajas(); else if (t === "emp") cargarEmp(); else cargarAsis();
+      else if (t === "rend") cargarRend(); else if (t === "bot") abrirBotonera(); else if (t === "carga") abrirCarga(); else if (t === "cajas") cargarCajas(); else if (t === "emp") cargarEmp(); else cargarAsis();
     }
     function sinPermiso() { olvidarPass(); verLogin("Clave incorrecta"); }
 
@@ -639,6 +648,20 @@
       f.removeAttribute("src"); f.dataset.ok = ""; $("botInfo").textContent = "";
     }
 
+    /* ---------- CARGAR PEDIDO (Tomás G, 05/11/2026) ---------- */
+    // Mismo patrón que GV: iframe al admin del mayorista en modo solo-carga (gt_cp=1#carga-pedidos). No copia el loader:
+    // lo que cambie en el mayorista se ve acá. La sesión la valida el admin embebido (login propio del mayorista). Se
+    // carga una sola vez y queda viva al cambiar de pestaña, así no pierde el login ni un pedido a medio cargar.
+    function abrirCarga(forzar) {
+      const f = $("cargaFrame");
+      if (!forzar && f.dataset.ok === "1") return;
+      const base = (window.GT_CFG && CFG.MAYORISTA_ADMIN_URL) || "";
+      if (!base) { $("cargaInfo").textContent = "⚠ Falta MAYORISTA_ADMIN_URL en config.js."; return; }
+      f.src = base + "?gt_cp=1#carga-pedidos";
+      f.dataset.ok = "1";
+      $("cargaInfo").textContent = "Carga del mayorista de TN (cotizador, PDF Krikos, Excel, sin cotizador).";
+    }
+
     /* ---------- TRAMOS (1.70, Angely 02/11/2026): corregir a mano un tramo mal marcado ---------- */
     // Editar = cambiar el desde / hasta (y la cantidad) · Eliminar = el tramo deja de contar (opcion AREAX, no se borra ninguna fila). Todo lo calculado
     // (duración neta de pausas, ritmo, rendimiento, stock) sale de esos horarios y se recalcula al volver a pedir la pantalla.
@@ -867,6 +890,7 @@
     ["fArea", "fOper", "fFam"].forEach((id) => { $(id).onchange = pintarProd; });
     $("rendRef").onclick = cargarRend; $("rendDesde").onchange = cargarRend; $("rendHasta").onchange = cargarRend;
     $("botRef").onclick = () => abrirBotonera(true);
+    $("cargaRef").onclick = () => abrirCarga(true);
     $("trGuardar").onclick = guardarTramo; $("trCancelar").onclick = cerrarTramo; $("trDesde").oninput = $("trHasta").oninput = trDur;
     $("prodOp").addEventListener("click", (ev) => {
       const b = ev.target.closest("button[data-tr]"); if (!b || !prodDatos) return;
