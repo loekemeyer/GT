@@ -124,6 +124,21 @@
     .constr{max-width:560px;margin:28px auto;text-align:center;color:var(--mut);}
     .constr h2{color:var(--fg);margin-bottom:8px;}
     .constr .tag{display:inline-block;margin-top:10px;font-size:12px;font-weight:700;background:var(--warn-bg);color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);border-radius:999px;padding:3px 12px;}
+    /* PPP (Tomás G 05/11) — sub-tabs formato GV + cards */
+    .ppp-sub{border:1px solid var(--borde);background:var(--card);color:var(--fg);border-radius:999px;padding:6px 14px;font-size:14px;font-weight:600;cursor:pointer;}
+    .ppp-sub.on{background:var(--acc);border-color:var(--acc);color:#fff;}
+    .ppp-grp{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--mut);margin:12px 0 4px;}
+    .ppp-cards{display:flex;flex-direction:column;gap:8px;}
+    .ppp-card{border:1px solid var(--borde);background:var(--card);border-radius:12px;padding:9px 12px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;}
+    .ppp-card .cli{font-weight:700;font-size:15px;}
+    .ppp-card .m3{font-weight:700;color:var(--acc);}
+    .ppp-card .meta{font-size:12.5px;color:var(--mut);display:flex;flex-wrap:wrap;gap:3px 10px;align-items:center;}
+    .ppp-badge{font-size:11px;font-weight:700;border-radius:999px;padding:1px 8px;background:var(--acc-bg);color:var(--acc);}
+    .ppp-badge.sup{background:var(--warn-bg);color:var(--warn);}
+    #ppp table{border-collapse:collapse;width:auto;font-size:13px;margin-top:4px;}
+    #ppp th,#ppp td{border-bottom:1px solid var(--borde);padding:4px 10px;text-align:center;white-space:nowrap;}
+    #ppp th{font-weight:700;color:var(--mut);}
+    #ppp td.l{text-align:left;} #ppp td.r{text-align:right;}
   </style>
   <link rel="manifest" href="manifest-admin.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -273,10 +288,17 @@
 
   <!-- PPP y Facturación: tiles «en construcción» (Tomás G 05/11, D12). Módulos a construir aparte: PPP = reparto de TN
        (tandas, m³, zonas); Facturación = ISIS propio de TN (isis_tn, independiente de LK/CH). -->
+  <!-- PPP — Fase 1 (Tomás G 05/11): formato GV, datos importados de la Planilla Programacion Pedidos de TN.
+       Sub-tabs A Programar / Entregados / Reporte Picking. Fase 2: fuente viva por ISIS (isis_tn). -->
   <section id="ppp" class="vista panel hidden">
-    <div class="constr"><h2>📅 PPP — Programación de reparto</h2>
-      <p>Programación de reparto de Tierra Nativa (tandas, m³, zonas), como el PPP de Gestión Virgilio. TN hace reparto propio.</p>
-      <span class="tag">En construcción</span></div>
+    <div class="barra">
+      <button class="ppp-sub on" data-sub="aprog">📋 A Programar</button>
+      <button class="ppp-sub" data-sub="entreg">✅ Entregados</button>
+      <button class="ppp-sub" data-sub="pick">📦 Reporte Picking</button>
+      <button id="pppRef">↻ Actualizar</button>
+      <span class="info" id="pppInfo"></span>
+    </div>
+    <div id="pppBody"></div>
   </section>
   <section id="fact" class="vista panel hidden">
     <div class="constr"><h2>🧾 Facturación</h2>
@@ -361,7 +383,7 @@
       document.querySelectorAll(".vista").forEach((v) => v.classList.toggle("hidden", v.id !== t));
       if (t !== "bot") apagarBotonera();   // 1.66: fuera de la pestaña el iframe no queda corriendo
       if (t === "monitor") pedir(primera); else if (t === "prod") cargarProd(); else if (t === "ped") cargarPed();
-      else if (t === "rend") cargarRend(); else if (t === "bot") abrirBotonera();
+      else if (t === "rend") cargarRend(); else if (t === "bot") abrirBotonera(); else if (t === "ppp") cargarPPP();
       else if (t === "cajas") cargarCajas(); else if (t === "emp") cargarEmp(); else if (t === "asis") cargarAsis();
       // home, ppp, fact: sólo muestran la vista, sin loader.
       const bi = document.getElementById("btnInicio"); if (bi) bi.classList.toggle("hidden", t === "home");
@@ -707,6 +729,63 @@
       $("cargaInfo").textContent = "Se abrió en otra pestaña. Si no, habilitá los pop-ups de esta página.";
     }
 
+    /* ---------- PPP (Tomás G, 05/11/2026) — Fase 1: datos importados del Excel de TN. Fuente viva (ISIS) = Fase 2. ---------- */
+    let pppSub = "aprog";
+    const m3fmt = (n) => (n == null ? "—" : Number(n).toLocaleString("es-AR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " m³");
+    const num3 = (n) => (n == null ? "—" : Number(n).toLocaleString("es-AR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }));
+    async function cargarPPP() {
+      if (!pass) return;
+      document.querySelectorAll(".ppp-sub").forEach((b) => b.classList.toggle("on", b.dataset.sub === pppSub));
+      const body = $("pppBody"); $("pppInfo").textContent = "Cargando…";
+      try {
+        if (pppSub === "aprog") renderAprog(await rpc("gt_admin_ppp_a_programar", { p_pass: pass }) || []);
+        else if (pppSub === "entreg") renderEntreg(await rpc("gt_admin_ppp_entregados", { p_pass: pass, p_limit: 300 }) || []);
+        else renderPick(await rpc("gt_admin_ppp_picking", { p_pass: pass, p_limit: 500 }) || []);
+      } catch (e) { body.innerHTML = '<div class="vacio">⚠ No pude leer la PPP (' + esc(e.message || e) + ").</div>"; $("pppInfo").textContent = ""; }
+    }
+    function renderAprog(rows) {
+      const body = $("pppBody");
+      if (!rows.length) { body.innerHTML = '<div class="vacio">No hay pedidos a programar.</div>'; $("pppInfo").textContent = ""; return; }
+      const tot = rows.reduce((a, r) => a + (Number(r.m3) || 0), 0);
+      $("pppInfo").textContent = rows.length + " pedidos · " + m3fmt(tot);
+      const grp = {}; rows.forEach((r) => { const k = /SUPER/i.test(r.bloque || "") ? "Supermercados" : "Clientes comunes"; (grp[k] = grp[k] || []).push(r); });
+      let h = "";
+      for (const k of ["Supermercados", "Clientes comunes"]) {
+        if (!grp[k]) continue;
+        h += '<div class="ppp-grp">' + k + " (" + grp[k].length + ')</div><div class="ppp-cards">';
+        h += grp[k].map((r) => {
+          const sup = k === "Supermercados";
+          return '<div class="ppp-card"><span class="cli">' + esc(r.cliente || "—") + "</span>" +
+            '<span class="ppp-badge' + (sup ? " sup" : "") + '">' + (sup ? "Súper" : "Común") + "</span>" +
+            '<span class="m3">' + m3fmt(r.m3) + "</span>" +
+            '<span class="meta"><span>NP ' + esc(r.np) + "</span>" +
+            (r.cod ? "<span>cód " + esc(r.cod) + "</span>" : "") +
+            (r.fecha_recep ? "<span>recep " + esc(r.fecha_recep) + "</span>" : "") +
+            (r.entrega_retira ? "<span>entrega " + esc(r.entrega_retira) + "</span>" : "") +
+            (r.barrio ? "<span>" + esc(r.barrio) + "</span>" : "") +
+            (r.oc ? "<span>" + esc(r.oc) + "</span>" : "") + "</span></div>";
+        }).join("");
+        h += "</div>";
+      }
+      body.innerHTML = h;
+    }
+    function renderEntreg(rows) {
+      const body = $("pppBody");
+      if (!rows.length) { body.innerHTML = '<div class="vacio">Sin entregados.</div>'; $("pppInfo").textContent = ""; return; }
+      $("pppInfo").textContent = rows.length + " entregados (más recientes)";
+      body.innerHTML = "<table><tr><th>NP</th><th>Fecha</th><th>Cliente</th><th>m³</th><th>Localidad</th><th>Entrega</th><th>OC</th></tr>" +
+        rows.map((r) => "<tr><td>" + esc(r.np) + "</td><td>" + esc(r.fecha_arribo) + '</td><td class="l">' + esc(r.cliente) + '</td><td class="r">' + num3(r.m3) +
+          '</td><td class="l">' + esc(r.direccion || r.localidad_expreso || "") + "</td><td>" + esc(r.lugar_entrega || "") + '</td><td class="l">' + esc(r.oc || "") + "</td></tr>").join("") + "</table>";
+    }
+    function renderPick(rows) {
+      const body = $("pppBody");
+      if (!rows.length) { body.innerHTML = '<div class="vacio">Sin picking.</div>'; $("pppInfo").textContent = ""; return; }
+      $("pppInfo").textContent = rows.length + " renglones";
+      body.innerHTML = "<table><tr><th>Cpbte</th><th>Fecha</th><th>Cód</th><th>Descripción</th><th>Cliente</th><th>Cajas</th><th>UxB</th></tr>" +
+        rows.map((r) => "<tr><td>" + esc(r.cpbte) + "</td><td>" + esc(r.fecha) + "</td><td>" + esc(r.cod_articulo) + '</td><td class="l">' + esc(r.descripcion) +
+          '</td><td class="l">' + esc(r.cliente) + '</td><td class="r">' + esc(r.cant_pedida) + '</td><td class="r">' + esc(r.uxb) + "</td></tr>").join("") + "</table>";
+    }
+
     /* ---------- TRAMOS (1.70, Angely 02/11/2026): corregir a mano un tramo mal marcado ---------- */
     // Editar = cambiar el desde / hasta (y la cantidad) · Eliminar = el tramo deja de contar (opcion AREAX, no se borra ninguna fila). Todo lo calculado
     // (duración neta de pausas, ritmo, rendimiento, stock) sale de esos horarios y se recalcula al volver a pedir la pantalla.
@@ -939,6 +1018,8 @@
     $("rendRef").onclick = cargarRend; $("rendDesde").onchange = cargarRend; $("rendHasta").onchange = cargarRend;
     $("botRef").onclick = () => abrirBotonera(true);
     $("cargaAbrir").onclick = abrirCargaTab;
+    document.querySelectorAll(".ppp-sub").forEach((b) => { b.onclick = () => { pppSub = b.dataset.sub; cargarPPP(); }; });
+    $("pppRef").onclick = cargarPPP;
     $("trGuardar").onclick = guardarTramo; $("trCancelar").onclick = cerrarTramo; $("trDesde").oninput = $("trHasta").oninput = trDur;
     $("prodOp").addEventListener("click", (ev) => {
       const b = ev.target.closest("button[data-tr]"); if (!b || !prodDatos) return;
