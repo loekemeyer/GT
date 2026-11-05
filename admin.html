@@ -260,9 +260,15 @@
   <!-- CARGAR PEDIDO (Tomás G, 05/11/2026): mismo patrón que GV. Embebe el admin del mayorista de TN en modo solo-carga.
        La carga (cotizador, PDF Krikos, Excel, sin cot) vive en el mayorista; acá sólo es la ventana. La sesión la valida
        el propio admin embebido (login del mayorista). URL en config.js (MAYORISTA_ADMIN_URL). -->
-  <section id="carga" class="vista hidden" style="padding:0;">
-    <div class="barra" style="margin:0;"><button id="cargaRef">↻ Recargar</button><span class="info" id="cargaInfo"></span></div>
-    <iframe id="cargaFrame" title="Cargar pedido — Tierra Nativa" style="display:block;width:100%;height:calc(100vh - 110px);border:0;background:#fff;"></iframe>
+  <!-- CARGAR PEDIDO: abre el admin de TN en otra pestaña. NO se puede embeber: es otro proyecto con login propio
+       (CUIT+PIN) y el iframe de terceros no comparte sesión, así que el admin rebota a /mayorista (404 en IIS). -->
+  <section id="carga" class="vista panel hidden">
+    <div class="constr"><h2>🛒 Cargar pedido</h2>
+      <p>La carga de pedidos de Tierra Nativa (cotizador, PDF Krikos, Excel, sin cotizador) vive en el admin del mayorista.
+         Se abre en otra pestaña con tu usuario de TN (CUIT + PIN).</p>
+      <button id="cargaAbrir" style="margin-top:14px;padding:11px 20px;border-radius:10px;border:1px solid var(--acc);background:var(--acc);color:#fff;font-size:15px;font-weight:700;cursor:pointer;">Abrir carga de pedidos ↗</button>
+      <div class="desc" id="cargaInfo" style="margin-top:10px;"></div>
+    </div>
   </section>
 
   <!-- PPP y Facturación: tiles «en construcción» (Tomás G 05/11, D12). Módulos a construir aparte: PPP = reparto de TN
@@ -355,7 +361,7 @@
       document.querySelectorAll(".vista").forEach((v) => v.classList.toggle("hidden", v.id !== t));
       if (t !== "bot") apagarBotonera();   // 1.66: fuera de la pestaña el iframe no queda corriendo
       if (t === "monitor") pedir(primera); else if (t === "prod") cargarProd(); else if (t === "ped") cargarPed();
-      else if (t === "rend") cargarRend(); else if (t === "bot") abrirBotonera(); else if (t === "carga") abrirCarga();
+      else if (t === "rend") cargarRend(); else if (t === "bot") abrirBotonera();
       else if (t === "cajas") cargarCajas(); else if (t === "emp") cargarEmp(); else if (t === "asis") cargarAsis();
       // home, ppp, fact: sólo muestran la vista, sin loader.
       const bi = document.getElementById("btnInicio"); if (bi) bi.classList.toggle("hidden", t === "home");
@@ -691,17 +697,14 @@
     }
 
     /* ---------- CARGAR PEDIDO (Tomás G, 05/11/2026) ---------- */
-    // Mismo patrón que GV: iframe al admin del mayorista en modo solo-carga (gt_cp=1#carga-pedidos). No copia el loader:
-    // lo que cambie en el mayorista se ve acá. La sesión la valida el admin embebido (login propio del mayorista). Se
-    // carga una sola vez y queda viva al cambiar de pestaña, así no pierde el login ni un pedido a medio cargar.
-    function abrirCarga(forzar) {
-      const f = $("cargaFrame");
-      if (!forzar && f.dataset.ok === "1") return;
+    // Abre el admin de TN (otro proyecto, con login propio CUIT+PIN) en OTRA PESTAÑA. No se puede embeber: el iframe
+    // de terceros no comparte la sesión de TN, así que el admin rebota a /mayorista (404 en IIS). En pestaña propia
+    // vale la sesión real del usuario y cae directo en la carga de pedidos (#carga-pedidos).
+    function abrirCargaTab() {
       const base = (window.GT_CFG && CFG.MAYORISTA_ADMIN_URL) || "";
       if (!base) { $("cargaInfo").textContent = "⚠ Falta MAYORISTA_ADMIN_URL en config.js."; return; }
-      f.src = base + "?gt_cp=1#carga-pedidos";
-      f.dataset.ok = "1";
-      $("cargaInfo").textContent = "Carga del mayorista de TN (cotizador, PDF Krikos, Excel, sin cotizador).";
+      window.open(base + "#carga-pedidos", "_blank", "noopener");
+      $("cargaInfo").textContent = "Se abrió en otra pestaña. Si no, habilitá los pop-ups de esta página.";
     }
 
     /* ---------- TRAMOS (1.70, Angely 02/11/2026): corregir a mano un tramo mal marcado ---------- */
@@ -935,7 +938,7 @@
     ["fArea", "fOper", "fFam"].forEach((id) => { $(id).onchange = pintarProd; });
     $("rendRef").onclick = cargarRend; $("rendDesde").onchange = cargarRend; $("rendHasta").onchange = cargarRend;
     $("botRef").onclick = () => abrirBotonera(true);
-    $("cargaRef").onclick = () => abrirCarga(true);
+    $("cargaAbrir").onclick = abrirCargaTab;
     $("trGuardar").onclick = guardarTramo; $("trCancelar").onclick = cerrarTramo; $("trDesde").oninput = $("trHasta").oninput = trDur;
     $("prodOp").addEventListener("click", (ev) => {
       const b = ev.target.closest("button[data-tr]"); if (!b || !prodDatos) return;
