@@ -200,8 +200,9 @@
     #apEnviar:disabled,#apAprog:disabled{opacity:.5;cursor:not-allowed;}
     #apAprog,#apProb,#apNuevos{background:var(--card);color:var(--fg);border:1px solid var(--borde);border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;}
     #apProb{border-color:#e3a3a3;color:#c0392b;}
-    #apAprog.hidden,#apProb.hidden,#apNuevos.hidden{display:none;}
-    #apProb:disabled,#apNuevos:disabled{opacity:.5;cursor:not-allowed;}
+    #apEntreg{background:#e8f6ec;border:1px solid #9ccfae;color:#1e7a3c;border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;}
+    #apAprog.hidden,#apProb.hidden,#apNuevos.hidden,#apEntreg.hidden{display:none;}
+    #apProb:disabled,#apNuevos:disabled,#apEntreg:disabled{opacity:.5;cursor:not-allowed;}
     /* Cabecera de día en Programación, estilo menú (como GV): día a la izq, m³ a la der. */
     .ppp-day{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--borde);border-radius:8px;padding:6px 12px;margin:12px 0 6px;text-transform:none;letter-spacing:0;font-size:14px;color:var(--fg);}
     .ppp-day .d-fecha{font-weight:700;color:var(--acc);}
@@ -382,6 +383,7 @@
       <button id="apEnviar">Enviar a Programación →</button>
       <button id="apProb" class="hidden">⚠ A problemas</button>
       <button id="apNuevos" class="hidden">🆕 A nuevos</button>
+      <button id="apEntreg" class="hidden">✅ A Entregados</button>
       <button id="apAprog" class="hidden">← A Programar</button>
     </div>
     <!-- Cartel para elegir los % de Mixto. Después, en la PPP sólo se ven; para cambiarlos hay que pasar a Factura/Cotizador y volver a Mixto. -->
@@ -943,6 +945,7 @@
       // A problemas / A nuevos: sólo en A Programar (dirección manual). ← A Programar: en ambos.
       $("apProb").classList.toggle("hidden", pppSub !== "aprog");
       $("apNuevos").classList.toggle("hidden", pppSub !== "aprog");
+      $("apEntreg").classList.toggle("hidden", pppSub !== "prog");  // enviar a Entregados sólo desde Programación
       $("apAprog").classList.remove("hidden");
       bar.classList.remove("hidden");
     }
@@ -1396,6 +1399,17 @@
     $("apAprog").onclick = apAprog;
     $("apProb").onclick = () => apSetEstado("retenido", "apProb");
     $("apNuevos").onclick = () => apSetEstado("cliente_nuevo", "apNuevos");
+    // Programación → Entregados: pasa las notas elegidas a la pestaña Entregados.
+    $("apEntreg").onclick = async () => {
+      const chks = [...document.querySelectorAll(".ap-chk:checked")];
+      if (!chks.length) return;
+      const ids = chks.map((c) => Number(c.dataset.id));
+      $("apEntreg").disabled = true;
+      try { await rpc("gt_admin_ppp_entregar", { p_pass: pass, p_ids: ids }); }
+      catch (e) { $("pppInfo").textContent = "⚠ " + (e.message || e); $("apEntreg").disabled = false; return; }
+      $("apEntreg").disabled = false;
+      cargarPPP();
+    };
     // Comentario por pedido: abrir el cartel al tocar el ícono, guardar con la RPC.
     let comCtx = null;
     $("pppBody").addEventListener("click", (e) => {
