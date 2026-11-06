@@ -890,7 +890,7 @@
       const body = $("pppBody"); $("pppInfo").textContent = "Cargando…";
       $("apBar").classList.add("hidden");   // la barra de "enviar a Programación" sólo aparece en A Programar con selección
       try {
-        if (pppSub === "aprog") pppRaw = await rpc("gt_admin_ppp_a_programar2", { p_pass: pass }) || [];
+        if (pppSub === "aprog") pppRaw = await rpc("gt_admin_ppp_a_programar3", { p_pass: pass }) || [];
         else if (pppSub === "prog") pppRaw = await rpc("gt_admin_ppp_programacion3", { p_pass: pass }) || [];
         else if (pppSub === "entreg") pppRaw = await rpc("gt_admin_ppp_entregados", { p_pass: pass, p_limit: 300 }) || [];
         else pppRaw = await rpc("gt_admin_ppp_picking", { p_pass: pass, p_limit: 500 }) || [];
@@ -962,12 +962,25 @@
           '<span class="d-m3">' + num3(m) + ' m³</span></div><div class="ppp-cards">';
         h += arr.map((r) => {
           const sup = k === "Supermercados";
-          const extra = [r.entrega_retira ? "entrega " + r.entrega_retira : "", r.rent, r.oc].filter(Boolean).join(" · ");
+          // Súper: la fecha es el vencimiento de la OC, no una entrega firme → "Vto". Común: "entrega".
+          const fecTxt = r.entrega_retira ? ((sup ? "Vto " : "entrega ") + r.entrega_retira) : "";
+          const extra = [fecTxt, r.rent, r.oc].filter(Boolean).join(" · ");
+          let fc = "";
+          if (!sup) {
+            const v = r.fc_cotizador, pct = r.fc_pct_facturado, mixOn = v === "mixto";
+            const lbl = (mixOn && pct != null) ? (num(pct) + "% FC · " + num(100 - pct) + "% NO FC") : "";
+            fc = '<span class="fc-wrap"><span class="ppp-fc" data-id="' + esc(r.id) + '">' +
+              '<button class="fc-btn' + (v === "factura" ? " on" : "") + '" data-v="factura">Factura</button>' +
+              '<button class="fc-btn' + (v === "cotizador" ? " on" : "") + '" data-v="cotizador">Cotizador</button>' +
+              '<button class="fc-btn' + (mixOn ? " on" : "") + '" data-v="mixto">Mixto</button></span>' +
+              '<span class="fc-mix"' + (mixOn && pct != null ? "" : ' style="display:none"') + '>' +
+              '<span class="fc-mix-lbl">' + esc(lbl) + "</span></span></span>";
+          }
           return '<div class="ppp-card"><input type="checkbox" class="ap-chk" data-id="' + esc(r.id) + '" data-m3="' + (Number(r.m3) || 0) + '">' +
             '<span class="c-izq"><span class="c-fecha">' + esc(fmtDM(r.fecha_recep)) + '</span><span class="c-cod">' + (r.cod != null ? esc(r.cod) : "—") + "</span></span>" +
             '<span class="cli">' + esc(r.cliente || "—") + "</span>" +
             '<span class="ppp-badge' + (sup ? " sup" : "") + '">' + (sup ? "Súper" : "Común") + "</span>" +
-            '<span class="m3">' + m3fmt(r.m3) + "</span>" +
+            '<span class="m3">' + m3fmt(r.m3) + "</span>" + fc +
             '<span class="c-np">NP ' + esc(r.np) + "</span>" +
             '<span class="c-zona">' + esc(r.barrio || "—") + "</span>" +
             (extra ? '<span class="c-extra">' + esc(extra) + "</span>" : "") +
