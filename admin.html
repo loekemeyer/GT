@@ -1110,9 +1110,9 @@
       const body = $("pppBody");
       if (!rows.length) { body.innerHTML = '<div class="vacio">Sin entregados.</div>'; $("pppInfo").textContent = ""; return; }
       $("pppInfo").textContent = rows.length + " entregados (más recientes)";
-      body.innerHTML = "<table><tr><th>NP</th><th>Fecha</th><th>Cliente</th><th>m³</th><th>Localidad</th><th>Entrega</th><th>OC</th></tr>" +
-        rows.map((r) => "<tr><td>" + esc(r.np) + "</td><td>" + esc(r.fecha_arribo) + '</td><td class="l">' + esc(r.cliente) + '</td><td class="r">' + num3(r.m3) +
-          '</td><td class="l">' + esc(r.direccion || r.localidad_expreso || "") + "</td><td>" + esc(r.lugar_entrega || "") + '</td><td class="l">' + esc(r.oc || "") + "</td></tr>").join("") + "</table>";
+      body.innerHTML = "<table><tr><th>NP</th><th>Arribo</th><th>Cliente</th><th>m³</th><th>Localidad</th><th>F. entrega</th><th>OC</th></tr>" +
+        rows.map((r) => "<tr><td>" + esc(r.np) + "</td><td>" + esc(r.fecha_arribo || "—") + '</td><td class="l">' + esc(r.cliente) + '</td><td class="r">' + num3(r.m3) +
+          '</td><td class="l">' + esc(r.direccion || r.localidad_expreso || "") + "</td><td>" + esc(r.fecha_entrega || r.lugar_entrega || "—") + '</td><td class="l">' + esc(r.oc || "") + "</td></tr>").join("") + "</table>";
     }
     function renderPick(rows) {
       const body = $("pppBody");
