@@ -36,3 +36,16 @@ language sql stable security definer set search_path to '' as $$
   select id,np,fecha_recep,cod,cliente,kg,m3,vend,dir_entrega,barrio,op,entrega_retira,rent,oc,aviso,bloque,fc_cotizador,fc_pct_facturado
     from gt.ppp_a_programar where gt.pass_ok(p_pass) and estado='a_programar' order by fecha_recep nulls last, np; $$;
 grant execute on function public.gt_admin_ppp_a_programar3(text) to anon, authenticated;
+
+-- v4 de A Programar: suma estado e incluye 'retenido' (Ped. c/problema: deuda/suspendido/límite) y
+-- 'cliente_nuevo', para las dos secciones rojas al pie de A Programar. Tomás G, 06/11/2026. YA APLICADO.
+create or replace function public.gt_admin_ppp_a_programar4(p_pass text)
+returns table(id bigint, np integer, fecha_recep date, cod integer, cliente text, kg numeric, m3 numeric,
+              vend text, dir_entrega text, barrio text, op text, entrega_retira text, rent text, oc text, aviso text, bloque text,
+              fc_cotizador text, fc_pct_facturado numeric, estado text)
+language sql stable security definer set search_path to '' as $$
+  select id,np,fecha_recep,cod,cliente,kg,m3,vend,dir_entrega,barrio,op,entrega_retira,rent,oc,aviso,bloque,fc_cotizador,fc_pct_facturado,estado
+    from gt.ppp_a_programar
+   where gt.pass_ok(p_pass) and estado in ('a_programar','retenido','cliente_nuevo')
+   order by fecha_recep nulls last, np; $$;
+grant execute on function public.gt_admin_ppp_a_programar4(text) to anon, authenticated;

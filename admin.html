@@ -201,6 +201,12 @@
     .ppp-day .d-hoy{font-size:10px;font-weight:800;background:var(--acc);color:#fff;border-radius:999px;padding:1px 7px;}
     .ppp-day .d-cnt{font-size:11.5px;color:var(--mut);}
     .ppp-day .d-m3{margin-left:auto;font-weight:700;}
+    /* Secciones rojas al pie de A Programar: no se programan solas (Ped. c/problema, Clientes nuevos). */
+    .ppp-day.ppp-rojo{background:#fdecec;border-color:#e3a3a3;color:#9a2222;margin-top:16px;}
+    .ppp-day.ppp-rojo .d-fecha{color:#c0392b;}
+    .ppp-rojo-txt{color:#c0392b;font-size:12.5px;padding:6px 12px 2px;}
+    @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .ppp-day.ppp-rojo{background:#3a1b1b;border-color:#7a3a3a;color:#f0b4b4;}
+      :root:not([data-theme="light"]) .ppp-day.ppp-rojo .d-fecha,:root:not([data-theme="light"]) .ppp-rojo-txt{color:#f0a0a0;}}
   </style>
   <link rel="manifest" href="manifest-admin.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -890,7 +896,7 @@
       const body = $("pppBody"); $("pppInfo").textContent = "Cargando…";
       $("apBar").classList.add("hidden");   // la barra de "enviar a Programación" sólo aparece en A Programar con selección
       try {
-        if (pppSub === "aprog") pppRaw = await rpc("gt_admin_ppp_a_programar3", { p_pass: pass }) || [];
+        if (pppSub === "aprog") pppRaw = await rpc("gt_admin_ppp_a_programar4", { p_pass: pass }) || [];
         else if (pppSub === "prog") pppRaw = await rpc("gt_admin_ppp_programacion3", { p_pass: pass }) || [];
         else if (pppSub === "entreg") pppRaw = await rpc("gt_admin_ppp_entregados", { p_pass: pass, p_limit: 300 }) || [];
         else pppRaw = await rpc("gt_admin_ppp_picking", { p_pass: pass, p_limit: 500 }) || [];
@@ -943,52 +949,74 @@
       $("apEnviar").disabled = false; $("apFecha").value = "";
       cargarPPP();
     }
-    // A Programar: mismo formato de tarjeta que Programación (fecha+cód a la izq, cliente, m³, NP, zona),
-    // agrupado por Supermercados / Clientes comunes en vez de por día (Tomás G, 05/11).
+    // Súper = SÓLO Cencosud, Inc, Coto y La Anónima (Tomás G, 05/11). El bloque del Excel no alcanza: mete comunes bajo "SUPERMERCADOS".
+    const SUPERS = /cencosud|coto|la an[oó]nima|\binc\b/i;
+    // Una card de A Programar (mismo formato que Programación). sup = supermercado; el marcador FC sólo en comunes.
+    function cardAprog(r) {
+      const sup = SUPERS.test(r.cliente || "");
+      const fecTxt = r.entrega_retira ? ((sup ? "Vto " : "entrega ") + r.entrega_retira) : "";
+      const extra = [fecTxt, r.rent, r.oc].filter(Boolean).join(" · ");
+      let fc = "";
+      if (!sup) {
+        const v = r.fc_cotizador, pct = r.fc_pct_facturado, mixOn = v === "mixto";
+        const lbl = (mixOn && pct != null) ? (num(pct) + "% FC · " + num(100 - pct) + "% NO FC") : "";
+        fc = '<span class="fc-wrap"><span class="ppp-fc" data-id="' + esc(r.id) + '">' +
+          '<button class="fc-btn' + (v === "factura" ? " on" : "") + '" data-v="factura">Factura</button>' +
+          '<button class="fc-btn' + (v === "cotizador" ? " on" : "") + '" data-v="cotizador">Cotizador</button>' +
+          '<button class="fc-btn' + (mixOn ? " on" : "") + '" data-v="mixto">Mixto</button></span>' +
+          '<span class="fc-mix"' + (mixOn && pct != null ? "" : ' style="display:none"') + '>' +
+          '<span class="fc-mix-lbl">' + esc(lbl) + "</span></span></span>";
+      }
+      return '<div class="ppp-card"><input type="checkbox" class="ap-chk" data-id="' + esc(r.id) + '" data-m3="' + (Number(r.m3) || 0) + '">' +
+        '<span class="c-izq"><span class="c-fecha">' + esc(fmtDM(r.fecha_recep)) + '</span><span class="c-cod">' + (r.cod != null ? esc(r.cod) : "—") + "</span></span>" +
+        '<span class="cli">' + esc(r.cliente || "—") + "</span>" +
+        '<span class="ppp-badge' + (sup ? " sup" : "") + '">' + (sup ? "Súper" : "Común") + "</span>" +
+        '<span class="m3">' + m3fmt(r.m3) + "</span>" + fc +
+        '<span class="c-np">NP ' + esc(r.np) + "</span>" +
+        '<span class="c-zona">' + esc(r.barrio || "—") + "</span>" +
+        (extra ? '<span class="c-extra">' + esc(extra) + "</span>" : "") +
+        "</div>";
+    }
+    // A Programar: Supermercados / Clientes comunes (programables) y, al pie en rojo, dos secciones que
+    // NO se programan solas: Ped. c/problema (deuda/suspendido/límite) y Clientes nuevos. Tomás G, 06/11.
     function renderAprog(rows) {
       const body = $("pppBody");
-      if (!rows.length) { body.innerHTML = '<div class="vacio">No hay pedidos a programar.</div>'; $("pppInfo").textContent = ""; return; }
-      const tot = rows.reduce((a, r) => a + (Number(r.m3) || 0), 0);
-      $("pppInfo").textContent = rows.length + " pedidos · " + m3fmt(tot);
-      // Súper = SÓLO Cencosud, Inc, Coto y La Anónima (Tomás G, 05/11). El bloque del Excel no alcanza: mete comunes bajo "SUPERMERCADOS".
-      const SUPERS = /cencosud|coto|la an[oó]nima|\binc\b/i;
-      const grp = {}; rows.forEach((r) => { const k = SUPERS.test(r.cliente || "") ? "Supermercados" : "Clientes comunes"; (grp[k] = grp[k] || []).push(r); });
+      const prog = rows.filter((r) => (r.estado || "a_programar") === "a_programar");
+      const reten = rows.filter((r) => r.estado === "retenido");
+      const nuevos = rows.filter((r) => r.estado === "cliente_nuevo");
+      const tot = prog.reduce((a, r) => a + (Number(r.m3) || 0), 0);
+      let info = prog.length + " a programar · " + m3fmt(tot);
+      if (reten.length) info += " · " + reten.length + " c/prob.";
+      if (nuevos.length) info += " · " + nuevos.length + " nuevos";
+      $("pppInfo").textContent = info;
       let h = "";
+      // Programables, agrupados por súper / común.
+      const grp = { Supermercados: [], "Clientes comunes": [] };
+      prog.forEach((r) => { grp[SUPERS.test(r.cliente || "") ? "Supermercados" : "Clientes comunes"].push(r); });
       for (const k of ["Supermercados", "Clientes comunes"]) {
-        if (!grp[k]) continue;
-        const arr = grp[k], m = arr.reduce((a, r) => a + (Number(r.m3) || 0), 0);
+        const arr = grp[k]; if (!arr.length) continue;
+        const m = arr.reduce((a, r) => a + (Number(r.m3) || 0), 0);
         h += '<div class="ppp-grp ppp-day"><span class="d-fecha">' + k + "</span>" +
           '<span class="d-cnt">' + arr.length + " ped.</span>" +
-          '<span class="d-m3">' + num3(m) + ' m³</span></div><div class="ppp-cards">';
-        h += arr.map((r) => {
-          const sup = k === "Supermercados";
-          // Súper: la fecha es el vencimiento de la OC, no una entrega firme → "Vto". Común: "entrega".
-          const fecTxt = r.entrega_retira ? ((sup ? "Vto " : "entrega ") + r.entrega_retira) : "";
-          const extra = [fecTxt, r.rent, r.oc].filter(Boolean).join(" · ");
-          let fc = "";
-          if (!sup) {
-            const v = r.fc_cotizador, pct = r.fc_pct_facturado, mixOn = v === "mixto";
-            const lbl = (mixOn && pct != null) ? (num(pct) + "% FC · " + num(100 - pct) + "% NO FC") : "";
-            fc = '<span class="fc-wrap"><span class="ppp-fc" data-id="' + esc(r.id) + '">' +
-              '<button class="fc-btn' + (v === "factura" ? " on" : "") + '" data-v="factura">Factura</button>' +
-              '<button class="fc-btn' + (v === "cotizador" ? " on" : "") + '" data-v="cotizador">Cotizador</button>' +
-              '<button class="fc-btn' + (mixOn ? " on" : "") + '" data-v="mixto">Mixto</button></span>' +
-              '<span class="fc-mix"' + (mixOn && pct != null ? "" : ' style="display:none"') + '>' +
-              '<span class="fc-mix-lbl">' + esc(lbl) + "</span></span></span>";
-          }
-          return '<div class="ppp-card"><input type="checkbox" class="ap-chk" data-id="' + esc(r.id) + '" data-m3="' + (Number(r.m3) || 0) + '">' +
-            '<span class="c-izq"><span class="c-fecha">' + esc(fmtDM(r.fecha_recep)) + '</span><span class="c-cod">' + (r.cod != null ? esc(r.cod) : "—") + "</span></span>" +
-            '<span class="cli">' + esc(r.cliente || "—") + "</span>" +
-            '<span class="ppp-badge' + (sup ? " sup" : "") + '">' + (sup ? "Súper" : "Común") + "</span>" +
-            '<span class="m3">' + m3fmt(r.m3) + "</span>" + fc +
-            '<span class="c-np">NP ' + esc(r.np) + "</span>" +
-            '<span class="c-zona">' + esc(r.barrio || "—") + "</span>" +
-            (extra ? '<span class="c-extra">' + esc(extra) + "</span>" : "") +
-            "</div>";
-        }).join("");
-        h += "</div>";
+          '<span class="d-m3">' + num3(m) + ' m³</span></div><div class="ppp-cards">' + arr.map(cardAprog).join("") + "</div>";
       }
+      if (!prog.length) h += '<div class="vacio">No hay pedidos a programar.</div>';
+      // Dos secciones rojas al pie (siempre visibles, como en GV). No se programan solas.
+      h += secRoja("⚠ Pedidos con problemas", reten,
+        "Sin pedidos retenidos. Acá caen los de clientes con deuda, suspendidos o que superan su límite de crédito: no se programan solos.");
+      h += secRoja("🆕 Clientes nuevos", nuevos,
+        "Sin pedidos de clientes nuevos. Acá caen los pedidos de clientes nuevos sin otro problema; si tienen deuda o superan su límite, primero pasan por Pedidos con problemas.");
       body.innerHTML = h;
+    }
+    // Una sección roja de A Programar (Ped. c/problema o Clientes nuevos): título + conteo + m³, y la leyenda si está vacía.
+    function secRoja(titulo, arr, vacio) {
+      const m = arr.reduce((a, r) => a + (Number(r.m3) || 0), 0);
+      let s = '<div class="ppp-grp ppp-day ppp-rojo"><span class="d-fecha">' + esc(titulo) + "</span>" +
+        '<span class="d-cnt">' + arr.length + " ped.</span>" +
+        '<span class="d-m3">' + num3(m) + ' m³</span></div>';
+      if (!arr.length) s += '<div class="ppp-rojo-txt">' + esc(vacio) + "</div>";
+      else s += '<div class="ppp-cards">' + arr.map(cardAprog).join("") + "</div>";
+      return s;
     }
     function renderProg(rows) {
       const body = $("pppBody");
