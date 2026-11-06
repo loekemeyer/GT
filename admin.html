@@ -142,6 +142,10 @@
     .ppp-card .c-np{font-size:15px;font-weight:700;}
     .ppp-card .c-zona{font-size:14.5px;}
     .ppp-card .c-extra{font-size:12px;color:var(--mut);}
+    /* Comentario manual por pedido: ícono a la derecha de la card. Lleno = tiene comentario. */
+    .ppp-card .c-com{margin-left:auto;background:transparent;border:1px solid var(--borde);border-radius:8px;padding:3px 8px;font-size:15px;line-height:1;cursor:pointer;opacity:.55;}
+    .ppp-card .c-com:hover{opacity:1;}
+    .ppp-card .c-com.on{opacity:1;border-color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent);}
     .ppp-badge{font-size:11px;font-weight:700;border-radius:999px;padding:1px 8px;background:var(--acc-bg);color:var(--acc);}
     .ppp-badge.sup{background:var(--warn-bg);color:var(--warn);}
     #ppp table{border-collapse:collapse;width:auto;font-size:13px;margin-top:4px;}
@@ -165,6 +169,7 @@
     .fcm-row{margin:8px 0;}
     .fcm-row label{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px;}
     .fcm-row input{width:84px;padding:7px 9px;border:1px solid var(--borde);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;text-align:right;}
+    .fcm-row textarea{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--borde);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;resize:vertical;}
     .fcm-acc{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
     .fcm-acc button{border:1px solid var(--borde);background:var(--card);color:var(--fg);border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;}
     .fcm-acc button.prim{background:var(--acc);border-color:var(--acc);color:#fff;}
@@ -386,6 +391,14 @@
         <div class="fcm-row"><label>Facturado <input type="number" id="fcmFact" min="0" max="100" step="1"> %</label></div>
         <div class="fcm-row"><label>No facturado <input type="number" id="fcmNo" min="0" max="100" step="1"> %</label></div>
         <div class="fcm-acc"><button id="fcmCancel">Cancelar</button><button id="fcmOk" class="prim">Aceptar</button></div>
+      </div>
+    </div>
+    <!-- Comentario manual del pedido. -->
+    <div id="comModal" class="fcm-ov hidden">
+      <div class="fcm-box">
+        <h3>Comentario del pedido</h3>
+        <div class="fcm-row"><textarea id="comTxt" rows="4" placeholder="Escribí un comentario…"></textarea></div>
+        <div class="fcm-acc"><button id="comCancel">Cancelar</button><button id="comOk" class="prim">Guardar</button></div>
       </div>
     </div>
   </section>
@@ -900,7 +913,7 @@
       const body = $("pppBody"); $("pppInfo").textContent = "Cargando…";
       $("apBar").classList.add("hidden");   // la barra de "enviar a Programación" sólo aparece en A Programar con selección
       try {
-        if (pppSub === "aprog") pppRaw = await rpc("gt_admin_ppp_a_programar4", { p_pass: pass }) || [];
+        if (pppSub === "aprog") pppRaw = await rpc("gt_admin_ppp_a_programar5", { p_pass: pass }) || [];
         else if (pppSub === "prog") pppRaw = await rpc("gt_admin_ppp_programacion3", { p_pass: pass }) || [];
         else if (pppSub === "entreg") pppRaw = await rpc("gt_admin_ppp_entregados", { p_pass: pass, p_limit: 300 }) || [];
         else pppRaw = await rpc("gt_admin_ppp_picking", { p_pass: pass, p_limit: 500 }) || [];
@@ -996,6 +1009,8 @@
         '<span class="c-np">NP ' + esc(r.np) + "</span>" +
         '<span class="c-zona">' + esc(r.barrio || "—") + "</span>" +
         (extra ? '<span class="c-extra">' + esc(extra) + "</span>" : "") +
+        '<button class="c-com' + (r.comentario ? " on" : "") + '" data-id="' + esc(r.id) + '" title="' + esc(r.comentario || "Agregar comentario") + '">' +
+        (r.comentario ? "💬" : "🗨") + "</button>" +
         "</div>";
     }
     // A Programar: Supermercados / Clientes comunes (programables) y, al pie en rojo, dos secciones que
@@ -1375,6 +1390,25 @@
     $("apAprog").onclick = apAprog;
     $("apProb").onclick = () => apSetEstado("retenido", "apProb");
     $("apNuevos").onclick = () => apSetEstado("cliente_nuevo", "apNuevos");
+    // Comentario por pedido: abrir el cartel al tocar el ícono, guardar con la RPC.
+    let comCtx = null;
+    $("pppBody").addEventListener("click", (e) => {
+      const b = e.target.closest(".c-com"); if (!b) return;
+      comCtx = { id: Number(b.dataset.id), btn: b };
+      $("comTxt").value = (b.title && b.title !== "Agregar comentario") ? b.title : "";
+      $("comModal").classList.remove("hidden"); $("comTxt").focus();
+    });
+    $("comCancel").onclick = () => { $("comModal").classList.add("hidden"); comCtx = null; };
+    $("comOk").onclick = async () => {
+      if (!comCtx) { $("comModal").classList.add("hidden"); return; }
+      const txt = $("comTxt").value.trim(), ctx = comCtx;
+      $("comModal").classList.add("hidden"); comCtx = null;
+      // Pinta la card al toque; la base confirma en segundo plano.
+      ctx.btn.textContent = txt ? "💬" : "🗨";
+      ctx.btn.classList.toggle("on", !!txt);
+      ctx.btn.title = txt || "Agregar comentario";
+      try { await rpc("gt_admin_ppp_set_comentario", { p_pass: pass, p_id: ctx.id, p_texto: txt }); } catch (_e) { cargarPPP(); }
+    };
     $("trGuardar").onclick = guardarTramo; $("trCancelar").onclick = cerrarTramo; $("trDesde").oninput = $("trHasta").oninput = trDur;
     $("prodOp").addEventListener("click", (ev) => {
       const b = ev.target.closest("button[data-tr]"); if (!b || !prodDatos) return;
