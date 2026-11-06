@@ -396,7 +396,7 @@
     <!-- Comentario manual del pedido. -->
     <div id="comModal" class="fcm-ov hidden">
       <div class="fcm-box">
-        <h3>Comentario del pedido</h3>
+        <h3 id="comTit">Comentario del pedido</h3>
         <div class="fcm-row"><textarea id="comTxt" rows="4" placeholder="Escribí un comentario…"></textarea></div>
         <div class="fcm-acc"><button id="comCancel">Cancelar</button><button id="comOk" class="prim">Guardar</button></div>
       </div>
@@ -1009,9 +1009,14 @@
         '<span class="c-np">NP ' + esc(r.np) + "</span>" +
         '<span class="c-zona">' + esc(r.barrio || "—") + "</span>" +
         (extra ? '<span class="c-extra">' + esc(extra) + "</span>" : "") +
-        '<button class="c-com' + (r.comentario ? " on" : "") + '" data-id="' + esc(r.id) + '" title="' + esc(r.comentario || "Agregar comentario") + '">' +
-        (r.comentario ? "💬" : "🗨") + "</button>" +
+        btnCom(r) +
         "</div>";
+    }
+    // Ícono de comentario (igual en A Programar y Programación). Lleno = tiene; tooltip "Ver comentario".
+    function btnCom(r) {
+      const c = r.comentario || "";
+      return '<button class="c-com' + (c ? " on" : "") + '" data-id="' + esc(r.id) + '" data-com="' + esc(c) + '" title="' +
+        (c ? "Ver comentario" : "Agregar comentario") + '">' + (c ? "💬" : "🗨") + "</button>";
     }
     // A Programar: Supermercados / Clientes comunes (programables) y, al pie en rojo, dos secciones que
     // NO se programan solas: Ped. c/problema (deuda/suspendido/límite) y Clientes nuevos. Tomás G, 06/11.
@@ -1091,8 +1096,7 @@
             '<span class="c-np">NP ' + esc(r.np) + "</span>" +
             '<span class="c-zona">' + esc(r.barrio || "—") + "</span>" +
             ((r.rent || r.oc) ? '<span class="c-extra">' + esc([r.rent, r.oc].filter(Boolean).join(" · ")) + "</span>" : "") +
-            '<button class="c-com' + (r.comentario ? " on" : "") + '" data-id="' + esc(r.id) + '" title="' + esc(r.comentario || "Agregar comentario") + '">' +
-            (r.comentario ? "💬" : "🗨") + "</button>" +
+            btnCom(r) +
             "</div>";
         }).join("");
         h += "</div>";
@@ -1397,7 +1401,9 @@
     $("pppBody").addEventListener("click", (e) => {
       const b = e.target.closest(".c-com"); if (!b) return;
       comCtx = { id: Number(b.dataset.id), btn: b };
-      $("comTxt").value = (b.title && b.title !== "Agregar comentario") ? b.title : "";
+      const tiene = b.classList.contains("on");
+      $("comTxt").value = tiene ? (b.dataset.com || "") : "";
+      $("comTit").textContent = tiene ? "Ver comentario" : "Agregar comentario";
       $("comModal").classList.remove("hidden"); $("comTxt").focus();
     });
     $("comCancel").onclick = () => { $("comModal").classList.add("hidden"); comCtx = null; };
@@ -1408,7 +1414,8 @@
       // Pinta la card al toque; la base confirma en segundo plano.
       ctx.btn.textContent = txt ? "💬" : "🗨";
       ctx.btn.classList.toggle("on", !!txt);
-      ctx.btn.title = txt || "Agregar comentario";
+      ctx.btn.dataset.com = txt;
+      ctx.btn.title = txt ? "Ver comentario" : "Agregar comentario";
       try { await rpc("gt_admin_ppp_set_comentario", { p_pass: pass, p_id: ctx.id, p_texto: txt }); } catch (_e) { cargarPPP(); }
     };
     $("trGuardar").onclick = guardarTramo; $("trCancelar").onclick = cerrarTramo; $("trDesde").oninput = $("trHasta").oninput = trDur;
