@@ -193,8 +193,10 @@
     .ap-bar input[type=date]{padding:6px 8px;border:1px solid var(--borde);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;}
     #apEnviar{background:var(--acc);color:#fff;border:1px solid var(--acc);border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;}
     #apEnviar:disabled,#apAprog:disabled{opacity:.5;cursor:not-allowed;}
-    #apAprog{background:var(--card);color:var(--fg);border:1px solid var(--borde);border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;}
-    #apAprog.hidden{display:none;}
+    #apAprog,#apProb,#apNuevos{background:var(--card);color:var(--fg);border:1px solid var(--borde);border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;}
+    #apProb{border-color:#e3a3a3;color:#c0392b;}
+    #apAprog.hidden,#apProb.hidden,#apNuevos.hidden{display:none;}
+    #apProb:disabled,#apNuevos:disabled{opacity:.5;cursor:not-allowed;}
     /* Cabecera de día en Programación, estilo menú (como GV): día a la izq, m³ a la der. */
     .ppp-day{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--borde);border-radius:8px;padding:6px 12px;margin:12px 0 6px;text-transform:none;letter-spacing:0;font-size:14px;color:var(--fg);}
     .ppp-day .d-fecha{font-weight:700;color:var(--acc);}
@@ -373,6 +375,8 @@
       <span class="ap-sp"></span>
       <label>Día de entrega <input type="date" id="apFecha"></label>
       <button id="apEnviar">Enviar a Programación →</button>
+      <button id="apProb" class="hidden">⚠ A problemas</button>
+      <button id="apNuevos" class="hidden">🆕 A nuevos</button>
       <button id="apAprog" class="hidden">← A Programar</button>
     </div>
     <!-- Cartel para elegir los % de Mixto. Después, en la PPP sólo se ven; para cambiarlos hay que pasar a Factura/Cotizador y volver a Mixto. -->
@@ -923,18 +927,35 @@
       const m = chks.reduce((a, c) => a + (Number(c.dataset.m3) || 0), 0);
       $("apSel").textContent = chks.length + " seleccionado" + (chks.length > 1 ? "s" : "") + " · " + m3fmt(m);
       $("apEnviar").textContent = (pppSub === "prog") ? "Mover al día →" : "Enviar a Programación →";
-      $("apAprog").classList.toggle("hidden", pppSub !== "prog");  // devolver a A Programar sólo desde Programación
+      // A problemas / A nuevos: sólo en A Programar (dirección manual). ← A Programar: en ambos.
+      $("apProb").classList.toggle("hidden", pppSub !== "aprog");
+      $("apNuevos").classList.toggle("hidden", pppSub !== "aprog");
+      $("apAprog").classList.remove("hidden");
       bar.classList.remove("hidden");
     }
-    // Programación → A Programar: saca la fecha y vuelve el estado a a_programar (no pide día).
+    // ← A Programar: en Programación saca la fecha (a_aprogramar); en A Programar sólo vuelve el estado (conserva el vto).
     async function apAprog() {
       const chks = [...document.querySelectorAll(".ap-chk:checked")];
       if (!chks.length) return;
       const ids = chks.map((c) => Number(c.dataset.id));
       $("apAprog").disabled = true;
-      try { await rpc("gt_admin_ppp_a_aprogramar", { p_pass: pass, p_ids: ids }); }
+      try {
+        if (pppSub === "prog") await rpc("gt_admin_ppp_a_aprogramar", { p_pass: pass, p_ids: ids });
+        else await rpc("gt_admin_ppp_set_estado", { p_pass: pass, p_ids: ids, p_estado: "a_programar" });
+      }
       catch (e) { $("pppInfo").textContent = "⚠ " + (e.message || e); $("apAprog").disabled = false; return; }
       $("apAprog").disabled = false;
+      cargarPPP();
+    }
+    // Dirigir a mano a una sección roja de A Programar (retenido / cliente_nuevo).
+    async function apSetEstado(estado, btnId) {
+      const chks = [...document.querySelectorAll(".ap-chk:checked")];
+      if (!chks.length) return;
+      const ids = chks.map((c) => Number(c.dataset.id));
+      $(btnId).disabled = true;
+      try { await rpc("gt_admin_ppp_set_estado", { p_pass: pass, p_ids: ids, p_estado: estado }); }
+      catch (e) { $("pppInfo").textContent = "⚠ " + (e.message || e); $(btnId).disabled = false; return; }
+      $(btnId).disabled = false;
       cargarPPP();
     }
     async function apEnviar() {
@@ -1352,6 +1373,8 @@
     };
     $("apEnviar").onclick = apEnviar;
     $("apAprog").onclick = apAprog;
+    $("apProb").onclick = () => apSetEstado("retenido", "apProb");
+    $("apNuevos").onclick = () => apSetEstado("cliente_nuevo", "apNuevos");
     $("trGuardar").onclick = guardarTramo; $("trCancelar").onclick = cerrarTramo; $("trDesde").oninput = $("trHasta").oninput = trDur;
     $("prodOp").addEventListener("click", (ev) => {
       const b = ev.target.closest("button[data-tr]"); if (!b || !prodDatos) return;
