@@ -25,3 +25,14 @@ end; $$;
 
 grant execute on function public.gt_admin_ppp_a_programar2(text) to anon, authenticated;
 grant execute on function public.gt_admin_ppp_programar(text,bigint[],date) to anon, authenticated;
+
+-- Lectura v3 de A Programar: suma fc_cotizador y fc_pct_facturado para mostrar el marcador
+-- Factura/Cotizador/Mixto también en A Programar (comunes). Tomás G, 06/11/2026. YA APLICADO.
+create or replace function public.gt_admin_ppp_a_programar3(p_pass text)
+returns table(id bigint, np integer, fecha_recep date, cod integer, cliente text, kg numeric, m3 numeric,
+              vend text, dir_entrega text, barrio text, op text, entrega_retira text, rent text, oc text, aviso text, bloque text,
+              fc_cotizador text, fc_pct_facturado numeric)
+language sql stable security definer set search_path to '' as $$
+  select id,np,fecha_recep,cod,cliente,kg,m3,vend,dir_entrega,barrio,op,entrega_retira,rent,oc,aviso,bloque,fc_cotizador,fc_pct_facturado
+    from gt.ppp_a_programar where gt.pass_ok(p_pass) and estado='a_programar' order by fecha_recep nulls last, np; $$;
+grant execute on function public.gt_admin_ppp_a_programar3(text) to anon, authenticated;
