@@ -914,7 +914,7 @@
       $("apBar").classList.add("hidden");   // la barra de "enviar a Programación" sólo aparece en A Programar con selección
       try {
         if (pppSub === "aprog") pppRaw = await rpc("gt_admin_ppp_a_programar5", { p_pass: pass }) || [];
-        else if (pppSub === "prog") pppRaw = await rpc("gt_admin_ppp_programacion3", { p_pass: pass }) || [];
+        else if (pppSub === "prog") pppRaw = await rpc("gt_admin_ppp_programacion4", { p_pass: pass }) || [];
         else if (pppSub === "entreg") pppRaw = await rpc("gt_admin_ppp_entregados", { p_pass: pass, p_limit: 300 }) || [];
         else pppRaw = await rpc("gt_admin_ppp_picking", { p_pass: pass, p_limit: 500 }) || [];
         renderActual();
@@ -1091,6 +1091,8 @@
             '<span class="c-np">NP ' + esc(r.np) + "</span>" +
             '<span class="c-zona">' + esc(r.barrio || "—") + "</span>" +
             ((r.rent || r.oc) ? '<span class="c-extra">' + esc([r.rent, r.oc].filter(Boolean).join(" · ")) + "</span>" : "") +
+            '<button class="c-com' + (r.comentario ? " on" : "") + '" data-id="' + esc(r.id) + '" title="' + esc(r.comentario || "Agregar comentario") + '">' +
+            (r.comentario ? "💬" : "🗨") + "</button>" +
             "</div>";
         }).join("");
         h += "</div>";

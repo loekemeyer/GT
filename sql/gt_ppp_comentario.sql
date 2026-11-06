@@ -22,3 +22,13 @@ language sql stable security definer set search_path to '' as $$
 
 grant execute on function public.gt_admin_ppp_set_comentario(text,bigint,text) to anon, authenticated;
 grant execute on function public.gt_admin_ppp_a_programar5(text) to anon, authenticated;
+
+-- v4 de Programación: suma comentario (mismo ícono también en Programación). Tomás G, 06/11/2026. YA APLICADO.
+create or replace function public.gt_admin_ppp_programacion4(p_pass text)
+returns table(id bigint, np integer, fecha_recep date, cod integer, cliente text, kg numeric, m3 numeric,
+              vend text, dir_entrega text, barrio text, op text, entrega_retira text, rent text, oc text, aviso text, bloque text,
+              fc_cotizador text, fc_pct_facturado numeric, comentario text)
+language sql stable security definer set search_path to '' as $$
+  select id,np,fecha_recep,cod,cliente,kg,m3,vend,dir_entrega,barrio,op,entrega_retira,rent,oc,aviso,bloque,fc_cotizador,fc_pct_facturado,comentario
+    from gt.ppp_a_programar where gt.pass_ok(p_pass) and estado='programado' order by entrega_retira nulls last, np; $$;
+grant execute on function public.gt_admin_ppp_programacion4(text) to anon, authenticated;
