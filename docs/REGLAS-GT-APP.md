@@ -494,6 +494,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 - Reclamo: *«cuando entro con el mail no me pide el acceso con la clave de Planify»*. Medido: `gt.admin_sesiones` vacía (nadie había entrado con código) y la PC había entrado 4 veces con la **clave del monitor** (09:13–09:44), que el admin recuerda hasta el lunes y abría todo sin preguntar.
 - Ahora **la clave del monitor abre SÓLO el Monitor** (la TV). Cualquier otra pestaña, «🏠 Inicio» o venir de Google pide el **código de Planify**. Con el token de Planify abre el home.
 - *«No con el admin maestro, con el código normal»*: `gt_admin_identificar` ya **no exige el permiso** al panel `gt-admin`; entra cualquiera con su código vivo de Planify. `sql/gt_v193_admin_codigo_normal.sql`.
+- **Tile 🧪 Persona de Prueba** en el home del admin (Reportes y configuración, fondo ámbar con borde punteado): abre la 👁 Botonera y elige sola a la Persona de Prueba (ve todas las áreas, no graba nada). Tomás Beviglia: *«me falta el botón de Persona de Prueba en el admin»*.
 - Tests: los del admin entran con el código (`K7P+4M` → token `pl.…`); `tests/admin-planify.cjs` y `tests/smoke.cjs` miden que la clave del monitor sola no abre el admin.
 
 ### 1.73 / gt_v192 — PPP como Gestión Virgilio: camiones por día, «lista para facturar» desde el celular y tarea a Gabriel (Tomás Beviglia, 18/11/2026)

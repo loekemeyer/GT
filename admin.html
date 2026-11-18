@@ -118,6 +118,7 @@
     .tiles-sec{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));}
     .tile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:1px solid var(--acc);background:var(--acc);color:#fff;border-radius:14px;padding:16px 10px;min-height:92px;cursor:pointer;font:inherit;}
     .tile-gray{background:#5b6472;border-color:#5b6472;min-height:76px;}
+    .tile.tile-prueba{background:#fef3c7;border:2px dashed #d97706;color:#92400e;min-height:76px;}
     .tile .t-ico{font-size:26px;line-height:1;}
     .tile .t-txt{font-size:14px;font-weight:700;text-align:center;line-height:1.15;}
     .tile .t-badge{font-size:10px;font-weight:700;background:rgba(255,255,255,.22);padding:1px 7px;border-radius:999px;}
@@ -259,6 +260,8 @@
       <button class="tile tile-gray" data-tab="emp"><span class="t-ico">👥</span><span class="t-txt">Empleados</span></button>
       <button class="tile tile-gray" data-tab="rend"><span class="t-ico">📈</span><span class="t-txt">Rendimiento</span></button>
       <button class="tile tile-gray" data-tab="bot"><span class="t-ico">👁</span><span class="t-txt">Botonera</span></button>
+      <!-- 18/11/2026 (Tomás Beviglia): entra directo a la botonera como la 🧪 Persona de Prueba (otro color; no graba nada) -->
+      <button class="tile tile-prueba" data-tab="bot" data-prueba="1"><span class="t-ico">🧪</span><span class="t-txt">Persona de Prueba</span></button>
     </div>
   </section>
 
@@ -869,13 +872,31 @@
       try { d = await rpc("gt_monitor_clave", { p_pass: pass || "" }); }
       catch (e) { $("botInfo").textContent = "⚠ No pude leer el código (" + (e.message || e) + "). Tocá ↻ Reiniciar."; return; }
       if (!d || !d.ok) { sinPermiso(); return; }
-      f.onload = marcarPrueba;
+      f.onload = () => { marcarPrueba(); elegirPrueba(); };
       f.src = "./?vista=1&cod=" + encodeURIComponent(d.clave) + "&t=" + Date.now();
       f.dataset.ok = "1";
       $("botInfo").textContent = "👁 Modo vista: se puede tocar todo y NO graba nada (ni productividad, ni stock, ni la asistencia). Elegí el operario.";
     }
     // 18/11/2026: la 🧪 Persona de Prueba sale en otro color en «¿Quién sos?» (sólo acá: el iframe es del mismo origen,
     // así que el estilo se le inyecta desde el admin y la app de los operarios no cambia).
+    let botPrueba = false;
+    // Con el tile 🧪: cuando aparece «¿Quién sos?» en el iframe, toca sola a la Persona de Prueba (hasta 15 s).
+    function elegirPrueba() {
+      if (!botPrueba) return;
+      botPrueba = false;
+      const t0 = Date.now();
+      const iv = setInterval(() => {
+        try {
+          const d = $("botFrame").contentDocument, b = d && d.querySelector('#nombreLista button[data-nombre^="🧪"]');
+          if (b && d.getElementById("nombreScreen") && !d.getElementById("nombreScreen").classList.contains("hidden")) {
+            clearInterval(iv); b.click();
+            $("botInfo").textContent = "🧪 Persona de Prueba: ve todas las áreas, se puede tocar todo y NO graba nada.";
+            return;
+          }
+        } catch { /* nada */ }
+        if (Date.now() - t0 > 15000) clearInterval(iv);
+      }, 200);
+    }
     function marcarPrueba() {
       try {
         const d = $("botFrame").contentDocument; if (!d || d.getElementById("gtPruebaCss")) return;
@@ -1462,7 +1483,11 @@
 
     /* ---------- eventos ---------- */
     $("prodDia").value = $("asisDia").value = hoyAR();
-    $("home").addEventListener("click", (e) => { const b = e.target.closest(".tile"); if (b) verTab(b.dataset.tab); });
+    $("home").addEventListener("click", (e) => {
+      const b = e.target.closest(".tile"); if (!b) return;
+      if (b.dataset.prueba) { botPrueba = true; apagarBotonera(); }   // reabre el iframe y elige sola a la Persona de Prueba
+      verTab(b.dataset.tab);
+    });
     $("btnInicio").onclick = () => verTab("home");
     window.verTab = verTab;   // navegación directa para los tests (tests/*.cjs)
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

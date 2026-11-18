@@ -59,6 +59,15 @@ srv.listen(0, async () => {
     const bgJ = await fr.$eval("#nombreLista button[data-id='1']", (b) => getComputedStyle(b).backgroundColor);
     chk(bgP !== bgJ && bgP === "rgb(254, 243, 199)", "la 🧪 Persona de Prueba sale en otro color (" + bgP + " vs " + bgJ + ")");
 
+    // tile 🧪 Persona de Prueba (otro color) → la botonera entra sola como la persona de prueba
+    await pg.click("#btnInicio"); await pg.waitForSelector("#home:not(.hidden)");
+    const bgT = await pg.$eval(".tile-prueba", (b) => getComputedStyle(b).backgroundColor);
+    chk(bgT === "rgb(254, 243, 199)", "el tile 🧪 Persona de Prueba está en el home, en otro color (" + bgT + ")");
+    await pg.click(".tile-prueba");
+    const fr2 = await (await (await pg.waitForSelector("#botFrame[src]")).contentFrame());
+    await fr2.waitForSelector("#optionsScreen:not(.hidden)", { timeout: 15000 });
+    chk((await fr2.textContent("#opName")).includes("Persona de Prueba") && (await pg.textContent("#botInfo")).includes("NO graba"),
+      "entra directo como la Persona de Prueba y avisa que no graba");
     // recarga: sigue adentro con el token; si el token vence, vuelve a pedir el código
     await pg.reload(); await pg.waitForSelector("#home:not(.hidden)");
     chk(true, "al recargar sigue adentro con el token");
