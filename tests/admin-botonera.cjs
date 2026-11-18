@@ -10,7 +10,7 @@ const A = (codigo, nombre, orden, x) => Object.assign({ codigo, nombre, unidad: 
 const AREAS = [A("CORTE", "Corte", 1, { unidad: "unidades cortadas" }), A("CONTR", "Contraído", 7), A("PED", "Pedidos", 8, { pide_cantidad: false })];
 const EMPS = [{ id: 1, nombre: "Javier Burgos", plantas: [] }, { id: 6, nombre: "Dario Mendez", plantas: [] }];
 const CLAVE_MIN = "4821";              // el código que muestra el monitor
-const PASS = "9999";                   // la clave del admin
+const PASS = "pl.9999";                   // la clave del admin
 const filas = [], llamadas = [];
 const srv = http.createServer((req, res) => {
   if (req.url.startsWith("/rest/v1/rpc/")) {
@@ -18,7 +18,8 @@ const srv = http.createServer((req, res) => {
       const fn = req.url.split("/").pop(), b = body ? JSON.parse(body) : {};
       llamadas.push(fn);
       if (fn === "gt_registrar") (b.p_filas || []).forEach((f) => { if (!filas.some((x) => x.client_id === f.client_id)) filas.push(f); });
-      const out = fn === "gt_monitor_login" ? { ok: b.p_pass === PASS }
+      const out = fn === "gt_admin_identificar" ? { ok: b.p_codigo === "K7P+4M", token: PASS, nombre: "Prueba Test", resta_s: 28800 }
+        : fn === "gt_monitor_login" ? { ok: b.p_pass === PASS }
         : fn === "gt_monitor_clave" ? (b.p_pass === PASS ? { ok: true, clave: CLAVE_MIN, cambia_en_s: 42 } : { ok: false })
         : fn === "gt_clave_validar" ? (b.p_clave === CLAVE_MIN ? { ok: true, vista: false, principal: "PELL", empleados: EMPS } : { ok: false })
         : fn === "gt_botones3" ? AREAS
@@ -42,7 +43,7 @@ srv.listen(0, async () => {
   try {
     const pg = await br.newPage({ viewport: { width: 1280, height: 900 } });
     await pg.goto(url + "admin.html");
-    await pg.fill("#passInput", PASS); await pg.click("#passBtn");
+    await pg.fill("#passInput", "K7P+4M"); await pg.click("#passBtn");
     await pg.waitForSelector("#home:not(.hidden)");
     chk(!!(await pg.$('.tile[data-tab="bot"]')), "el admin tiene la pestaña 👁 Botonera");
 

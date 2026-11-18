@@ -4,7 +4,7 @@
 const path = require("path"), http = require("http"), fs = require("fs");
 let pw; try { pw = require("playwright"); } catch { pw = require(require("child_process").execSync("npm root -g").toString().trim() + "/playwright"); }
 const ROOT = path.join(__dirname, "..");
-const PASS = "9999";
+const PASS = "pl.9999";
 const HOY = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
 const t = (hhmm) => HOY + "T" + hhmm + ":00-03:00";
 // lo de la captura de Angely: Javier, con descripciones y familias largas
@@ -41,6 +41,7 @@ const srv = http.createServer((req, res) => {
       const fn = req.url.split("/").pop(), b = body ? JSON.parse(body) : {};
       let out = [];
       if (fn === "gt_monitor_login") out = { ok: b.p_pass === PASS };
+      if (fn === "gt_admin_identificar") out = { ok: b.p_codigo === "K7P+4M", token: PASS, nombre: "Prueba Test", resta_s: 28800 };
       else if (fn === "gt_monitor_clave") out = b.p_pass === PASS ? { ok: true, clave: "4821", cambia_en_s: 42 } : { ok: false };
       else if (fn === "gt_admin_produccion4") out = PROD;
       else if (fn === "gt_admin_asistencia3") out = ASIS;
@@ -65,7 +66,7 @@ srv.listen(0, async () => {
   try {
     for (const w of [930, 1366]) {
       const pg = await br.newPage({ viewport: { width: w, height: 760 } });
-      await pg.goto(url + "admin.html"); await pg.fill("#passInput", PASS); await pg.click("#passBtn");
+      await pg.goto(url + "admin.html"); await pg.fill("#passInput", "K7P+4M"); await pg.click("#passBtn");
       await pg.waitForSelector("#home:not(.hidden)");
       const home = await medir(pg, "#home");
       chk(home.sw <= home.cw + 1, w + " px · el home de tiles entra sin scroll horizontal (" + home.sw + " de " + home.cw + ")");

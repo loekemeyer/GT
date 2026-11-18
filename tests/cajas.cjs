@@ -6,7 +6,7 @@
 const path = require("path"), http = require("http"), fs = require("fs");
 let pw; try { pw = require("playwright"); } catch { pw = require(require("child_process").execSync("npm root -g").toString().trim() + "/playwright"); }
 const ROOT = path.join(__dirname, "..");
-const PASS = "9999", CLAVE = "4821";
+const PASS = "pl.9999", CLAVE = "4821";
 const A = (codigo, nombre, orden, x) => Object.assign({ codigo, nombre, unidad: "cajas", orden, planta: "PELL", pide_codigo: true, pide_cantidad: true, solo: null }, x || {});
 const AREAS = [A("CORTE", "Corte", 1, { unidad: "unidades cortadas" }), A("CONTR", "Contraído", 7), A("ARMCAJ", "Armado de cajas", 33, { unidad: "cajas armadas" })];
 const CAJAS = ["10", "12", "13", "14", "15", "16", "2", "20*50", "22", "29", "30", "38*38", "40*15", "40*50", "5",
@@ -33,7 +33,8 @@ const srv = http.createServer((req, res) => {
       const fn = req.url.split("/").pop(), b = body ? JSON.parse(body) : {};
       if (fn === "gt_registrar") (b.p_filas || []).forEach((f) => { if (!filas.some((x) => x.client_id === f.client_id)) filas.push(f); });
       if ((fn === "gt_cajas_estado" || fn === "gt_admin_cajas") && caido) { res.writeHead(500); return res.end("caído"); }
-      const out = fn === "gt_monitor_login" ? { ok: b.p_pass === PASS }
+      const out = fn === "gt_admin_identificar" ? { ok: b.p_codigo === "K7P+4M", token: PASS, nombre: "Prueba Test", resta_s: 28800 }
+        : fn === "gt_monitor_login" ? { ok: b.p_pass === PASS }
         : fn === "gt_monitor_clave" ? (b.p_pass === PASS ? { ok: true, clave: CLAVE, cambia_en_s: 42 } : { ok: false })
         : fn === "gt_clave_validar" ? { ok: true, principal: "PELL", empleados: [{ id: 7, nombre: "Ximena Ortiz", plantas: [] }] }
         : fn.startsWith("gt_botones") ? AREAS : fn === "gt_codigos_area2" ? CODS : fn === "gt_pasos" ? []
@@ -94,7 +95,7 @@ srv.listen(0, async () => {
     // ── admin ──
     datos = CON_CORTE;
     const ad = await br.newPage({ viewport: { width: 1280, height: 900 } });
-    await ad.goto(url + "admin.html"); await ad.fill("#passInput", PASS); await ad.click("#passBtn");
+    await ad.goto(url + "admin.html"); await ad.fill("#passInput", "K7P+4M"); await ad.click("#passBtn");
     await ad.waitForSelector("#home:not(.hidden)");
     await ad.evaluate((t)=>window.verTab(t),"cajas"); await ad.waitForSelector("#cajasTabla table", { timeout: 4000 });
     const filasT = await ad.$$eval("#cajasTabla tr", (l) => l.slice(1).map((r) => [...r.children].map((c) => c.textContent.trim())));

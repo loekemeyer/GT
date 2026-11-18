@@ -69,8 +69,15 @@ srv.listen(0, async () => {
     // la TV: la clave del monitor sigue entrando por el mismo campo
     const cT = await br.newContext({ viewport: { width: 1280, height: 900 } }), t = await cT.newPage();
     await t.goto(url + "admin.html"); await t.waitForSelector("#login:not(.hidden)");
-    await t.fill("#passInput", PASS); await t.click("#passBtn"); await t.waitForSelector("#home:not(.hidden)");
-    chk((await t.textContent("#quienAdm")) === "", "la clave del monitor sigue entrando (TV), sin nombre arriba");
+    await t.fill("#passInput", PASS); await t.click("#passBtn"); await t.waitForSelector("#monitor:not(.hidden)");
+    chk((await t.textContent("#quienAdm")) === "", "la clave del monitor sigue entrando a la TV (Monitor), sin nombre arriba");
+    await t.click("#btnInicio"); await t.waitForSelector("#login:not(.hidden)");
+    chk((await t.textContent("#passError")).includes("Planify") && !(await t.isVisible("#home")), "con la clave del monitor, «Inicio» pide el código de Planify");
+    await t.reload(); await t.waitForSelector("#monitor:not(.hidden)");
+    chk(true, "al recargar con la clave del monitor guardada abre el Monitor, no el admin");
+    // viene de Google con la clave del monitor guardada en la PC: pide el código igual
+    await t.evaluate(() => sessionStorage.setItem("gt_google_mail", "x@gmail.com")); await t.reload(); await t.waitForSelector("#login:not(.hidden)");
+    chk((await t.textContent("#loginMail")).includes("x@gmail.com"), "desde Google con la clave del monitor guardada: pide el código de Planify");
     await cT.close();
   } catch (e) { fallas.push(String(e)); console.log("✗ " + e); }
   await br.close(); srv.close();

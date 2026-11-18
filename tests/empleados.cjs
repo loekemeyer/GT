@@ -5,7 +5,7 @@
 const path = require("path"), http = require("http"), fs = require("fs");
 let pw; try { pw = require("playwright"); } catch { pw = require(require("child_process").execSync("npm root -g").toString().trim() + "/playwright"); }
 const ROOT = path.join(__dirname, "..");
-const PASS = "9999";
+const PASS = "pl.9999";
 const dia = (dow, ent, ad, ah, sal, x) => Object.assign({ dow, libre: false, entrada: ent, almuerzo_desde: ad, almuerzo_hasta: ah, sin_almuerzo: false, salida: sal }, x || {});
 const libre = (dow) => ({ dow, libre: true, entrada: null, almuerzo_desde: null, almuerzo_hasta: null, sin_almuerzo: false, salida: null });
 const SEMANA = [dia(1, "08:00", "12:40", "13:00", "17:30"), dia(2, "08:00", null, null, "13:30", { sin_almuerzo: true }), dia(3, "08:00", "12:40", "13:00", "17:30"),
@@ -30,6 +30,7 @@ const srv = http.createServer((req, res) => {
       if (fn === "gt_admin_asistencia3" && asisCae) { res.writeHead(404); return res.end("no existe"); }
       let out = [];
       if (fn === "gt_monitor_login") out = { ok: b.p_pass === PASS };
+      if (fn === "gt_admin_identificar") out = { ok: b.p_codigo === "K7P+4M", token: PASS, nombre: "Prueba Test", resta_s: 28800 };
       else if (fn === "gt_monitor_clave") out = b.p_pass === PASS ? { ok: true, clave: "4821", cambia_en_s: 42 } : { ok: false };
       else if (fn === "gt_admin_empleados") out = emps.filter((e) => e.activo || b.p_bajas);
       else if (fn === "gt_admin_horario_general") out = GRAL;
@@ -73,7 +74,7 @@ srv.listen(0, async () => {
     reset();
     const pg = await br.newPage({ viewport: { width: 1280, height: 900 } });
     pg.on("dialog", (d) => d.accept());
-    await pg.goto(url + "admin.html"); await pg.fill("#passInput", PASS); await pg.click("#passBtn");
+    await pg.goto(url + "admin.html"); await pg.fill("#passInput", "K7P+4M"); await pg.click("#passBtn");
     await pg.waitForSelector("#home:not(.hidden)");
     await pg.evaluate((t)=>window.verTab(t),"emp"); await pg.waitForSelector("#empLista table");
     // ── lista ──

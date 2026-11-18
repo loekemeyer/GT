@@ -489,6 +489,13 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 
 *«Si algún cambio afecta el uso del programa mientras lo están usando, avisame y esperamos que los empleados se vayan. Afectar = que se les cierre la app o que no se les guarde lo que hacen.»* Está en `CLAUDE.md`.
 
+### gt_v193 — el admin pide SIEMPRE el código de Planify (Tomás Beviglia, 18/11/2026) — sólo `admin.html`, la app sigue en 1.73
+
+- Reclamo: *«cuando entro con el mail no me pide el acceso con la clave de Planify»*. Medido: `gt.admin_sesiones` vacía (nadie había entrado con código) y la PC había entrado 4 veces con la **clave del monitor** (09:13–09:44), que el admin recuerda hasta el lunes y abría todo sin preguntar.
+- Ahora **la clave del monitor abre SÓLO el Monitor** (la TV). Cualquier otra pestaña, «🏠 Inicio» o venir de Google pide el **código de Planify**. Con el token de Planify abre el home.
+- *«No con el admin maestro, con el código normal»*: `gt_admin_identificar` ya **no exige el permiso** al panel `gt-admin`; entra cualquiera con su código vivo de Planify. `sql/gt_v193_admin_codigo_normal.sql`.
+- Tests: los del admin entran con el código (`K7P+4M` → token `pl.…`); `tests/admin-planify.cjs` y `tests/smoke.cjs` miden que la clave del monitor sola no abre el admin.
+
 ### 1.73 / gt_v192 — PPP como Gestión Virgilio: camiones por día, «lista para facturar» desde el celular y tarea a Gabriel (Tomás Beviglia, 18/11/2026)
 
 - Pedido: *«la programación de pedidos dentro del admin … lo más posible a GV … cómo separar en camiones … que Javier marque desde ahí las notas de pedido listas para facturar … con alguna alerta en el Planify de Gabriel»*. Aprobado: C2, C3, C4, C6, C7, C8. **No** (C1, C5): los pedidos se siguen cargando **primero en ISIS**; GT sólo los controla, y no hay módulo de Facturación en GT.

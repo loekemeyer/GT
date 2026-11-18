@@ -532,10 +532,13 @@
       try { localStorage.setItem(LS_PASS, p); localStorage.setItem(LS_PASS_TS, String(Date.now())); } catch {}
       pintarQuien();
       await pedir(true);
-      if (pass && tab !== "monitor") verTab(tab);
+      verTab("monitor");   // 18/11: la clave del monitor abre SÓLO el Monitor (la TV); el resto pide el código de Planify
     }
     function verTab(t, primera) {
       tab = t;
+      // 18/11/2026 (Tomás Beviglia): el admin se entra SIEMPRE con el código de Planify. La clave del monitor (guardada en la
+      // PC hasta el lunes) sólo abre el Monitor: antes abría todo el admin y nunca se pedía el código.
+      if (t !== "monitor" && !esToken(pass)) { verLogin(pass ? "Para entrar al admin poné el código de Planify (la clave del monitor sólo abre el Monitor)" : ""); return; }
       document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
       document.querySelectorAll(".vista").forEach((v) => v.classList.toggle("hidden", v.id !== t));
       if (t !== "bot") apagarBotonera();   // 1.66: fuera de la pestaña el iframe no queda corriendo
@@ -1598,7 +1601,12 @@
     $("passInput").addEventListener("keydown", (e) => { if (e.key === "Enter") entrar(); });
     $("salirMon").onclick = (e) => { e.preventDefault(); olvidarPass(); verLogin(); };
     // Arranque: gatear la clave (pedir muestra el login si falta) y aterrizar en el home de tiles.
-    pedir(true).then(() => { if (pass) verTab("home", true); });
+    pedir(true).then(() => {
+      if (!pass) return;
+      let gm = ""; try { gm = sessionStorage.getItem("gt_google_mail") || ""; } catch {}
+      // con el token de Planify, el home · con la clave del monitor, el Monitor (TV) · si viene de Google, pide el código
+      verTab(esToken(pass) ? "home" : gm ? "home" : "monitor", true);
+    });
   })();
   </script>
 </body>

@@ -5,7 +5,7 @@
 const path = require("path"), http = require("http"), fs = require("fs");
 let pw; try { pw = require("playwright"); } catch { pw = require(require("child_process").execSync("npm root -g").toString().trim() + "/playwright"); }
 const ROOT = path.join(__dirname, "..");
-const PASS = "9999", HOY = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+const PASS = "pl.9999", HOY = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
 const dia = (n) => new Date(Date.now() - 3 * 3600e3 + n * 864e5).toISOString().slice(0, 10);
 const P = (id, np, cliente, barrio, camion, m3, ent, x) => Object.assign({ id, np, cliente, barrio, camion, m3, kg: 100, entrega_retira: ent, fecha_recep: dia(-3), demora_dias: 3, cod: id, dir_entrega: "x" + id }, x || {});
 const PROG = [
@@ -23,7 +23,8 @@ const srv = http.createServer((req, res) => {
       const fn = req.url.split("/").pop(), b = body ? JSON.parse(body) : {};
       if (fn === "gt_ppp_marcar_listos") marcadas.push(b);
       if (fn === "gt_admin_ppp_set_camion") setCam.push(b);
-      const out = fn === "gt_monitor_login" ? { ok: b.p_pass === PASS }
+      const out = fn === "gt_admin_identificar" ? { ok: b.p_codigo === "K7P+4M", token: PASS, nombre: "Prueba Test", resta_s: 28800 }
+        : fn === "gt_monitor_login" ? { ok: b.p_pass === PASS }
         : fn === "gt_monitor_clave" ? (b.p_pass === PASS ? { ok: true, clave: "4821", cambia_en_s: 42 } : { ok: false })
         : fn === "gt_admin_ppp_programacion5" ? PROG
         : fn === "gt_admin_ppp_set_camion" ? 1
@@ -51,7 +52,7 @@ srv.listen(0, async () => {
   const br = await pw.chromium.launch();
   try {
     const pg = await br.newPage({ viewport: { width: 1280, height: 900 } });
-    await pg.goto(url + "admin.html"); await pg.fill("#passInput", PASS); await pg.click("#passBtn"); await pg.waitForSelector("#home:not(.hidden)");
+    await pg.goto(url + "admin.html"); await pg.fill("#passInput", "K7P+4M"); await pg.click("#passBtn"); await pg.waitForSelector("#home:not(.hidden)");
     await pg.evaluate(() => window.verTab("ppp")); await pg.click('.ppp-sub[data-sub="prog"]');
     await pg.waitForSelector(".ppp-cam");
     const cams = await pg.$$eval(".ppp-cam", (l) => l.map((x) => x.textContent));

@@ -51,6 +51,7 @@ const srv = http.createServer((req, res) => {
       const b = JSON.parse(body || "{}"), fn = req.url.split("/").pop();
       let out;
       if (fn === "gt_monitor_clave") out = !CLAVE_MON ? { ok: true, sin_clave: true, clave: "1234", cambia_en_s: 42 } : b.p_pass === CLAVE_MON ? { ok: true, clave: "1234", cambia_en_s: 42 } : { ok: false };
+      else if (fn === "gt_admin_identificar") out = b.p_codigo === "K7P+4M" ? { ok: true, token: "pl.tok", nombre: "Test", resta_s: 28800 } : { ok: false };
       else if (fn === "gt_monitor_login") { LOGINS.push(b); out = { ok: b.p_pass === CLAVE_MON, en_horario: false }; }
       else if (fn === "gt_reingreso") { REING.push(b.p_empleado); out = null; }
       else if (fn === "gt_clave_validar") out = b.p_clave === "1234" ? { ok: true, principal: "PELL", empleados: [{ id: 7, nombre: "Prueba", plantas: [PELL] }, { id: 8, nombre: "Otro", plantas: [PELL] },
@@ -447,6 +448,10 @@ srv.listen(0, async () => {
     await ad.waitForFunction(() => document.getElementById("seg").textContent !== "--");
     const seg = Number(await ad.textContent("#seg"));
     chk(seg > 0 && seg <= 42, "monitor admin muestra el código y la cuenta regresiva (" + seg + " s)");
+    // 18/11: la clave del monitor abre SÓLO el Monitor; el admin pide el código de Planify (token pl.…)
+    await ad.evaluate(() => window.verTab("home")); await ad.waitForSelector("#login:not(.hidden)");
+    chk((await ad.textContent("#passError")).includes("Planify") && !(await ad.isVisible("#home")), "con la clave del monitor, el admin pide el código de Planify");
+    CLAVE_MON = "pl.tok"; await ad.fill("#passInput", "K7P+4M"); await ad.click("#passBtn"); await ad.waitForSelector("#home:not(.hidden)");
     await ad.evaluate((t)=>window.verTab(t),"prod"); await ad.waitForSelector("#prodArea table");
     chk((await ad.textContent("#prodArea")).includes("240") && (await ad.textContent("#prodOp")).includes("en curso"),
         "Producción: por área con unidades (10 cajas × 24 = 240) y lo en curso");

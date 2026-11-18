@@ -5,7 +5,7 @@
 const path = require("path"), http = require("http"), fs = require("fs");
 let pw; try { pw = require("playwright"); } catch { pw = require(require("child_process").execSync("npm root -g").toString().trim() + "/playwright"); }
 const ROOT = path.join(__dirname, "..");
-const PASS = "9999";
+const PASS = "pl.9999";
 const HOY = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
 const t = (hhmmss) => HOY + "T" + hhmmss + "-03:00";
 const base = { empleado: "Walter Saucedo", uxb: null, unidades: null, auto: false, unidad: "cajas", familia: null, descripcion: null };
@@ -27,6 +27,7 @@ const srv = http.createServer((req, res) => {
       if (fn === "gt_admin_produccion4" && sinCuatro) { res.writeHead(404); return res.end("no existe"); }
       let out = [];
       if (fn === "gt_monitor_login") out = { ok: b.p_pass === PASS };
+      if (fn === "gt_admin_identificar") out = { ok: b.p_codigo === "K7P+4M", token: PASS, nombre: "Prueba Test", resta_s: 28800 };
       else if (fn === "gt_monitor_clave") out = b.p_pass === PASS ? { ok: true, clave: "4821", cambia_en_s: 42 } : { ok: false };
       else if (fn === "gt_admin_produccion4") out = tramos;
       else if (fn === "gt_admin_produccion3") out = tramos.map((r) => { const x = Object.assign({}, r); delete x.id_apertura; delete x.id_cierre; return x; });
@@ -60,7 +61,7 @@ srv.listen(0, async () => {
     reset();
     const pg = await br.newPage({ viewport: { width: 1280, height: 900 } });
     pg.on("dialog", (d) => d.accept());
-    await pg.goto(url + "admin.html"); await pg.fill("#passInput", PASS); await pg.click("#passBtn");
+    await pg.goto(url + "admin.html"); await pg.fill("#passInput", "K7P+4M"); await pg.click("#passBtn");
     await pg.waitForSelector("#home:not(.hidden)");
     await pg.evaluate((t)=>window.verTab(t),"prod"); await pg.waitForSelector("#prodOp table");
     let f = await filas(pg);
