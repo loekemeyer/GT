@@ -44,7 +44,7 @@ const srv = http.createServer((req, res) => {
       if (fn === "gt_admin_identificar") out = { ok: b.p_codigo === "K7P+4M", token: PASS, nombre: "Prueba Test", resta_s: 28800 };
       else if (fn === "gt_monitor_clave") out = b.p_pass === PASS ? { ok: true, clave: "4821", cambia_en_s: 42 } : { ok: false };
       else if (fn === "gt_admin_produccion4") out = PROD;
-      else if (fn === "gt_admin_asistencia3") out = ASIS;
+      else if (fn === "gt_admin_asistencia4" || fn === "gt_admin_asistencia3") out = ASIS;
       else if (fn === "gt_admin_empleados") out = EMPS;
       else if (fn === "gt_admin_horario_general") out = { ok: true, entrada: "08:00", almuerzo_desde: "12:00", almuerzo_hasta: "13:00", salida: "17:30", tolerancia_min: 5, principal: "PELL", plantas: [{ codigo: "PELL", nombre: "Pellegrini" }, { codigo: "ESNA", nombre: "Esnaola" }] };
       res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify(out));

@@ -544,6 +544,21 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
   (los pasos con `fuente = 'companeros'`). En un celular normal no figura. Un operario real en modo vista sigue viendo las dos cosas.
 - `tests/tramos.cjs` (14 controles) y `tests/prueba.cjs` (21, en 320 y 390 px). Versión 1.70.
 
+### gt_v193 — 🏖 Vacaciones en 👥 Empleados del admin (Angely, 18/11/2026)
+
+> *«¿puedes hacer que en el Admin de GT pueda indicar que algún empleado está de vacaciones?»*
+
+- **Botón «Vacaciones»** en cada empleado activo (`admin.html`, sin subir la versión: no toca los celulares). Abre un formulario
+  desde–hasta (arranca en hoy) con la lista de sus períodos y «Anular». La base no deja dos períodos que se pisen ni más de 60 días.
+- **Estado**: quien está de vacaciones hoy dice «Vacaciones · hasta dd/mm» en vez de «Activo»; las próximas salen abajo («vac. dd/mm–dd/mm»).
+- **Asistencia** (`gt_admin_asistencia4` = asistencia3 + `vacaciones`): sin fichada dice «Vacaciones», no «No vino», y se cuenta aparte.
+  Si vino igual, se muestra como siempre. El front cae a asistencia3 si la 4 no está.
+- **Aviso de llegada** (`gt.alerta_llegada`): no lista a quien está de vacaciones (el cron está apagado hoy).
+- Base: `gt.empleado_vacaciones` (RLS, sin acceso directo), `gt.de_vacaciones(emp, día)`, `gt_admin_vacaciones`,
+  `gt_admin_vacacion_guardar`, `gt_admin_vacacion_anular`. **Anular no borra**: `anulada = true`. `sql/gt_v193_vacaciones.sql`.
+- No cambia: el empleado sigue activo, puede entrar a la app y lo que registre cuenta igual.
+- `tests/empleados.cjs` (+10 controles: estado, botón, validación, alta, lista, solape, anular, Asistencia).
+
 ### 1.69 / gt_v186 / gt_v187 — módulo 👥 Empleados del admin: alta, baja y horario que CONTROLA la fichada (Angely, 30/10/2026)
 
 - Pedido: *«un módulo para ingresar o dar de baja a los empleados… no solo ingresar sus datos sino también su horario, para que el programa pueda controlar su fichada»*. D16 «sí»: el aviso de llegada también.

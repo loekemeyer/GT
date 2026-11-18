@@ -10,9 +10,12 @@ const dia = (dow, ent, ad, ah, sal, x) => Object.assign({ dow, libre: false, ent
 const libre = (dow) => ({ dow, libre: true, entrada: null, almuerzo_desde: null, almuerzo_hasta: null, sin_almuerzo: false, salida: null });
 const SEMANA = [dia(1, "08:00", "12:40", "13:00", "17:30"), dia(2, "08:00", null, null, "13:30", { sin_almuerzo: true }), dia(3, "08:00", "12:40", "13:00", "17:30"),
                 dia(4, "08:00", "12:40", "13:00", "17:30"), dia(5, "08:00", "12:40", "13:00", "17:30"), libre(6), libre(7)];
-let emps, nextId, llamadas, asisCae;
+let emps, nextId, llamadas, asisCae, vacs;
+const hoy = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+const masDias = (n) => new Date(Date.parse(hoy) + n * 864e5).toISOString().slice(0, 10);
 const reset = () => {
   nextId = 20; llamadas = []; asisCae = false;
+  vacs = [{ id: 1, empleado_id: 5, desde: masDias(-1), hasta: masDias(3) }];
   emps = [
     { id: 1, nombre: "Javier Burgos", legajo: "t95", activo: true, baja_en: null, plantas: [], flexible: true, con_horario: false, horario: [] },
     { id: 2, nombre: "Lautaro Durante", legajo: "t161", activo: true, baja_en: null, plantas: [], flexible: false, con_horario: true, horario: SEMANA },
@@ -26,8 +29,8 @@ const srv = http.createServer((req, res) => {
   if (req.url.startsWith("/rest/v1/rpc/")) {
     let body = ""; req.on("data", (c) => (body += c)); req.on("end", () => {
       const fn = req.url.split("/").pop(), b = body ? JSON.parse(body) : {};
-      if (fn.startsWith("gt_admin_empleado")) llamadas.push({ fn, b });
-      if (fn === "gt_admin_asistencia3" && asisCae) { res.writeHead(404); return res.end("no existe"); }
+      if (fn.startsWith("gt_admin_empleado") || fn.startsWith("gt_admin_vacacion")) llamadas.push({ fn, b });
+      if ((fn === "gt_admin_asistencia4" || fn === "gt_admin_asistencia3") && asisCae) { res.writeHead(404); return res.end("no existe"); }
       let out = [];
       if (fn === "gt_monitor_login") out = { ok: b.p_pass === PASS };
       if (fn === "gt_admin_identificar") out = { ok: b.p_codigo === "K7P+4M", token: PASS, nombre: "Prueba Test", resta_s: 28800 };
@@ -49,10 +52,17 @@ const srv = http.createServer((req, res) => {
         if (e) { e.activo = b.p_activo; e.baja_en = b.p_activo ? null : "2026-10-30T14:00:00+00:00"; }
         out = e ? { ok: true, id: e.id, nombre: e.nombre, activo: e.activo } : { ok: false, error: "sin_cambio" };
       }
-      else if (fn === "gt_admin_asistencia3" || fn === "gt_admin_asistencia2") {
+      else if (fn === "gt_admin_vacaciones") out = vacs;
+      else if (fn === "gt_admin_vacacion_guardar") {
+        if (vacs.some((v) => v.empleado_id === b.p_emp && v.desde <= b.p_hasta && v.hasta >= b.p_desde)) out = { ok: false, error: "solapa", mensaje: "Ya tiene vacaciones cargadas en esas fechas" };
+        else { const v = { id: nextId++, empleado_id: b.p_emp, desde: b.p_desde, hasta: b.p_hasta }; vacs.push(v); out = { ok: true, id: v.id }; }
+      }
+      else if (fn === "gt_admin_vacacion_anular") { vacs = vacs.filter((v) => v.id !== b.p_id); out = { ok: true, id: b.p_id }; }
+      else if (fn === "gt_admin_asistencia4" || fn === "gt_admin_asistencia3" || fn === "gt_admin_asistencia2") {
         const base = { legajo: null, entrada: null, entrada_prevista: "2026-10-30T08:00:00", almuerzo_sale: null, almuerzo_vuelve: null, almuerzo_desde: null, almuerzo_hasta: null, flexible: false, fin: null,
                        salida_prevista: "2026-10-30T17:30:00", area_abierta: false, termino: false, tolerancia_min: 5, con_codigo: false, productivo: null, productivo_area: null };
         out = [Object.assign({}, base, { empleado: "Ana Franco", libre: true }), Object.assign({}, base, { empleado: "Beto Faltó", libre: false })];
+        if (fn === "gt_admin_asistencia4") { out.forEach((r) => (r.vacaciones = false)); out.push(Object.assign({}, base, { empleado: "Caro Vacaciones", libre: false, vacaciones: true })); }
         if (fn === "gt_admin_asistencia2") out.forEach((r) => delete r.libre);
       }
       res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify(out));
@@ -85,6 +95,26 @@ srv.listen(0, async () => {
         "lista · el horario por día se resume y los francos no figuran (" + filas[1][3] + ")");
     chk(/Esnaola/.test(filas[2][2]) && /Pellegrini/.test(filas[2][2]), "lista · quien trabaja en las dos plantas las muestra (" + filas[2][2] + ")");
     chk(/De baja 29\/10/.test(filas[3][4]) && /Reactivar/.test(filas[3][5]) && /Dar de baja/.test(filas[0][5]), "lista · el de baja dice la fecha y se puede reactivar (" + filas[3][4] + ")");
+    // ── vacaciones (gt_v193) ──
+    chk(/Vacaciones/.test(filas[2][4]) && new RegExp("hasta " + masDias(3).slice(8, 10) + "/" + masDias(3).slice(5, 7)).test(filas[2][4]) && /Activo/.test(filas[0][4]),
+        "vacaciones · quien está de vacaciones hoy dice «Vacaciones hasta dd/mm» en vez de «Activo» (" + filas[2][4] + ")");
+    chk(!/Vacaciones/.test(filas[3][5]) && /Vacaciones/.test(filas[0][5]), "vacaciones · el botón sale para los activos y no para el de baja");
+    await pg.click('#empLista button[data-acc="vac"][data-id="1"]'); await pg.waitForSelector("#empVac:not(.hidden)");
+    chk((await pg.textContent("#evTit")) === "Vacaciones: Javier Burgos" && (await pg.inputValue("#evDesde")) === hoy && (await pg.textContent("#evLista")).includes("Sin vacaciones"), "vacaciones · abre el formulario con desde = hoy y sin períodos");
+    await pg.fill("#evDesde", masDias(5)); await pg.fill("#evHasta", masDias(2)); await pg.click("#evGuardar");
+    chk((await pg.textContent("#evMsg")).includes("igual o anterior") && !llamadas.some((x) => x.fn === "gt_admin_vacacion_guardar"), "vacaciones · desde después de hasta: avisa y no manda nada");
+    await pg.fill("#evDesde", masDias(5)); await pg.fill("#evHasta", masDias(14)); await pg.click("#evGuardar");
+    await pg.waitForFunction(() => document.querySelector("#evMsg").textContent.includes("✓"));
+    const vg = llamadas.find((x) => x.fn === "gt_admin_vacacion_guardar").b;
+    chk(vg.p_emp === 1 && vg.p_desde === masDias(5) && vg.p_hasta === masDias(14) && vg.p_pass === PASS, "vacaciones · manda empleado, desde, hasta y clave");
+    chk(/10/.test(await pg.textContent("#evLista")) && (await pg.$$("#evLista button[data-vac]")).length === 1, "vacaciones · el período queda en la lista con 10 días y botón Anular");
+    chk((await pg.$$eval("#empLista tr", (l) => l.map((r) => r.textContent).find((t) => t.includes("Javier")))).includes("vac. " + masDias(5).slice(8, 10)), "vacaciones · en la lista, las próximas vacaciones salen abajo del estado");
+    await pg.fill("#evDesde", masDias(10)); await pg.fill("#evHasta", masDias(20)); await pg.click("#evGuardar");
+    await pg.waitForFunction(() => document.querySelector("#evMsg").textContent.includes("Ya tiene"));
+    chk(true, "vacaciones · fechas que se pisan: lo dice la base");
+    await pg.click("#evLista button[data-vac]"); await pg.waitForFunction(() => document.querySelector("#evMsg").textContent.includes("Anuladas"));
+    chk(llamadas.some((x) => x.fn === "gt_admin_vacacion_anular") && (await pg.textContent("#evLista")).includes("Sin vacaciones"), "vacaciones · anular las saca de la lista");
+    await pg.click("#evCerrar");
     // ── alta ──
     await pg.click("#empNuevo"); await pg.waitForSelector("#empForm:not(.hidden)");
     const base = await pg.$$eval("#efSemana tr[data-dow]", (l) => l.map((r) => [r.querySelector(".ef-trab").checked, r.querySelector(".ef-ent").value, r.querySelector(".ef-ad").value, r.querySelector(".ef-ah").value, r.querySelector(".ef-sal").value].join("|")));
@@ -134,6 +164,7 @@ srv.listen(0, async () => {
     // ── Asistencia: el franco ──
     await pg.evaluate((t)=>window.verTab(t),"asis"); await pg.waitForSelector("#asisTabla table");
     const asis = await pg.$$eval("#asisTabla tr", (l) => l.slice(1).map((r) => r.textContent.replace(/\s+/g, " ").trim()));
+    chk(/Caro Vacaciones.*Vacaciones/.test(asis[2]) && !/No vino/.test(asis[2]) && (await pg.textContent("#asisInfo")).includes("1 de vacaciones"), "asistencia · de vacaciones dice «Vacaciones», no «No vino», y se cuenta aparte");
     chk(/Ana Franco.*Franco/.test(asis[0]) && !/No vino/.test(asis[0]) && /Beto Faltó.*No vino/.test(asis[1]), "asistencia · el día de franco dice «Franco» y no «No vino»; quien faltó sin franco sigue como falta");
     chk((await pg.textContent("#asisInfo")).includes("1 con faltas") && (await pg.textContent("#asisInfo")).includes("1 de franco"), "asistencia · cuenta 1 con faltas y 1 de franco (" + (await pg.textContent("#asisInfo")) + ")");
     asisCae = true; await pg.click("#asisRef"); await pg.waitForTimeout(600);

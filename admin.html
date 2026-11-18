@@ -99,6 +99,8 @@
     .ef-chk{display:flex;gap:14px;}
     .ef-fila input[type=text]{font:inherit;font-size:15px;padding:7px 10px;border-radius:10px;border:1px solid var(--borde);background:var(--card);color:var(--fg);width:220px;}
     #efLegajo{width:90px !important;}
+    .ef-fila input[type=date]{font:inherit;font-size:15px;padding:7px 10px;border-radius:10px;border:1px solid var(--borde);background:var(--card);color:var(--fg);}
+    #evLista table{width:auto;font-size:13px;} #evLista td,#evLista th{padding:4px 8px;white-space:nowrap;}
     #efSemana input[type=time]{font:inherit;font-size:14px;padding:4px 6px;border-radius:8px;border:1px solid var(--borde);background:var(--card);color:var(--fg);}
     #efSemana input[type=time]:disabled{opacity:.35;}
     #efSemana td.dia{text-align:left;font-weight:600;}
@@ -328,6 +330,16 @@
         <button id="efCopiar" type="button">Copiar el lunes a lun–vie</button>
       </div>
       <div class="ped-acc"><button id="efGuardar" class="prim">Guardar</button><button id="efCancelar" type="button">Cancelar</button><span class="ped-msg" id="efMsg"></span></div>
+    </div>
+    <!-- VACACIONES (gt_v193, Angely 18/11/2026): «indicar que algún empleado está de vacaciones». Períodos desde–hasta por empleado
+         (gt.empleado_vacaciones); Asistencia muestra «Vacaciones» en vez de «No vino» y el aviso de llegada no lo cuenta. Anular no borra. -->
+    <div id="empVac" class="bloque hidden">
+      <h2 id="evTit">Vacaciones</h2>
+      <div class="ef-fila">
+        <label>Desde<input type="date" id="evDesde" /></label><label>Hasta<input type="date" id="evHasta" /></label>
+        <button id="evGuardar" class="prim">Guardar vacaciones</button><button id="evCerrar" type="button">Cerrar</button><span class="ped-msg" id="evMsg"></span>
+      </div>
+      <div id="evLista"></div>
     </div>
     <div class="bloque"><div id="empLista"></div></div>
   </section>
@@ -749,16 +761,19 @@
       $("asisInfo").textContent = "Cargando…";
       let rows = null;
       // 1.69: asistencia3 suma «libre» (franco) · 1.33: asistencia2 suma el ingreso con código y el 1.er trabajo (gt_v147)
-      for (const fn of ["gt_admin_asistencia3", "gt_admin_asistencia2", "gt_admin_asistencia"]) {
+      // gt_v193: asistencia4 suma «vacaciones»
+      for (const fn of ["gt_admin_asistencia4", "gt_admin_asistencia3", "gt_admin_asistencia2", "gt_admin_asistencia"]) {
         try { rows = await rpc(fn, { p_pass: pass || "", p_dia: dia }); break; }
         catch (e) { if (fn === "gt_admin_asistencia") { $("asisInfo").textContent = "⚠ No pude leer la asistencia (" + e.message + ")"; return; } }
       }
       if (!rows.length && !(await claveOk())) return;
       const corre = (ts, min) => { const d = new Date(String(ts).replace(" ", "T") + "Z"); d.setUTCMinutes(d.getUTCMinutes() + min); return d.toISOString().slice(0, 19); };
       const t19 = (ts) => String(ts).replace(" ", "T").slice(0, 19);
-      let faltas = 0, francos = 0;
+      let faltas = 0, francos = 0, vacas = 0;
       const html = rows.map((r) => {
         // 1.69: el día de franco no se espera que fiche: «Franco», no «No vino» (si vino igual, se muestra como siempre)
+        // gt_v193: de vacaciones no se espera que fiche: «Vacaciones», no «No vino»
+        if (r.vacaciones && !r.entrada) { vacas++; return "<tr class=baja><td class=izq><b>" + esc(r.empleado) + '</b> <span class="desc">' + esc(r.legajo || "") + '</span></td><td colspan="4" class="desc">Vacaciones</td><td class=izq><span class="chip c-warn">Vacaciones</span></td></tr>'; }
         if (r.libre && !r.entrada) { francos++; return "<tr class=baja><td class=izq><b>" + esc(r.empleado) + '</b> <span class="desc">' + esc(r.legajo || "") + '</span></td><td colspan="4" class="desc">Franco</td><td class=izq><span class="chip c-mut">Franco</span></td></tr>'; }
         const tol = r.tolerancia_min || 5, chips = [];
         let ent, alm = "—", sal = "—", prod = "—";
@@ -807,7 +822,7 @@
           (r.almuerzo_desde ? '<div class="desc">' + hhmm(r.almuerzo_desde) + "–" + hhmm(r.almuerzo_hasta) + "</div>" : "") + "</td><td>" + sal +
           '<div class="desc">' + hhmm(r.salida_prevista) + "</div></td><td class=izq>" + chips.join("") + "</td></tr>";
       }).join("");
-      $("asisInfo").textContent = rows.length + " operarios · " + faltas + " con faltas" + (francos ? " · " + francos + " de franco" : "") + " · abajo de cada hora, la que le toca";
+      $("asisInfo").textContent = rows.length + " operarios · " + faltas + " con faltas" + (francos ? " · " + francos + " de franco" : "") + (vacas ? " · " + vacas + " de vacaciones" : "") + " · abajo de cada hora, la que le toca";
       $("asisTabla").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Ingreso</th><th>1.er<br>trabajo</th><th>Almuerzo</th><th>Salida</th><th>Estado</th></tr>" + html + "</table>"
         : '<div class="vacio">Sin datos.</div>';
     }
@@ -1312,7 +1327,10 @@
     // Alta y baja de los empleados con SU horario: lo leen Asistencia, los avisos de llegada y el cierre automático. La baja no borra nada:
     // activo = false (el historial queda). Las plantas sólo se suman: sacar una es un borrado y todavía no se hace desde acá.
     const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"], h5 = (t) => String(t == null ? "" : t).slice(0, 5);
-    let emps = [], gral = null, editId = null;
+    let emps = [], gral = null, editId = null, vacs = [], vacId = null;
+    const vacDe = (id) => vacs.filter((v) => v.empleado_id === id);
+    const vacHoy = (id) => { const h = hoyAR(); return vacDe(id).find((v) => v.desde <= h && h <= v.hasta); };
+    const vacProx = (id) => { const h = hoyAR(); return vacDe(id).filter((v) => v.desde > h); };
     function plantaNombre(c) { const p = ((gral && gral.plantas) || []).find((x) => x.codigo === c); return p ? p.nombre : c; }
     function resumenHorario(e) {
       if (!e.con_horario) return '<span class="desc">general ' + h5(gral.entrada) + "–" + h5(gral.salida) + " · alm " + h5(gral.almuerzo_desde) + "–" + h5(gral.almuerzo_hasta) + "</span>";
@@ -1337,15 +1355,21 @@
         r = await rpc("gt_admin_empleados", { p_pass: pass || "", p_bajas: $("empBajas").checked });
         gral = await rpc("gt_admin_horario_general", { p_pass: pass || "" });
       } catch (e) { $("empInfo").textContent = "⚠ No pude leer los empleados (" + e.message + ")"; return; }
+      let vacErr = "";   // gt_v193: una lectura rota no es «nadie de vacaciones»: se avisa
+      try { vacs = (await rpc("gt_admin_vacaciones", { p_pass: pass || "" })) || []; } catch (e) { vacs = []; vacErr = " · ⚠ no pude leer las vacaciones (" + e.message + ")"; }
       if (!r.length && !(await claveOk())) return;
       emps = r;
       const act = r.filter((e) => e.activo).length;
-      $("empInfo").textContent = act + " activos" + (r.length > act ? " · " + (r.length - act) + " de baja" : "") + " · actualizado " + hora();
+      $("empInfo").textContent = act + " activos" + (r.length > act ? " · " + (r.length - act) + " de baja" : "") + " · actualizado " + hora() + vacErr;
       $("empLista").innerHTML = r.length ? "<table><tr><th>Legajo</th><th>Nombre</th><th>Plantas</th><th>Horario</th><th>Estado</th><th></th></tr>" + r.map((e) =>
         '<tr class="' + (e.activo ? "" : "baja") + '"><td>' + esc(e.legajo || "—") + "</td><td class=izq><b>" + esc(e.nombre) + "</b></td><td>" +
         ((e.plantas && e.plantas.length) ? e.plantas.map((c) => esc(plantaNombre(c))).join(" · ") : esc(plantaNombre(gral.principal))) + "</td><td class=izq>" + resumenHorario(e) + "</td><td>" +
-        (e.activo ? '<span class="chip c-ok">Activo</span>' : '<span class="chip c-mut">De baja' + (e.baja_en ? " " + ddmm(String(e.baja_en).slice(0, 10)) : "") + "</span>") +
+        (!e.activo ? '<span class="chip c-mut">De baja' + (e.baja_en ? " " + ddmm(String(e.baja_en).slice(0, 10)) : "") + "</span>"
+          : vacHoy(e.id) ? '<span class="chip c-warn">Vacaciones</span><div class="desc">hasta ' + ddmm(vacHoy(e.id).hasta) + "</div>"
+          : '<span class="chip c-ok">Activo</span>') +
+        (e.activo && vacProx(e.id).length ? '<div class="desc">vac. ' + vacProx(e.id).map((v) => ddmm(v.desde) + "–" + ddmm(v.hasta)).join(", ") + "</div>" : "") +
         '</td><td class="acc"><button data-acc="editar" data-id="' + e.id + '">Editar</button>' +
+        (e.activo ? '<button data-acc="vac" data-id="' + e.id + '">Vacaciones</button>' : "") +
         (e.activo ? '<button data-acc="baja" data-id="' + e.id + '" class="peligro">Dar de baja</button>' : '<button data-acc="alta" data-id="' + e.id + '">Reactivar</button>') + "</td></tr>").join("") + "</table>"
         : '<div class="vacio">No hay empleados cargados.</div>';
     }
@@ -1385,6 +1409,7 @@
     }
     function efMsg(t, err) { $("efMsg").textContent = t || ""; $("efMsg").classList.toggle("err", !!err); }
     function abrirForm(e) {
+      if (vacId !== null) cerrarVac();
       editId = e ? e.id : null;
       $("efTit").textContent = e ? "Editar: " + e.nombre : "Alta de empleado";
       $("efNombre").value = e ? e.nombre : ""; $("efLegajo").value = e && e.legajo ? e.legajo : "";
@@ -1438,6 +1463,44 @@
       if (!r || !r.ok) { if (r && r.error === "clave") { sinPermiso(); return; } efMsg("⚠ " + ((r && r.mensaje) || "no se pudo guardar"), true); return; }
       const nuevo = editId === null; cerrarForm(); await cargarEmp();
       $("empInfo").textContent = "✓ " + (nuevo ? "Alta hecha: " : "Cambios guardados: ") + r.nombre;
+    }
+    /* ---------- VACACIONES (gt_v193, Angely 18/11/2026) ---------- */
+    function evMsg(t, err) { $("evMsg").textContent = t || ""; $("evMsg").classList.toggle("err", !!err); }
+    function pintarVac() {
+      const e = emps.find((x) => x.id === vacId); if (!e) return;
+      $("evTit").textContent = "Vacaciones: " + e.nombre;
+      const l = vacDe(vacId), h = hoyAR();
+      $("evLista").innerHTML = l.length ? "<table><tr><th>Desde</th><th>Hasta</th><th>Días</th><th></th></tr>" + l.map((v) =>
+        "<tr><td>" + ddmm(v.desde) + "</td><td>" + ddmm(v.hasta) + "</td><td>" + (Math.round((Date.parse(v.hasta) - Date.parse(v.desde)) / 864e5) + 1) + "</td><td>" +
+        (v.hasta < h ? '<span class="desc">terminadas</span>' : '<button data-vac="' + v.id + '" class="peligro">Anular</button>') + "</td></tr>").join("") + "</table>"
+        : '<div class="desc">Sin vacaciones cargadas.</div>';
+    }
+    function abrirVac(e) {
+      cerrarForm(); vacId = e.id; $("evDesde").value = hoyAR(); $("evHasta").value = ""; evMsg("");
+      pintarVac(); $("empVac").classList.remove("hidden"); $("evHasta").focus();
+    }
+    function cerrarVac() { $("empVac").classList.add("hidden"); vacId = null; evMsg(""); }
+    async function guardarVac() {
+      const d = $("evDesde").value, h = $("evHasta").value;
+      if (!d || !h) { evMsg("⚠ Elegí desde y hasta", true); return; }
+      if (d > h) { evMsg("⚠ «Desde» tiene que ser igual o anterior a «hasta»", true); return; }
+      $("evGuardar").disabled = true; evMsg("Guardando…");
+      let r;
+      try { r = await rpc("gt_admin_vacacion_guardar", { p_pass: pass || "", p_emp: vacId, p_desde: d, p_hasta: h }); }
+      catch (e) { evMsg("⚠ No pude guardar (" + e.message + ")", true); $("evGuardar").disabled = false; return; }
+      $("evGuardar").disabled = false;
+      if (!r || !r.ok) { if (r && r.error === "clave") { sinPermiso(); return; } evMsg("⚠ " + ((r && r.mensaje) || "no se pudo guardar"), true); return; }
+      const id = vacId; await cargarEmp(); vacId = id; pintarVac(); $("evHasta").value = "";
+      evMsg("✓ Vacaciones cargadas: " + ddmm(d) + "–" + ddmm(h));
+    }
+    async function anularVac(vid) {
+      const v = vacs.find((x) => x.id === vid), e = emps.find((x) => x.id === vacId); if (!v || !e) return;
+      if (!window.confirm("¿Anular las vacaciones de " + e.nombre + " del " + ddmm(v.desde) + " al " + ddmm(v.hasta) + "?")) return;
+      let r;
+      try { r = await rpc("gt_admin_vacacion_anular", { p_pass: pass || "", p_id: vid }); }
+      catch (err) { evMsg("⚠ No pude anular (" + err.message + ")", true); return; }
+      if (!r || !r.ok) { if (r && r.error === "clave") { sinPermiso(); return; } evMsg("⚠ " + ((r && r.mensaje) || "no se pudo"), true); return; }
+      const id = vacId; await cargarEmp(); vacId = id; pintarVac(); evMsg("✓ Anuladas");
     }
     async function bajaEmp(id, activo) {
       const e = emps.find((x) => x.id === id); if (!e) return;
@@ -1615,8 +1678,10 @@
     $("empLista").addEventListener("click", (ev) => {
       const b = ev.target.closest("button[data-acc]"); if (!b) return;
       const id = Number(b.dataset.id), e = emps.find((x) => x.id === id);
-      if (b.dataset.acc === "editar" && e) abrirForm(e); else bajaEmp(id, b.dataset.acc === "alta");
+      if (b.dataset.acc === "editar" && e) { cerrarVac(); abrirForm(e); } else if (b.dataset.acc === "vac" && e) abrirVac(e); else bajaEmp(id, b.dataset.acc === "alta");
     });
+    $("evGuardar").onclick = guardarVac; $("evCerrar").onclick = cerrarVac;
+    $("evLista").addEventListener("click", (ev) => { const b = ev.target.closest("button[data-vac]"); if (b) anularVac(Number(b.dataset.vac)); });
     $("cajasRef").onclick = () => cargarCajas();
     setInterval(() => { if (!document.hidden && tab === "cajas") cargarCajas(true); }, 10000);   // 1.68: en vivo
     setInterval(() => { if (document.hidden) return; if (tab === "prod" && $("prodDia").value === hoyAR()) cargarProd();
