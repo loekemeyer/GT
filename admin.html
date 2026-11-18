@@ -39,6 +39,8 @@
 
     .login{display:flex;flex-direction:column;align-items:center;gap:14px;margin-top:12vh;}
     .login input{font-size:40px;width:260px;text-align:center;letter-spacing:8px;padding:8px;border-radius:12px;border:2px solid var(--borde);background:var(--card);color:var(--fg);}
+    .login-sub{font-size:14px;color:var(--mut,#64748b);text-align:center;max-width:320px;}
+    .quien-adm{font-size:13px;color:var(--mut,#64748b);margin-left:auto;margin-right:8px;}
     .login button{font-size:20px;padding:10px 40px;border-radius:12px;border:none;background:var(--acc);color:#fff;}
     .err-txt{color:var(--err);min-height:1em;}
 
@@ -226,6 +228,7 @@
   <header>
     <h1>GT · Admin</h1>
     <button id="btnInicio" class="hidden">🏠 Inicio</button>
+    <span id="quienAdm" class="quien-adm"></span>
     <a href="#" id="salirMon">Salir</a>
     <a href="./">← App de operario</a>
   </header>
@@ -249,10 +252,13 @@
     </div>
   </section>
 
-  <!-- CLAVE DEL MONITOR: la valida la base (gt_monitor_clave). Se recuerda en ESTA máquina hasta «Salir» o hasta el lunes 07:00 (v1.6). El ingreso tipeado va por gt_monitor_login. -->
+  <!-- INGRESO (gt_v191, 18/11/2026): el código vivo de Planify («🔑 Código admin») → gt_admin_identificar da un token de 8 h.
+       La clave del monitor sigue entrando por el mismo campo (la TV la pone el lunes 07:00, v1.6): gt_monitor_login. -->
   <div id="login" class="login hidden">
-    <div class="rot">🔒 Clave del monitor</div>
-    <input id="passInput" type="password" inputmode="numeric" autocomplete="off" />
+    <div class="rot">🔑 Identificate con Planify</div>
+    <div id="loginMail" class="login-sub hidden"></div>
+    <div class="login-sub">El código del botón «🔑 Código admin» de tu Planify (en la TV, la clave del monitor)</div>
+    <input id="passInput" type="password" autocapitalize="characters" autocomplete="one-time-code" spellcheck="false" maxlength="32" placeholder="K7P+4M" />
     <button id="passBtn">Entrar</button>
     <div id="passError" class="err-txt"></div>
   </div>
@@ -440,7 +446,14 @@
       let ts = 0; try { ts = Number(localStorage.getItem(LS_PASS_TS)) || 0; } catch {}
       return ts < inicioSemana();
     }
-    function olvidarPass() { pass = null; try { localStorage.removeItem(LS_PASS); localStorage.removeItem(LS_PASS_TS); } catch {} }
+    // gt_v191: identificación con Planify. El token («pl.…») vence a las 8 h (LS_TOK_VENCE); la clave del monitor, el lunes.
+    const LS_TOK_VENCE = "gt_admin_tok_vence", LS_QUIEN = "gt_admin_quien";
+    let tokTimer = null;
+    const esToken = (p) => typeof p === "string" && p.startsWith("pl.");
+    function tokVencido() { let v = 0; try { v = Number(localStorage.getItem(LS_TOK_VENCE)) || 0; } catch {} return Date.now() >= v; }
+    function pintarQuien() { let q = ""; try { q = esToken(pass) ? localStorage.getItem(LS_QUIEN) || "" : ""; } catch {} const e = document.getElementById("quienAdm"); if (e) e.textContent = q ? "👤 " + q : ""; }
+    function vencerEn(ms) { clearTimeout(tokTimer); tokTimer = setTimeout(() => { if (esToken(pass)) { olvidarPass(); verLogin("Pasaron 8 horas: volvé a poner el código de Planify"); } }, Math.max(1000, ms)); }
+    function olvidarPass() { pass = null; clearTimeout(tokTimer); try { localStorage.removeItem(LS_PASS); localStorage.removeItem(LS_PASS_TS); localStorage.removeItem(LS_TOK_VENCE); localStorage.removeItem(LS_QUIEN); } catch {} pintarQuien(); }
     function dispositivo() {
       try { let d = localStorage.getItem(LS_DISP);
         if (!d) { d = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random()); localStorage.setItem(LS_DISP, d); }
@@ -451,7 +464,9 @@
       // clave guardada antes de la 1.6 (sin fecha): vale hasta el próximo lunes, no se la pide hoy
       if (pass && !localStorage.getItem(LS_PASS_TS)) localStorage.setItem(LS_PASS_TS, String(Date.now()));
       if (pass && passVencida()) { olvidarPass(); vencio = true; }
+      if (pass && esToken(pass)) { if (tokVencido()) { olvidarPass(); vencio = "tok"; } else vencerEn((Number(localStorage.getItem(LS_TOK_VENCE)) || 0) - Date.now()); }
     } catch { /* sin storage */ }
+    pintarQuien();
 
     async function rpc(fn, body) {
       const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 15000);
@@ -470,16 +485,39 @@
       document.querySelectorAll(".vista").forEach((v) => v.classList.add("hidden"));
       $("login").classList.remove("hidden");
       $("passError").textContent = msg || ""; $("passInput").value = ""; $("passInput").focus();
+      let gm = ""; try { gm = sessionStorage.getItem("gt_google_mail") || ""; } catch {}
+      $("loginMail").textContent = gm ? "Entraste con " + gm : ""; $("loginMail").classList.toggle("hidden", !gm);
     }
     async function entrar() {
       const p = $("passInput").value.trim(); if (!p) return;
+      // gt_v191: primero como código de Planify (6 caracteres: 2-9, letras sin I/L/O, + - * /; o los 6 números viejos).
+      // Si no es un código o Planify no lo reconoce, se prueba como clave del monitor (la TV).
+      const cod = p.replace(/\s+/g, "").toUpperCase();
+      let motivoPl = "";
+      if (/^[0-9A-Z+\-*\/]{6}$/.test(cod)) {
+        let x;
+        let gm = ""; try { gm = sessionStorage.getItem("gt_google_mail") || ""; } catch {}
+        try { x = await rpc("gt_admin_identificar", { p_codigo: cod, p_email: gm || null }); }
+        catch { x = null; }   // sin la función o sin red: se prueba igual como clave del monitor
+        if (x && x.ok && x.token) {
+          pass = x.token; vencio = false;
+          const vence = Date.now() + (Number(x.resta_s) || 28800) * 1000;
+          try { localStorage.setItem(LS_PASS, x.token); localStorage.setItem(LS_PASS_TS, String(Date.now())); localStorage.setItem(LS_TOK_VENCE, String(vence)); localStorage.setItem(LS_QUIEN, x.nombre || ""); sessionStorage.removeItem("gt_google_mail"); } catch {}
+          vencerEn(vence - Date.now()); pintarQuien();
+          await pedir(true);
+          if (pass && tab !== "monitor") verTab(tab);
+          return;
+        }
+        motivoPl = (x && x.motivo) || "Código incorrecto o vencido.";
+      }
       // el ingreso TIPEADO queda registrado; fuera del lunes 07:00–08:00 la base avisa por Telegram
       let r;
       try { r = await rpc("gt_monitor_login", { p_pass: p, p_dispositivo: dispositivo(), p_navegador: navigator.userAgent }); }
       catch (e) { $("passError").textContent = "No pude validar la clave (" + (e.message || e) + ")"; return; }
-      if (!r || !r.ok) { olvidarPass(); verLogin("Clave incorrecta"); return; }
+      if (!r || !r.ok) { olvidarPass(); verLogin(motivoPl || "Código o clave incorrectos"); return; }
       pass = p; vencio = false;
       try { localStorage.setItem(LS_PASS, p); localStorage.setItem(LS_PASS_TS, String(Date.now())); } catch {}
+      pintarQuien();
       await pedir(true);
       if (pass && tab !== "monitor") verTab(tab);
     }
@@ -494,7 +532,7 @@
       // home, ppp, fact: sólo muestran la vista, sin loader.
       const bi = document.getElementById("btnInicio"); if (bi) bi.classList.toggle("hidden", t === "home");
     }
-    function sinPermiso() { olvidarPass(); verLogin("Clave incorrecta"); }
+    function sinPermiso() { const t = esToken(pass); olvidarPass(); verLogin(t ? "Venció tu identificación: volvé a poner el código de Planify" : "Clave incorrecta"); }
 
     /* ---------- MONITOR ---------- */
     async function pedir(primera) {
@@ -503,7 +541,7 @@
       const p = pass || "";
       try {
         const d = await rpc("gt_monitor_clave", { p_pass: p });
-        if (!d.ok) { if (p) sinPermiso(); else verLogin(vencio ? "Es lunes: volvé a poner la clave" : ""); return; }
+        if (!d.ok) { if (p) sinPermiso(); else verLogin(vencio === "tok" ? "Pasaron 8 horas: volvé a poner el código de Planify" : vencio ? "Es lunes: volvé a poner la clave" : ""); return; }
         $("login").classList.add("hidden");
         if (tab === "monitor") $("monitor").classList.remove("hidden");
         $("clave").textContent = d.clave;
@@ -815,9 +853,21 @@
       try { d = await rpc("gt_monitor_clave", { p_pass: pass || "" }); }
       catch (e) { $("botInfo").textContent = "⚠ No pude leer el código (" + (e.message || e) + "). Tocá ↻ Reiniciar."; return; }
       if (!d || !d.ok) { sinPermiso(); return; }
+      f.onload = marcarPrueba;
       f.src = "./?vista=1&cod=" + encodeURIComponent(d.clave) + "&t=" + Date.now();
       f.dataset.ok = "1";
       $("botInfo").textContent = "👁 Modo vista: se puede tocar todo y NO graba nada (ni productividad, ni stock, ni la asistencia). Elegí el operario.";
+    }
+    // 18/11/2026: la 🧪 Persona de Prueba sale en otro color en «¿Quién sos?» (sólo acá: el iframe es del mismo origen,
+    // así que el estilo se le inyecta desde el admin y la app de los operarios no cambia).
+    function marcarPrueba() {
+      try {
+        const d = $("botFrame").contentDocument; if (!d || d.getElementById("gtPruebaCss")) return;
+        const st = d.createElement("style"); st.id = "gtPruebaCss";
+        st.textContent = '#nombreLista button[data-nombre^="🧪"]{background:#fef3c7 !important;border:2px dashed #d97706 !important;color:#92400e !important;}' +
+          '#nombreLista button[data-nombre^="🧪"] span{color:#92400e !important;}';
+        d.head.appendChild(st);
+      } catch { /* otro origen: no se marca */ }
     }
     function apagarBotonera() {
       const f = $("botFrame"); if (f.dataset.ok !== "1") return;

@@ -489,6 +489,16 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 
 *«Si algún cambio afecta el uso del programa mientras lo están usando, avisame y esperamos que los empleados se vayan. Afectar = que se les cierre la app o que no se les guarde lo que hacen.»* Está en `CLAUDE.md`.
 
+### 1.72 / gt_v191 — el admin se entra con el código de Planify; Google sin operario abre el admin; la 🧪 Persona de Prueba en otro color (18/11/2026)
+
+- Pedido: *«si entro con Google quiero que me pida la clave de Planify como en Gestión Virgilio y que se me abra el admin … si entrás a admin o con mail que te pida la clave temporal que brinda Planify»* y *«dentro del admin que aparezca en otro color la Persona de Prueba»*.
+- **Admin** (`admin.html`): el login dice «🔑 Identificate con Planify». Un código de 6 (`2-9`, letras sin I/L/O, `+ - * /`, o los 6 números viejos) va a **`gt_admin_identificar`**: valida contra el panel **`gt-admin`** de `accesos.paneles` (el permiso se da en el Admin Maestro de Planify; iniciales: Thomas 3, Angely 22, Gonzalez Tomas 16, Elías 1) y devuelve un **token `pl.…` de 8 h** (`accesos.ident_duracion`). En la base queda sólo su sha256 (`gt.admin_sesiones`, RLS sin políticas). Arriba a la derecha dice quién entró; a las 8 h vuelve a pedir el código.
+- **`gt.pass_ok` acepta el token** además de la clave del monitor: todas las `gt_admin_*` (que reciben `p_pass`) andan sin tocarlas. `gt_monitor_clave` pasó a usar `gt.pass_ok`.
+- **La clave del monitor sigue entrando por el mismo campo** (la TV la pone el lunes 07:00 y no puede pedir un código cada 8 h). Si el código no es de Planify, se prueba como clave del monitor.
+- **Google** (`app.js`, 1.72): si el mail es el de un operario con clave personal (Darío), entra a su botonera como antes. Si es la Persona de Prueba, la clave de vista o un mail sin clave personal, va a `admin.html` (lleva el mail en `sessionStorage.gt_google_mail` para mostrarlo) y ahí pide el código de Planify. `gt_google_llave` devuelve `prueba` y `email`.
+- **🧪 Persona de Prueba en otro color** (fondo ámbar, borde punteado) en la pestaña 👁 Botonera: el admin le inyecta el estilo al iframe (mismo origen), así que la app de los operarios no cambia por esto.
+- `tests/admin-planify.cjs` (9 controles) y `tests/esnaola.cjs` (Google con otro mail → admin). `sql/gt_v191_admin_planify.sql`.
+
 ### Admin más ancho: sin scroll horizontal (Angely, 02/11/2026) — sólo `admin.html`, la app sigue en 1.70
 
 - Pedido: *«se ve mal el admin, no veo todas las opciones: agrandá la pantalla para que se vea todo sin scrollear horizontalmente»* (captura de ~930 px con la tabla «Por operario» cortada: la 1.70 le había sumado la columna de ✏️ 🗑️).
