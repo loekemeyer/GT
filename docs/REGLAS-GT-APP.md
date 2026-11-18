@@ -489,6 +489,16 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 
 *«Si algún cambio afecta el uso del programa mientras lo están usando, avisame y esperamos que los empleados se vayan. Afectar = que se les cierre la app o que no se les guarde lo que hacen.»* Está en `CLAUDE.md`.
 
+### 1.73 / gt_v192 — PPP como Gestión Virgilio: camiones por día, «lista para facturar» desde el celular y tarea a Gabriel (Tomás Beviglia, 18/11/2026)
+
+- Pedido: *«la programación de pedidos dentro del admin … lo más posible a GV … cómo separar en camiones … que Javier marque desde ahí las notas de pedido listas para facturar … con alguna alerta en el Planify de Gabriel»*. Aprobado: C2, C3, C4, C6, C7, C8. **No** (C1, C5): los pedidos se siguen cargando **primero en ISIS**; GT sólo los controla, y no hay módulo de Facturación en GT.
+- **Zonas** (`gt.ppp_zonas`, barrio → zona): Norte (Munro, Tigre, Tortuguitas) · Capital Sur (Pompeya, Soldati) · Capital (Paternal) · Retira. Barrio sin fila = «Sin zona (barrio)»: se agrega con un `insert`.
+- **Camión** (`gt.ppp_camion_de`): súper (Cencosud, Coto, La Anónima, Inc) = su propio camión · Retira sin camión · el resto, la zona. La columna `camion` lo pisa a mano (admin: «🚚 Pasar a ese camión»; vacío = vuelve al automático).
+- **Admin · Programación** (`gt_admin_ppp_programacion5`, cae a la 4): día → camión con NP, paradas, m³ y kg; aviso si un camión pasa los **40 m³** (`jornada_camion_m3_cap` de GV); día pasado con pedidos = **VENCIDO**; ⏱ demora (días desde la recepción) en rojo desde **14**, también en A Programar; chip «✅ Lista p/ facturar · Javier hh:mm» y «↩ Quitar «lista»».
+- **Celular** (1.73): con «Pedidos» abierto aparece **🧾 Pedidos listos para facturar**: las NP programadas de 7 días atrás a 7 adelante (`gt_ppp_para_armar`), tilda las armadas → `gt_ppp_marcar_listos` (rechaza inactivos y la persona de prueba; en modo vista no graba). Va directo, no por la cola: sin red, avisa y no marca.
+- **Tarea a Gabriel (72)**: `gt.ppp_fact_tarea_sync(día)` arma **una tarea de Planify por día de entrega** («GT a facturar 20/11: 2 NP listas») con las NP listas sin entregar; la nota se reescribe al sumar o mover NP y se **cierra sola** cuando se entregan o se les quita la marca. La dispara el trigger `zz_ppp_fact_tarea` de `gt.ppp_a_programar` (nunca frena el cambio). Probado en transacción abortada: marcar → tarea · mover una NP de día → dos tareas · entregar → las dos cerradas.
+- `tests/ppp-camiones.cjs` (15 controles). `sql/gt_v192_ppp_camiones_listos.sql`.
+
 ### 1.72 / gt_v191 — el admin se entra con el código de Planify; Google sin operario abre el admin; la 🧪 Persona de Prueba en otro color (18/11/2026)
 
 - Pedido: *«si entro con Google quiero que me pida la clave de Planify como en Gestión Virgilio y que se me abra el admin … si entrás a admin o con mail que te pida la clave temporal que brinda Planify»* y *«dentro del admin que aparezca en otro color la Persona de Prueba»*.

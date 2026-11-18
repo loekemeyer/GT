@@ -455,7 +455,9 @@
         '<button class="termine-btn' + (!base && esInvitado(ab) ? " mefui" : "") + '" data-cod="' + esc(ab.rubro) + '">' +
         (base ? (ab.rubro === "BANO" ? "✅ Volví del baño" : ab.rubro === "LIMP" ? "✅ Terminé la limpieza" : "✅ Terminé el movimiento") : esInvitado(ab) ? "🚪 Me fui" : "✅ Terminé") + "</button>" +
         (pausas.length ? '<div class="pausas">' + pausas.map((x) => '<button class="sec-btn pausa-btn" data-pausa="' + esc(x.codigo) + '">' +
-          (ICONO[x.codigo] || "🏷️") + " " + esc(x.nombre) + "</button>").join("") + "</div>" : "");
+          (ICONO[x.codigo] || "🏷️") + " " + esc(x.nombre) + "</button>").join("") + "</div>" : "") +
+        // 1.73 (Tomás Beviglia, 18/11/2026): en «Pedidos», Javier marca las NP que dejó armadas → listas para facturar (gt_v192)
+        (ab.rubro === "PED" && !base ? '<button class="sec-btn listos-btn">🧾 Pedidos listos para facturar</button>' : "");
     } else $("botonera").innerHTML = st.areas.some((a) => a.codigo !== "ALMU" && !DENTRO_DE[a.codigo] && deLaPlanta(a) && delEmp(a)) ?
       '<div class="row">' + st.areas.filter((a) => a.codigo !== "ALMU" && !DENTRO_DE[a.codigo] && deLaPlanta(a) && delEmp(a)).map((a) => {
         const esAb = ab && ab.rubro === a.codigo;
@@ -629,6 +631,36 @@
     $("avisoNota").innerHTML = o.nota || ""; $("avisoNota").classList.toggle("hidden", !o.nota);
     $("avisoBtns").innerHTML = o.botones.map((b, i) => '<button data-i="' + i + '" class="' + (b.sec ? "sec-btn" : "primary-btn") + '">' + esc(b.t) + "</button>").join("");
     $("avisoPop").classList.remove("hidden"); document.body.classList.add("sin-scroll");
+  }
+  // 1.73 (Tomás Beviglia, 18/11/2026): las NP programadas (7 días atrás a 7 adelante) para tildar las que quedaron armadas.
+  // La base las marca «lista para facturar» y le arma a Gabriel la tarea de Planify del día de entrega (gt_ppp_marcar_listos).
+  async function pedidosListos() {
+    let l = [];
+    try { l = await rpc("gt_ppp_para_armar", { p_empleado: st.emp }); } catch { toast("Sin conexión: probá de nuevo"); return; }
+    l = Array.isArray(l) ? l : [];
+    if (!l.length) { toast("No hay pedidos programados para estos días"); return; }
+    const DOW = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const dia = (s) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ""); return m ? DOW[new Date(+m[1], +m[2] - 1, +m[3]).getDay()] + " " + m[3] + "/" + m[2] : "Sin fecha"; };
+    let ult = null, h = '<div class="listos">';
+    l.forEach((x) => {
+      if (x.entrega !== ult) { ult = x.entrega; h += '<div class="listos-dia">' + esc(dia(x.entrega)) + "</div>"; }
+      h += '<label class="listos-np' + (x.lista ? " ya" : "") + '"><input type="checkbox" value="' + esc(x.id) + '"' + (x.lista ? " checked disabled" : "") + ">" +
+        "<span><b>NP " + esc(x.np) + "</b> " + esc(x.cliente || "") + '<small>' + esc(x.camion || x.barrio || "") +
+        (x.lista ? " · ✅ ya está lista" : "") + "</small></span></label>";
+    });
+    h += "</div>";
+    aviso({ ico: "🧾", tit: "¿Qué pedidos dejaste armados?", txt: h, nota: "Le llega a Gabriel en su Planify para facturarlos en ISIS.",
+      botones: [{ t: "✅ Listos para facturar", fn: marcarListos }, { t: "Cancelar", sec: true }], fuera: 1 });
+  }
+  async function marcarListos() {
+    const ids = [...$("avisoTxt").querySelectorAll("input:checked:not(:disabled)")].map((c) => Number(c.value));
+    if (!ids.length) { toast("No tildaste ningún pedido"); return; }
+    if (st.vista) { toast("👁 Modo vista: no se graba"); return; }
+    let r = null;
+    try { r = await rpc("gt_ppp_marcar_listos", { p_empleado: st.emp, p_dispositivo: dispositivo(), p_ids: ids }); } catch { r = null; }
+    if (!r) { toast("Sin conexión: no se marcó. Probá de nuevo"); return; }
+    if (!r.ok) { toast("No se pudo: " + (r.motivo || "error")); return; }
+    toast("✅ " + r.marcadas + " pedido" + (r.marcadas === 1 ? "" : "s") + " listo" + (r.marcadas === 1 ? "" : "s") + " para facturar");
   }
   function cerrarAviso(i) {
     const o = st.aviso; if (!o) return;
@@ -1506,6 +1538,7 @@
   $("nombreVolver").onclick = () => show("claveScreen");
   $("botonera").addEventListener("click", (e) => {
     const pz = e.target.closest(".pausa-btn"); if (pz) { pausar(pz.dataset.pausa); return; }
+    if (e.target.closest(".listos-btn")) { pedidosListos(); return; }
     const b = e.target.closest(".box, .termine-btn"); if (b) tocar(b.dataset.cod);
   });
   $("salirBtn").onclick = salir;

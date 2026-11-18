@@ -309,3 +309,12 @@ body.sin-scroll{overflow:hidden;}
 /* 1.63: monitor del encargado abajo de la botonera */
 .monitor-box{display:flex;flex-direction:column;align-items:center;gap:2px;margin:10px auto 0;padding:8px 18px;border:1px solid var(--borde,#ddd);border-radius:14px;width:max-content;}
 .monitor-num{font-size:44px;font-weight:700;letter-spacing:.08em;font-variant-numeric:tabular-nums;line-height:1.1;}
+
+/* 1.73: lista de NP para marcar «listas para facturar» (área Pedidos) */
+.listos-btn{margin-top:8px;font-weight:600;}
+.listos{display:flex;flex-direction:column;gap:6px;text-align:left;max-height:55vh;overflow:auto;}
+.listos-dia{font-size:13px;font-weight:700;color:var(--txt);margin-top:6px;}
+.listos-np{display:flex;align-items:center;gap:10px;border:1px solid var(--borde);border-radius:10px;padding:8px 10px;color:var(--txt);}
+.listos-np input{width:24px;height:24px;flex:0 0 auto;}
+.listos-np small{display:block;color:var(--mut);font-size:13px;}
+.listos-np.ya{opacity:.6;}
