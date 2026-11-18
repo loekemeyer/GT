@@ -75,8 +75,10 @@ srv.listen(0, async () => {
     // --- el celular de Luis
     // 1.63: login con Google → vuelve con #access_token y entra como él (mail no habilitado → aviso)
     const cG = await br.newContext({ viewport: { width: 360, height: 640 } }), g = await cG.newPage();
-    await g.goto(url + "#access_token=tokX&token_type=bearer"); await g.waitForTimeout(500);
-    chk((await g.textContent("#claveError")).includes("no está habilitado") && !(await g.evaluate(() => location.hash)), "Google con otro mail: «no está habilitado» y limpia el token de la URL");
+    // 1.72: un mail que no es de un operario va al ADMIN, que pide el código de Planify (y lleva el mail para mostrarlo)
+    await g.goto(url + "#access_token=tokX&token_type=bearer"); await g.waitForURL(/admin\.html/, { timeout: 10000 }); await g.waitForSelector("#login:not(.hidden)");
+    chk((await g.textContent("#login .rot")).includes("Planify") && (await g.textContent("#loginMail")).includes("otro@gmail.com") && !(await g.evaluate(() => location.hash)),
+      "Google con un mail que no es de operario: abre el admin, pide el código de Planify y muestra el mail");
     await g.goto(url + "?g=1#access_token=tokD&token_type=bearer"); await g.waitForSelector("#plantaScreen:not(.hidden)");
     await g.click("#plantaOpts button[data-planta='ESNA']"); await g.waitForSelector("#optionsScreen:not(.hidden)");
     chk((await g.textContent("#opName")).includes("Dario Mendez") && await g.isVisible("#monitorBox"), "Google con su mail: entra como Dario Mendez en Esnaola con el monitor abajo");

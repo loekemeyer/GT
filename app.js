@@ -1442,7 +1442,13 @@
     // sin admin en ningún lado (Thomas): la sesión de Google se cierra YA; el celular sólo se queda con la clave personal
     fetch(CFG.SUPABASE_URL + "/auth/v1/logout", { method: "POST", headers: { apikey: CFG.SUPABASE_KEY, Authorization: "Bearer " + tok } }).catch(() => {});
     if (r === null) { $("claveError").textContent = "Sin conexión. Probá de nuevo."; return true; }
-    if (!r || !r.ok) { $("claveError").textContent = "Ese mail no está habilitado" + (r && r.email ? " (" + r.email + ")" : ""); return true; }
+    // 1.72 (18/11/2026): Google con un mail que NO es de un operario (la Persona de Prueba, la clave de vista o un mail sin
+    // clave personal) abre el ADMIN, que pide el código de Planify (gt_admin_identificar). El encargado sigue a su botonera.
+    if (!r || !r.ok || r.vista || r.prueba) {
+      try { sessionStorage.setItem("gt_google_mail", (r && r.email) || ""); } catch { /* nada */ }
+      location.href = "admin.html";
+      return true;
+    }
     $("claveInput").value = r.llave; await validarClave(); $("claveInput").value = "";
     return true;
   }
