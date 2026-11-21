@@ -85,6 +85,8 @@
     #prodOp td,#prodOp th,#empLista td,#empLista th,#asisTabla td,#asisTabla th{padding:4px 6px;}
     #prodOp td.cod{white-space:normal;max-width:200px;} #prodOp td.fam{white-space:normal;max-width:150px;} #prodOp td.are{white-space:normal;max-width:130px;}
     #empLista td.izq{white-space:normal;}
+    /* Asistencia a 930 px: los chips de Estado bajan de renglón entre chip y chip (cada chip entero), en vez de un solo renglón de 460 px */
+    #asisTabla td.est{white-space:normal;max-width:290px;} #asisTabla td.est .chip{white-space:nowrap;}
     /* TRAMOS (1.70) */
     .ef-fila input[type=time],.ef-fila input[type=number]{font:inherit;font-size:15px;padding:7px 10px;border-radius:10px;border:1px solid var(--borde);background:var(--card);color:var(--fg);width:130px;}
     #trForm button{border:1px solid var(--borde);background:var(--card);color:var(--fg);border-radius:10px;padding:7px 12px;font-size:14px;}
@@ -839,7 +841,7 @@
         return "<tr><td class=izq><b>" + esc(r.empleado) + '</b> <span class="desc">' + esc(r.legajo || "") + "</span></td><td>" + ent +
           '<div class="desc">' + hhmm(r.entrada_prevista) + (r.entrada && r.con_codigo === false ? " · 1.er registro" : "") + "</div></td><td>" + prod + "</td><td>" + alm +
           (r.almuerzo_desde ? '<div class="desc">' + hhmm(r.almuerzo_desde) + "–" + hhmm(r.almuerzo_hasta) + "</div>" : "") + "</td><td>" + sal +
-          '<div class="desc">' + hhmm(r.salida_prevista) + "</div></td><td class=izq>" + chips.join("") + "</td></tr>";
+          '<div class="desc">' + hhmm(r.salida_prevista) + "</div></td><td class='izq est'>" + chips.join("") + "</td></tr>";
       }).join("");
       $("asisInfo").textContent = rows.length + " operarios · " + faltas + " con faltas" + (francos ? " · " + francos + " de franco" : "") + (vacas ? " · " + vacas + " de vacaciones" : "") + " · abajo de cada hora, la que le toca";
       $("asisTabla").innerHTML = rows.length ? "<table><tr><th>Operario</th><th>Ingreso</th><th>1.er<br>trabajo</th><th>Almuerzo</th><th>Salida</th><th>Estado</th></tr>" + html + "</table>"
