@@ -26,7 +26,7 @@ const srv = http.createServer((req, res) => {
       const out = fn === "gt_admin_identificar" ? { ok: b.p_codigo === "K7P+4M", token: PASS, nombre: "Prueba Test", resta_s: 28800 }
         : fn === "gt_monitor_login" ? { ok: b.p_pass === PASS }
         : fn === "gt_monitor_clave" ? (b.p_pass === PASS ? { ok: true, clave: "4821", cambia_en_s: 42 } : { ok: false })
-        : fn === "gt_admin_ppp_programacion5" ? PROG
+        : fn === "gt_admin_ppp_programacion5" || fn === "gt_admin_ppp_programacion6" ? PROG
         : fn === "gt_admin_ppp_set_camion" ? 1
         : fn === "gt_clave_validar" ? (b.p_clave === "4821" ? { ok: true, principal: "PELL", empleados: [{ id: 1, nombre: "Javier Burgos", plantas: [] }] } : { ok: false })
         : fn === "gt_botones3" ? AREAS

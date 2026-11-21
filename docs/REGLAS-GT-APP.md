@@ -2,6 +2,51 @@
 
 _Movido desde `CLAUDE.md` el 2026-10-13 (poda de tokens). Reglas sin cambios._
 
+## ⚠ gt_v194 — EL PEDIDO NACE EN GT y después va a ISIS (Thomas Loekemeyer, 20/11/2026) — sólo `admin.html` y base, la app sigue en 1.73
+
+**Thomas:** *«los pedidos que están hoy cargados en la programación, que dejen de ser pedidos considerados de ISIS … como el
+cambio que hicimos en Gestión Virgilio … primero el pedido va a Gestión Virgilio y después va a ISIS. Lo mismo tenemos que hacer
+en GT.»* Deja sin efecto el «C1 no» del 18/11 (1.73 más abajo). En TN un pedido puede armarse en varios días: se arma, se miran
+los faltantes y con eso se ordena la producción (la Orden de Producción de GT viene después, con el Excel de Thomas).
+
+| pieza | qué es |
+|---|---|
+| `gt.pedidos` + `gt.pedido_items` | **el** pedido de GT: NP `TN 0001…` (`np_num`, columna generada), origen `tn` / `krikos` / `manual` / `isis` (migrados), renglones con cajas pedidas y armadas. Nuevas: `np_isis`, `isis_cargado_en`, `isis_por`, `oc`; en renglones `descripcion`, `uxb` (para códigos que no están en `gt.codigos`) |
+| `gt.ppp_a_programar` | la **programación** de ese pedido (`pedido_id`, único): día, barrio, camión, m³, «lista para facturar». `np` = número de la NP de GT · `np_isis` = la de ISIS, se completa después |
+| `gt.pedido_np_siguiente()` | la NP siguiente, una sola serie para todos los orígenes (lock) · `gt.np_txt(4)` = `TN 0004` |
+| `gt.pedido_a_programar(id, json)` | le crea al pedido su fila en A Programar (idempotente). La usan el alta y `gt.sync_pedidos_tn()` |
+| triggers `zz_ppp_estado_a_pedido` / `zz_pedido_estado_a_ppp` | entregar o anular en la Programación cierra el pedido · cancelar o entregar en 📦 Pedidos anula o pasa a Entregados su programación |
+| `gt.pedido_faltante` · `gt.faltante_producto` | lo que falta armar por renglón y por producto, de los pedidos abiertos / parciales / armados (para la futura OP) |
+| RPC del admin | `gt_admin_pedido_crear` (alta manual y PDF Krikos) · `gt_admin_pedido_renglon` · `gt_admin_pedido_isis` · `gt_admin_pedidos2` · `gt_admin_faltante` · `gt_admin_ppp_a_programar6` / `gt_admin_ppp_programacion6` · `gt_admin_isis_planilla`. Todas con `gt.pass_ok`; los helpers de `gt` revocados a `anon` |
+
+**En el admin:** 📦 Pedidos muestra la NP de GT, el origen, «sin NP de ISIS» o «ISIS 3925», la programación, la columna
+**Faltan** por renglón y «Faltan N cajas»; **📉 Faltante por producto**; **🔢 Anotar N° ISIS**; **＋ Renglón** (para completar
+los migrados, que vinieron sin artículos). **➕ Nuevo pedido** abre Cargar pedido → **✍ Alta manual** (cliente, código, fechas,
+barrio, OC, m³, kg, renglones). El **PDF Krikos** crea el pedido igual (OC repetida se rechaza). En la PPP cada card dice
+«NP TN 0004 · ISIS 3943 · faltan 9 cj»; en Programación, con NP tildadas, **🧾 Planilla ISIS** baja `GT_para_ISIS_<fecha>.xls`
+(Arial 14, títulos 16 partidos) y **🔢 N° ISIS** anota el número de una NP.
+
+**Medido y migrado el 21/11 (antes, backup en `zz_backups.gt_ppp_a_programar_v194`, `gt_pedidos_v194`, `gt_pedido_items_v194`,
+`gt_ppp_entregado_v194`, con RLS):** la Programación tenía **37 NP, todas de ISIS** (`np` 3893–3944, `fuente = excel`, ninguna
+con renglones): 17 programadas, 14 entregadas, 3 a programar, 2 retenidas, 1 anulada. Pasaron a ser **TN 0004 – TN 0040**
+(origen `isis`, ISIS en `np_isis`). La de la página que seguía abierta, **TN 0003**, entró a A Programar (17 productos, 62
+cajas que faltan). Probado en transacción abortada: alta manual → parcial 4 de 12 → faltan 13 → programar → lista → tarea de
+Gabriel con «NP TN 0041» → planilla con lo armado → ISIS 5000 → entregar cierra el pedido y Entregados guarda «TN 0041» ·
+PDF Krikos y OC repetida rechazada · cancelar anula la programación.
+
+**Decisiones tomadas en piloto automático (Thomas):**
+- **P1** NP de GT = la serie que ya existía, `TN 0001…`, para todos los orígenes: ya la usaba la página de TN y no choca con las de ISIS (3893+).
+- **P2** Un solo pedido = `gt.pedidos`; la Programación quedó como su logística (`pedido_id`), no una segunda copia: así siguen andando sin reescribirse las 20 RPC de la PPP, los camiones, la marca de Javier y la tarea de Gabriel.
+- **P3** `ppp_a_programar.np` pasa a ser el número de GT y el de ISIS va a `np_isis`. El celular (`gt_ppp_para_armar`, sin tocar la app por la regla de Angely) muestra «NP 4» en vez de «NP TN 0004» hasta la próxima versión de la app.
+- **P4** Los 37 de la Programación se migraron enteros (también entregados y el anulado) para que haya un solo modelo; sin renglones porque el Excel de TN no los traía: se completan con ＋ Renglón.
+- **P5** Los pedidos de la página de TN entran **solos** a A Programar (como el pedido web en GV). Los dos ya entregados (TN 0001 / 0002) no.
+- **P6** Paso a ISIS: no hay evidencia de qué ISIS ni qué importador usa TN (`isis_lk` / `isis_ch` no tienen a sus clientes 1919, 2094, 798) → **planilla para cargar a mano**, no el Excel de importación de GV. Va lo **armado** si el pedido tiene armado; si no, lo pedido (columna «Según»).
+- **P7** La tarea de Gabriel (72) sigue igual; ahora nombra la NP de GT (y la de ISIS si ya la tiene) y dice dónde está la planilla.
+- **P8** Las RPC con otra forma salieron con nombre nuevo (`…6`, `gt_admin_pedidos2`) porque el conector no deja `DROP`; el admin cae a las viejas si no están. `gt_admin_ppp_crear_pedido` (el alta vieja del PDF) ahora crea el pedido en GT.
+- **P9** El faltante cuenta sólo pedidos abiertos, parciales o armados (no cargados ni entregados) y no descuenta la góndola: es lo que falta ARMAR; la OP decidirá cuánto fabricar.
+
+`sql/gt_v194_pedidos_primero_en_gt.sql` · `sql/gt_v194_migrar_datos.sql` · `tests/pedidos-gt.cjs` (23 controles) · proceso en `procesos` (Ventas › 11) Tierra Nativa y otros, sección «Tierra Nativa: pedido primero en GT»).
+
 ## Cómo está armada
 
 | pieza | dónde |
@@ -499,7 +544,7 @@ values ('<COD>', '<Descripción>', 'tarea', '<rubro o null>', false, null, 1, 1)
 
 ### 1.73 / gt_v192 — PPP como Gestión Virgilio: camiones por día, «lista para facturar» desde el celular y tarea a Gabriel (Tomás Beviglia, 18/11/2026)
 
-- Pedido: *«la programación de pedidos dentro del admin … lo más posible a GV … cómo separar en camiones … que Javier marque desde ahí las notas de pedido listas para facturar … con alguna alerta en el Planify de Gabriel»*. Aprobado: C2, C3, C4, C6, C7, C8. **No** (C1, C5): los pedidos se siguen cargando **primero en ISIS**; GT sólo los controla, y no hay módulo de Facturación en GT.
+- Pedido: *«la programación de pedidos dentro del admin … lo más posible a GV … cómo separar en camiones … que Javier marque desde ahí las notas de pedido listas para facturar … con alguna alerta en el Planify de Gabriel»*. Aprobado: C2, C3, C4, C6, C7, C8. **No** (C1, C5): los pedidos se siguen cargando **primero en ISIS**; GT sólo los controla, y no hay módulo de Facturación en GT. ⚠ **C1 quedó sin efecto el 20/11 (gt_v194): el pedido nace en GT y después va a ISIS.**
 - **Zonas** (`gt.ppp_zonas`, barrio → zona): Norte (Munro, Tigre, Tortuguitas) · Capital Sur (Pompeya, Soldati) · Capital (Paternal) · Retira. Barrio sin fila = «Sin zona (barrio)»: se agrega con un `insert`.
 - **Camión** (`gt.ppp_camion_de`): súper (Cencosud, Coto, La Anónima, Inc) = su propio camión · Retira sin camión · el resto, la zona. La columna `camion` lo pisa a mano (admin: «🚚 Pasar a ese camión»; vacío = vuelve al automático).
 - **Admin · Programación** (`gt_admin_ppp_programacion5`, cae a la 4): día → camión con NP, paradas, m³ y kg; aviso si un camión pasa los **40 m³** (`jornada_camion_m3_cap` de GV); día pasado con pedidos = **VENCIDO**; ⏱ demora (días desde la recepción) en rojo desde **14**, también en A Programar; chip «✅ Lista p/ facturar · Javier hh:mm» y «↩ Quitar «lista»».

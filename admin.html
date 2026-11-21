@@ -155,6 +155,17 @@
     .ppp-card .c-dem.rojo{color:#b91c1c;font-weight:700;}
     .ppp-card .c-lista{font-size:12px;font-weight:700;white-space:nowrap;background:#dcfce7;color:#166534;border-radius:999px;padding:1px 8px;}
     .ppp-card .c-camman{font-size:12px;white-space:nowrap;color:var(--mut);}
+    /* gt_v194 (Thomas 20/11): el pedido nace en GT — NP de GT, número de ISIS (después) y lo que falta armar */
+    .c-isis{font-size:12px;white-space:nowrap;color:var(--mut);} .c-isis.no{color:var(--warn);font-weight:700;}
+    .c-falt{font-size:12px;font-weight:700;white-space:nowrap;border-radius:999px;padding:1px 8px;background:var(--err-bg);color:var(--err);}
+    .c-falt.ok{background:var(--ok-bg);color:var(--ok);} .c-falt.sin{background:var(--warn-bg);color:var(--warn);}
+    .c-orig{font-size:11.5px;white-space:nowrap;border:1px solid var(--borde);border-radius:999px;padding:0 7px;color:var(--mut);}
+    td.falt{color:var(--err);font-weight:700;} td.falt0{color:var(--ok);}
+    .ped-add{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--mut);}
+    .ped-add input{width:84px;padding:5px 8px;border:1px solid var(--borde);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;}
+    #pedFalt table{width:auto;} #pedFalt td.izq{max-width:420px;white-space:normal;}
+    .man-items input{width:90px;padding:5px 8px;border:1px solid var(--borde);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;}
+    .man-items td.l{text-align:left;font-size:12.5px;color:var(--mut);max-width:280px;}
     .ppp-day.vencido{border-color:#fca5a5;background:#fef2f2;}
     .ppp-day .d-venc{font-size:12px;font-weight:700;color:#b91c1c;}
     /* Comentario manual por pedido: ícono a la derecha de la card. Lleno = tiene comentario. */
@@ -203,9 +214,13 @@
     .kr-items th,.kr-items td{border-bottom:1px solid var(--borde);padding:4px 10px;text-align:center;white-space:nowrap;}
     .kr-items td.l{text-align:left;} .kr-items td.r{text-align:right;}
     .kr-tot{font-size:12px;color:var(--mut);margin-top:6px;}
-    .kr-acc{display:flex;align-items:center;gap:10px;margin-top:14px;}
+    .kr-acc{display:flex;align-items:center;gap:10px;margin-top:14px;} .kr-acc button{white-space:nowrap;}
     #krCrear{background:var(--acc);color:#fff;border:1px solid var(--acc);border-radius:10px;padding:9px 18px;font-weight:700;cursor:pointer;}
     #krCrear:disabled{opacity:.5;cursor:not-allowed;}
+    #manCrear{background:var(--acc);color:#fff;border:1px solid var(--acc);border-radius:10px;padding:9px 18px;font-weight:700;cursor:pointer;}
+    #manCrear:disabled{opacity:.5;cursor:not-allowed;}
+    #manMas,#apIsisPl,#apIsisNum{background:var(--card);color:var(--fg);border:1px solid var(--borde);border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;}
+    #apIsisPl:disabled{opacity:.5;cursor:not-allowed;}
     .ap-chk{width:18px;height:18px;cursor:pointer;flex:0 0 auto;}
     .ap-bar{position:sticky;bottom:0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--card);border-top:1px solid var(--borde);padding:10px 12px;margin-top:10px;}
     .ap-bar #apSel{font-weight:700;} .ap-bar .ap-sp{flex:1;}
@@ -359,7 +374,8 @@
   </section>
 
   <section id="ped" class="vista panel hidden">
-    <div class="barra"><button id="pedRef">↻ Actualizar</button><label class="info"><input type="checkbox" id="pedCerr" /> ver entregados y cancelados (30 días)</label><span class="info" id="pedInfo"></span></div>
+    <div class="barra"><button id="pedRef">↻ Actualizar</button><button id="pedNuevo">➕ Nuevo pedido</button><button id="pedFaltBtn">📉 Faltante por producto</button><label class="info"><input type="checkbox" id="pedCerr" /> ver entregados y cancelados (30 días)</label><span class="info" id="pedInfo"></span></div>
+    <div id="pedFalt" class="bloque hidden"></div>
     <div id="pedLista"></div>
   </section>
 
@@ -385,6 +401,7 @@
        /mayorista 404). Los loaders se hacen nativos y crean el pedido en la PPP (A Programar). PDF Krikos = OC de Cencosud. -->
   <section id="carga" class="vista panel hidden">
     <div class="barra">
+      <button class="cp-sub" data-cp="manual">✍ Alta manual</button>
       <button class="cp-sub on" data-cp="krikos">📄 PDF Krikos</button>
       <button class="cp-sub" data-cp="cotiz">🧾 Cargar Cotizadores</button>
       <button class="cp-sub" data-cp="excel">📊 Excel Fmto Cltes</button>
@@ -419,6 +436,8 @@
       <select id="apCamSel" class="hidden" title="Camión"></select>
       <button id="apCamion" class="hidden">🚚 Pasar a ese camión</button>
       <button id="apQuitarLista" class="hidden">↩ Quitar «lista»</button>
+      <button id="apIsisPl" class="hidden" title="Baja la planilla con los renglones para cargar estas NP en ISIS">🧾 Planilla ISIS</button>
+      <button id="apIsisNum" class="hidden" title="Anotar el número que dio ISIS al cargar la NP">🔢 N° ISIS</button>
       <button id="apAnular" class="hidden">🗑 Anular pedido</button>
       <button id="apAprog" class="hidden">← A Programar</button>
     </div>
@@ -833,33 +852,81 @@
     async function cargarPed() {
       $("pedInfo").textContent = "Cargando…";
       let rows;
-      try { rows = await rpc("gt_admin_pedidos", { p_pass: pass || "", p_cerrados: $("pedCerr").checked }); }
-      catch (e) { $("pedInfo").textContent = "⚠ No pude leer los pedidos (" + e.message + ")"; return; }
+      // gt_v194 (Thomas 20/11): el pedido nace en GT — NP de GT, ISIS después, programación y faltante. Si la base no la tiene, cae a la vieja.
+      try { rows = await rpc("gt_admin_pedidos2", { p_pass: pass || "", p_cerrados: $("pedCerr").checked }); }
+      catch {
+        try { rows = await rpc("gt_admin_pedidos", { p_pass: pass || "", p_cerrados: $("pedCerr").checked }); }
+        catch (e) { $("pedInfo").textContent = "⚠ No pude leer los pedidos (" + e.message + ")"; return; }
+      }
       if (!rows.length && !(await claveOk())) return;
       const abiertos = rows.filter((r) => ["abierto", "parcial", "armado"].includes(r.estado)).length, venc = rows.filter((r) => r.vencido).length;
-      $("pedInfo").textContent = rows.length + " pedidos · " + abiertos + " por armar · " + venc + " vencidos · actualizado " + hora();
+      const falt = rows.filter((r) => ["abierto", "parcial", "armado"].includes(r.estado)).reduce((a, r) => a + (Number(r.faltan) || 0), 0);
+      const sinIsis = rows.filter((r) => r.np_isis == null && r.estado !== "cancelado").length;
+      $("pedInfo").textContent = rows.length + " pedidos · " + abiertos + " por armar · faltan " + num(falt) + " cajas · " + venc + " vencidos · " + sinIsis + " sin ISIS · actualizado " + hora();
       $("pedLista").innerHTML = rows.length ? rows.map(pedHtml).join("")
-        : '<div class="vacio">No hay pedidos' + ($("pedCerr").checked ? "" : " abiertos") + ". Los de la página de Tierra Nativa entran solos cada 10 min.</div>";
+        : '<div class="vacio">No hay pedidos' + ($("pedCerr").checked ? "" : " abiertos") + ". Los de la página de Tierra Nativa entran solos cada 10 min · ➕ Nuevo pedido para cargar uno a mano.</div>";
+      if (!$("pedFalt").classList.contains("hidden")) cargarFalt();
     }
+    const ORIG = { tn: "Página TN", krikos: "PDF Krikos", manual: "Alta manual", isis: "Venía de ISIS" };
+    const PPPEST = { a_programar: "A Programar", programado: "Programado", retenido: "Con problema", cliente_nuevo: "Cliente nuevo", entregado: "Entregado", anulado: "Anulado" };
     function pedHtml(r) {
       const [cc, ct] = EST[r.estado] || ["c-mut", r.estado], edit = ["abierto", "parcial", "armado"].includes(r.estado), items = r.items || [];
-      return '<div class="bloque" data-id="' + r.id + '"><div class="ped-cab"><b>' + esc(r.np) + "</b><span>" + esc(r.cliente || "—") +
+      const conFalt = r.faltan !== undefined, prog = r.ppp_estado ? (PPPEST[r.ppp_estado] || r.ppp_estado) + (r.entrega && r.ppp_estado === "programado" ? " " + ddmm(r.entrega) : "") : "";
+      return '<div class="bloque" data-id="' + r.id + '"><div class="ped-cab"><b>' + esc(r.np) + "</b>" +
+        (r.origen ? '<span class="c-orig">' + esc(ORIG[r.origen] || r.origen) + "</span>" : "") + "<span>" + esc(r.cliente || "—") +
         (r.cliente_cod ? ' <span class="desc">(' + esc(r.cliente_cod) + ")</span>" : "") + '</span><span class="chip ' + cc + '">' + ct + "</span>" +
-        '<span class="desc">pedido ' + esc(r.pedido_ref) + " · " + ddmm(r.fecha) + " · " + r.dias + " días</span>" +
+        (conFalt ? '<span class="c-isis' + (r.np_isis == null ? " no" : "") + '">' + (r.np_isis == null ? "sin NP de ISIS" : "ISIS " + esc(r.np_isis)) + "</span>" : "") +
+        (prog ? '<span class="desc">📅 ' + esc(prog) + (r.lista_en ? " · ✅ lista p/ facturar" : "") + "</span>" : "") +
+        '<span class="desc">' + (r.origen === "tn" ? "pedido " + esc(r.pedido_ref) + " · " : "") + (r.oc ? esc(r.oc) + " · " : "") + ddmm(r.fecha) + " · " + r.dias + " días</span>" +
         '<span class="' + (r.vencido ? "t-err" : "desc") + '">vence ' + ddmm(r.vence) + (r.vencido ? " · VENCIDO" : "") + "</span>" +
         '<span class="desc">' + num(r.armadas) + " / " + num(r.cajas) + " cajas armadas" + (Number(r.cajas) ? " (" + Math.round(r.pct_armado || 0) + " %)" : "") + "</span>" +
+        (conFalt && edit && items.length ? '<span class="c-falt' + (Number(r.faltan) ? "" : " ok") + '">' + (Number(r.faltan) ? "Faltan " + num(r.faltan) + " cajas" : "✔ Completo") + "</span>" : "") +
         (r.nota ? '<span class="desc">📝 ' + esc(r.nota) + "</span>" : "") + "</div>" +
-        "<table><tr><th>Código</th><th>Descripción</th><th>Medida</th><th>UxB</th><th>Pedidas</th><th>Armadas</th></tr>" +
-        items.map((i) => "<tr><td class=num>" + esc(i.codigo) + "</td><td class=izq>" + esc(i.descripcion || "—") + "</td><td>" + esc(i.medida || "—") + "</td><td>" + (i.uxb == null ? "—" : i.uxb) +
-          "</td><td class=num>" + num(i.cajas) + "</td><td>" + (edit ? '<input class="arm" type="number" inputmode="numeric" min="0" max="' + Number(i.cajas) + '" step="1" data-cod="' + esc(i.codigo) + '" value="' + Number(i.cajas_armadas) + '" />' : num(i.cajas_armadas)) + "</td></tr>").join("") + "</table>" +
+        (items.length ? "<table><tr><th>Código</th><th>Descripción</th><th>Medida</th><th>UxB</th><th>Pedidas</th><th>Armadas</th>" + (conFalt ? "<th>Faltan</th>" : "") + "</tr>" +
+        items.map((i) => "<tr><td class=num>" + esc(i.codigo) + "</td><td class=izq>" + esc(i.descripcion || "—") + (i.de_gt === false ? ' <span class="desc">(no es código de GT)</span>' : "") + "</td><td>" + esc(i.medida || "—") + "</td><td>" + (i.uxb == null ? "—" : i.uxb) +
+          "</td><td class=num>" + num(i.cajas) + "</td><td>" + (edit ? '<input class="arm" type="number" inputmode="numeric" min="0" max="' + Number(i.cajas) + '" step="1" data-cod="' + esc(i.codigo) + '" value="' + Number(i.cajas_armadas) + '" />' : num(i.cajas_armadas)) + "</td>" +
+          (conFalt ? '<td class="num ' + (Number(i.faltan) ? "falt" : "falt0") + '">' + (Number(i.faltan) ? num(i.faltan) : "✔") + "</td>" : "") + "</tr>").join("") + "</table>"
+          : '<div class="desc">Sin renglones' + (r.origen === "isis" ? ": se cargó en ISIS antes del cambio del 21/11 y el Excel no traía los artículos" : "") + (edit ? ". Agregalos abajo para ver el faltante." : ".") + "</div>") +
         '<div class="ped-acc">' +
-        (edit ? '<button class="prim" data-acc="guardar">💾 Guardar armado</button><button data-acc="todo">✔ Todo armado</button><button data-acc="cargado">🚚 Cargado al camión</button><button class="peligro" data-acc="cancelado">✕ Cancelar pedido</button>' : "") +
+        (edit && items.length ? '<button class="prim" data-acc="guardar">💾 Guardar armado</button><button data-acc="todo">✔ Todo armado</button><button data-acc="cargado">🚚 Cargado al camión</button>' : "") +
+        (edit ? '<button class="peligro" data-acc="cancelado">✕ Cancelar pedido</button>' : "") +
         (r.estado === "cargado" ? '<button class="prim" data-acc="entregado">✅ Entregado</button><button data-acc="abierto">↩ Volver a armado</button>' : "") +
+        (conFalt && r.estado !== "cancelado" ? '<button data-acc="isis">🔢 ' + (r.np_isis == null ? "Anotar N° ISIS" : "Cambiar N° ISIS") + "</button>" : "") +
+        (conFalt && edit ? '<span class="ped-add">＋ Renglón <input class="add-cod" placeholder="código" /> <input class="add-caj" type="number" inputmode="numeric" min="1" step="1" placeholder="cajas" /><button data-acc="renglon">Agregar</button></span>' : "") +
         '<span class="ped-msg" id="pedMsg' + r.id + '"></span></div></div>';
+    }
+    // Faltante por producto (gt.faltante_producto): lo que falta armar de los pedidos abiertos. Es la base de la futura Orden de Producción.
+    async function cargarFalt() {
+      const box = $("pedFalt"); box.innerHTML = '<div class="desc">Cargando el faltante…</div>';
+      let rows;
+      try { rows = await rpc("gt_admin_faltante", { p_pass: pass || "" }); } catch (e) { box.innerHTML = '<div class="vacio">⚠ No pude leer el faltante (' + esc(e.message || e) + ").</div>"; return; }
+      const tot = rows.reduce((a, r) => a + (Number(r.faltan_cajas) || 0), 0);
+      box.innerHTML = rows.length ? '<div class="desc" style="margin-bottom:6px"><b>Faltante por producto</b> · ' + rows.length + " productos · " + num(tot) + " cajas que faltan armar de los pedidos abiertos</div>" +
+        "<table><tr><th>Código</th><th>Descripción</th><th>UxB</th><th>Faltan<br>cajas</th><th>Pedi-<br>dos</th><th>1.ª<br>entrega</th><th>Detalle (NP y cajas)</th></tr>" +
+        rows.map((r) => "<tr><td class=num>" + esc(r.codigo) + "</td><td class=izq>" + esc(r.descripcion || "—") + (r.es_de_gt === false ? ' <span class="desc">(no es de GT)</span>' : "") + "</td><td>" + (r.uxb == null ? "—" : r.uxb) +
+          '</td><td class="num falt">' + num(r.faltan_cajas) + "</td><td class=num>" + r.pedidos + "</td><td>" + (r.primera_entrega ? ddmm(r.primera_entrega) : "—") + "</td><td class=izq>" + esc(r.detalle || "") + "</td></tr>").join("") + "</table>"
+        : '<div class="vacio">No falta nada: todos los renglones de los pedidos abiertos están armados.</div>';
     }
     async function pedAccion(id, acc, bloque) {
       const msg = $("pedMsg" + id);
       if (acc === "todo") { bloque.querySelectorAll("input.arm").forEach((i) => { i.value = i.max; }); msg.textContent = "Todo en lo pedido: tocá Guardar armado."; return; }
+      if (acc === "isis") {
+        const v = prompt("Número de NP que dio ISIS al cargar este pedido (vacío = borrarlo):"); if (v === null) return;
+        const n = v.trim() === "" ? null : Number(v.trim());
+        if (n !== null && !(Number.isInteger(n) && n > 0)) { msg.textContent = "⚠ El número de ISIS va sin letras"; return; }
+        msg.textContent = "…";
+        let r; try { r = await rpc("gt_admin_pedido_isis", { p_pass: pass || "", p_pedido_id: id, p_np_isis: n }); } catch (e) { msg.textContent = "⚠ " + e.message; return; }
+        if (!r || !r.ok) { msg.textContent = "⚠ " + ((r && r.error) || "no se pudo"); return; }
+        cargarPed(); return;
+      }
+      if (acc === "renglon") {
+        const cod = (bloque.querySelector("input.add-cod").value || "").trim(), caj = Number(bloque.querySelector("input.add-caj").value);
+        if (!cod || !(caj > 0)) { msg.textContent = "⚠ Código y cajas"; return; }
+        msg.textContent = "…";
+        let r; try { r = await rpc("gt_admin_pedido_renglon", { p_pass: pass || "", p_pedido_id: id, p_codigo: cod, p_cajas: caj }); } catch (e) { msg.textContent = "⚠ " + e.message; return; }
+        if (!r || !r.ok) { msg.textContent = "⚠ " + ((r && r.error) || "no se pudo"); return; }
+        cargarPed(); return;
+      }
       if (acc === "cancelado" && !confirm("¿Cancelar el pedido? Sale de la lista y de la demanda.")) return;
       msg.textContent = "…";
       const items = [...bloque.querySelectorAll("input.arm")].map((i) => ({ codigo: i.dataset.cod, cajas_armadas: Number(i.value) || 0 }));
@@ -940,6 +1007,8 @@
         body.innerHTML = '<div class="cp-drop"><p>Subí el PDF de la OC de <b>Cencosud</b> (Easy / Jumbo / Vea). Se lee OC, fecha de entrega y CD.</p>' +
           '<input type="file" id="krFile" accept="application/pdf"></div><div id="krPrev"></div>';
         $("krFile").onchange = krArchivo;
+      } else if (cpSub === "manual") {
+        manForm();
       } else {
         body.innerHTML = '<div class="constr"><h2>En construcción</h2><p>Este loader se agrega después. Por ahora anda PDF Krikos (OC de Cencosud).</p></div>';
       }
@@ -994,11 +1063,47 @@
       if (!krDatos) return;
       const fecha = $("krFecha").value || krDatos.entrega || null, loc = $("krLoc").value || krDatos.barrio || null;
       $("krCrear").disabled = true; $("krMsg").textContent = "Creando…";
-      const json = { cliente: "Cencosud SA", cod: 1919, oc: "OC " + krDatos.oc, entrega: fecha, fecha_recep: krDatos.fecha_recep || (typeof hoyAR === "function" ? hoyAR() : ""), barrio: loc, items: krDatos.items, fuente: "pdf_krikos" };
-      let id;
-      try { id = await rpc("gt_admin_ppp_crear_pedido", { p_pass: pass, p_json: json }); }
+      const json = { cliente: "Cencosud SA", cod: 1919, oc: "OC " + krDatos.oc, entrega: fecha, fecha_recep: krDatos.fecha_recep || (typeof hoyAR === "function" ? hoyAR() : ""), barrio: loc, items: krDatos.items, fuente: "pdf_krikos", origen: "krikos" };
+      // gt_v194: el pedido nace en GT (NP de GT, renglones y A Programar); el número de ISIS se anota después.
+      let r;
+      try { r = await rpc("gt_admin_pedido_crear", { p_pass: pass, p_json: json }); }
       catch (e) { $("krMsg").textContent = "⚠ " + (e.message || e); $("krCrear").disabled = false; return; }
-      $("krMsg").textContent = "✓ Pedido creado (id " + id + "). Está en PPP → A Programar.";
+      if (!r || !r.ok) { $("krMsg").textContent = "⚠ " + ((r && r.error) || "no se pudo"); $("krCrear").disabled = false; return; }
+      $("krMsg").textContent = "✓ Pedido " + r.np + " creado con " + r.renglones + " renglones. Está en 📦 Pedidos y en PPP → A Programar.";
+    }
+    // ✍ Alta manual (gt_v194, Thomas 20/11): el pedido se carga primero en GT con su NP de GT; a ISIS va después de armarlo.
+    function manForm() {
+      const hoy = typeof hoyAR === "function" ? hoyAR() : "";
+      $("cargaBody").innerHTML = '<div class="kr-card"><div class="kr-top"><span class="kr-cli">Pedido nuevo</span><span class="desc">sale con NP de GT (TN 00xx); el número de ISIS se anota después</span></div>' +
+        '<div class="kr-f"><label>Cliente <input id="manCli" placeholder="Razón social" size="26"></label><label>Cód. cliente <input id="manCod" size="7" inputmode="numeric"></label>' +
+        '<label>Fecha pedido <input type="date" id="manRec" value="' + esc(hoy) + '"></label><label>Entrega <input type="date" id="manEnt"></label>' +
+        '<label>Barrio / localidad <input id="manBar" size="14"></label><label>OC <input id="manOc" size="12"></label>' +
+        '<label>m³ <input id="manM3" type="number" step="0.001" min="0" style="width:90px"></label><label>kg <input id="manKg" type="number" step="1" min="0" style="width:80px"></label></div>' +
+        '<table class="kr-items man-items" id="manItems"><tr><th>Código</th><th>Cajas</th></tr></table>' +
+        '<div class="kr-acc"><button id="manMas">＋ Renglón</button><button id="manCrear" class="prim">Crear pedido</button><span class="ped-msg" id="manMsg"></span></div>' +
+        '<div class="kr-f" style="margin-top:10px"><label>Nota <input id="manNota" size="50"></label></div></div>';
+      for (let k = 0; k < 4; k++) manFila();
+      $("manMas").onclick = () => manFila();
+      $("manCrear").onclick = manCrear;
+    }
+    function manFila() {
+      const tr = document.createElement("tr");
+      tr.innerHTML = '<td><input class="mc" placeholder="código"></td><td><input class="mj" type="number" inputmode="numeric" min="1" step="1"></td>';
+      $("manItems").appendChild(tr);
+    }
+    async function manCrear() {
+      const items = [...$("manItems").querySelectorAll("tr")].map((tr) => ({ codigo: (tr.querySelector(".mc") || {}).value, cajas: Number((tr.querySelector(".mj") || {}).value) }))
+        .filter((x) => x.codigo && x.codigo.trim() && x.cajas > 0);
+      const json = { origen: "manual", cliente: $("manCli").value.trim(), cod: $("manCod").value.trim(), fecha_recep: $("manRec").value, entrega: $("manEnt").value,
+        barrio: $("manBar").value.trim(), oc: $("manOc").value.trim(), m3: $("manM3").value, kg: $("manKg").value, nota: $("manNota").value.trim(), items };
+      if (!json.cliente) { $("manMsg").textContent = "⚠ Falta el cliente"; $("manCli").focus(); return; }
+      if (!items.length) { $("manMsg").textContent = "⚠ Cargá al menos un renglón con código y cajas"; return; }
+      $("manCrear").disabled = true; $("manMsg").textContent = "Creando…";
+      let r;
+      try { r = await rpc("gt_admin_pedido_crear", { p_pass: pass, p_json: json }); }
+      catch (e) { $("manMsg").textContent = "⚠ " + (e.message || e); $("manCrear").disabled = false; return; }
+      if (!r || !r.ok) { $("manMsg").textContent = "⚠ " + ((r && r.error) || "no se pudo"); $("manCrear").disabled = false; if (r && r.error === "clave") sinPermiso(); return; }
+      $("manMsg").textContent = "✓ Pedido " + r.np + " creado con " + r.renglones + " renglones. Está en 📦 Pedidos y en PPP → A Programar.";
     }
 
     /* ---------- PPP (Tomás G, 05/11/2026) — Fase 1: datos importados del Excel de TN. Fuente viva (ISIS) = Fase 2. ---------- */
@@ -1019,11 +1124,18 @@
       const body = $("pppBody"); $("pppInfo").textContent = "Cargando…";
       $("apBar").classList.add("hidden");   // la barra de "enviar a Programación" sólo aparece en A Programar con selección
       try {
-        if (pppSub === "aprog") pppRaw = await rpc("gt_admin_ppp_a_programar5", { p_pass: pass }) || [];
+        // gt_v194: las …6 traen la NP de GT, el número de ISIS y el faltante; si la base no las tiene, caen a las anteriores
+        if (pppSub === "aprog") {
+          try { pppRaw = await rpc("gt_admin_ppp_a_programar6", { p_pass: pass }) || []; }
+          catch { pppRaw = await rpc("gt_admin_ppp_a_programar5", { p_pass: pass }) || []; }
+        }
         else if (pppSub === "prog") {
           // gt_v192: con zona, camión, marca de Javier y demora; si la base no la tiene, cae a la 4
-          try { pppRaw = await rpc("gt_admin_ppp_programacion5", { p_pass: pass }) || []; }
-          catch { pppRaw = await rpc("gt_admin_ppp_programacion4", { p_pass: pass }) || []; }
+          try { pppRaw = await rpc("gt_admin_ppp_programacion6", { p_pass: pass }) || []; }
+          catch {
+            try { pppRaw = await rpc("gt_admin_ppp_programacion5", { p_pass: pass }) || []; }
+            catch { pppRaw = await rpc("gt_admin_ppp_programacion4", { p_pass: pass }) || []; }
+          }
         }
         else if (pppSub === "entreg") pppRaw = await rpc("gt_admin_ppp_entregados", { p_pass: pass, p_limit: 300 }) || [];
         else pppRaw = await rpc("gt_admin_ppp_picking", { p_pass: pass, p_limit: 500 }) || [];
@@ -1033,7 +1145,7 @@
     // Filtro en el front por cliente, código o NP (A Programar, Programación, Entregados, Picking).
     function pppMatch(r, q) {
       if (!q) return true;
-      return [r.cliente, r.cod, r.np, r.cod_cliente, r.cpbte, r.cod_articulo].some((x) => x != null && String(x).toLowerCase().includes(q));
+      return [r.cliente, r.cod, r.np, r.np_txt, r.np_isis, r.cod_cliente, r.cpbte, r.cod_articulo].some((x) => x != null && String(x).toLowerCase().includes(q));
     }
     function renderActual() {
       const q = ($("pppBuscar").value || "").toLowerCase().trim();
@@ -1065,6 +1177,9 @@
         if ([...$("apCamSel").options].some((o) => o.value === prev)) $("apCamSel").value = prev;
       }
       $("apAnular").classList.toggle("hidden", pppSub !== "aprog"); // anular sólo desde A Programar
+      // gt_v194: planilla para cargar en ISIS (Programación) y anotar el número que dio ISIS (una NP de GT por vez)
+      $("apIsisPl").classList.toggle("hidden", pppSub !== "prog");
+      $("apIsisNum").classList.toggle("hidden", chks.length !== 1 || !chks[0].dataset.ped);
       $("apAprog").classList.remove("hidden");
       bar.classList.remove("hidden");
     }
@@ -1134,16 +1249,26 @@
           '<span class="fc-mix"' + (mixOn && pct != null ? "" : ' style="display:none"') + '>' +
           '<span class="fc-mix-lbl">' + esc(lbl) + "</span></span></span>";
       }
-      return '<div class="ppp-card"><input type="checkbox" class="ap-chk" data-id="' + esc(r.id) + '" data-m3="' + (Number(r.m3) || 0) + '">' +
+      return '<div class="ppp-card"><input type="checkbox" class="ap-chk" data-id="' + esc(r.id) + '" data-ped="' + esc(r.pedido_id || "") + '" data-m3="' + (Number(r.m3) || 0) + '">' +
         '<span class="c-izq"><span class="c-fecha">' + esc(fmtDM(r.fecha_recep)) + '</span><span class="c-cod">' + (r.cod != null ? esc(r.cod) : "—") + "</span></span>" +
         '<span class="cli">' + esc(r.cliente || "—") + "</span>" +
         '<span class="ppp-badge' + (sup ? " sup" : "") + '">' + (sup ? "Súper" : "Común") + "</span>" +
         '<span class="m3">' + m3fmt(r.m3) + "</span>" + fc +
-        '<span class="c-np">NP ' + esc(r.np) + "</span>" +
+        npChips(r) +
         '<span class="c-zona">' + esc(r.barrio || "—") + "</span>" + chipDemora(r) +
         (extra ? '<span class="c-extra">' + esc(extra) + "</span>" : "") +
         btnCom(r) +
         "</div>";
+    }
+    // gt_v194 (Thomas 20/11): la NP es la de GT (TN 0004); el número de ISIS va al lado cuando ya se cargó, y lo que falta armar.
+    function npChips(r) {
+      let h = '<span class="c-np">NP ' + esc(r.np_txt || r.np) + "</span>";
+      if (r.np_txt === undefined) return h;   // base vieja (…5): sólo la NP
+      h += '<span class="c-isis' + (r.np_isis == null ? " no" : "") + '" title="Número de NP en ISIS: se anota después de cargarla">' + (r.np_isis == null ? "sin ISIS" : "ISIS " + esc(r.np_isis)) + "</span>";
+      if (r.cajas == null) h += '<span class="c-falt sin" title="El pedido no tiene renglones en GT">sin renglones</span>';
+      else if (Number(r.faltan) > 0) h += '<span class="c-falt" title="Cajas que faltan armar">faltan ' + num(r.faltan) + " cj</span>";
+      else h += '<span class="c-falt ok">✔ armado</span>';
+      return h;
     }
     // Ícono de comentario (igual en A Programar y Programación). Lleno = tiene; tooltip "Ver comentario".
     function btnCom(r) {
@@ -1210,12 +1335,12 @@
       }
       const lista = r.lista_en ? '<span class="c-lista" title="Marcada armada en el celular: lista para facturar">✅ Lista p/ facturar · ' +
         esc((r.lista_por || "").split(" ")[0]) + " " + esc(hhmmTz(r.lista_en)) + "</span>" : "";
-      return '<div class="ppp-card"><input type="checkbox" class="ap-chk" data-id="' + esc(r.id) + '" data-m3="' + (Number(r.m3) || 0) + '" data-lista="' + (r.lista_en ? "1" : "") + '">' +
+      return '<div class="ppp-card"><input type="checkbox" class="ap-chk" data-id="' + esc(r.id) + '" data-ped="' + esc(r.pedido_id || "") + '" data-m3="' + (Number(r.m3) || 0) + '" data-lista="' + (r.lista_en ? "1" : "") + '">' +
         '<span class="c-izq"><span class="c-fecha">' + esc(fmtDM(r.fecha_recep)) + '</span><span class="c-cod">' + (r.cod != null ? esc(r.cod) : "—") + "</span></span>" +
         '<span class="cli">' + esc(r.cliente || "—") + "</span>" +
         '<span class="ppp-badge' + (sup ? " sup" : "") + '">' + (sup ? "Súper" : "Común") + "</span>" +
         '<span class="m3">' + m3fmt(r.m3) + "</span>" + fc +
-        '<span class="c-np">NP ' + esc(r.np) + "</span>" +
+        npChips(r) +
         '<span class="c-zona">' + esc(r.barrio || "—") + "</span>" + chipDemora(r) + lista +
         (r.camion_manual ? '<span class="c-camman" title="Camión puesto a mano">🚚 a mano</span>' : "") +
         ((r.rent || r.oc) ? '<span class="c-extra">' + esc([r.rent, r.oc].filter(Boolean).join(" · ")) + "</span>" : "") +
@@ -1555,6 +1680,8 @@
     window.verTab = verTab;   // navegación directa para los tests (tests/*.cjs)
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
     $("prodRef").onclick = cargarProd; $("asisRef").onclick = cargarAsis; $("pedRef").onclick = cargarPed; $("pedCerr").onchange = cargarPed;
+    $("pedNuevo").onclick = () => { cpSub = "manual"; verTab("carga"); };
+    $("pedFaltBtn").onclick = () => { const b = $("pedFalt"); b.classList.toggle("hidden"); if (!b.classList.contains("hidden")) cargarFalt(); };
     $("prodDia").onchange = cargarProd; $("asisDia").onchange = cargarAsis;
     ["fArea", "fOper", "fFam"].forEach((id) => { $(id).onchange = pintarProd; });
     $("rendRef").onclick = cargarRend; $("rendDesde").onchange = cargarRend; $("rendHasta").onchange = cargarRend;
@@ -1642,6 +1769,60 @@
       try { await rpc("gt_admin_ppp_entregar", { p_pass: pass, p_ids: ids }); }
       catch (e) { $("pppInfo").textContent = "⚠ " + (e.message || e); $("apEntreg").disabled = false; return; }
       $("apEntreg").disabled = false;
+      cargarPPP();
+    };
+    // gt_v194 (Thomas 20/11): el pedido nace en GT y DESPUÉS va a ISIS. «🧾 Planilla ISIS» baja lo que hay que cargar en ISIS de las NP
+    // tildadas (un renglón por código: lo armado si ya se armó, si no lo pedido) y «🔢 N° ISIS» anota el número que dio ISIS.
+    // No hay evidencia de qué ISIS ni qué importador usa TN: es una planilla para cargar a mano, no el Excel de importación de GV.
+    $("apIsisPl").onclick = async () => {
+      const ids = [...document.querySelectorAll(".ap-chk:checked")].map((c) => Number(c.dataset.id)); if (!ids.length) return;
+      $("apIsisPl").disabled = true;
+      let rows;
+      try { rows = await rpc("gt_admin_isis_planilla", { p_pass: pass, p_ids: ids }) || []; }
+      catch (e) { $("pppInfo").textContent = "⚠ " + (e.message || e); $("apIsisPl").disabled = false; return; }
+      $("apIsisPl").disabled = false;
+      if (!rows.length) { $("pppInfo").textContent = "⚠ Esas NP no tienen nada para cargar"; return; }
+      const nps = [...new Set(rows.map((r) => r.np))], sinR = [...new Set(rows.filter((r) => r.base === "sin renglones").map((r) => r.np))];
+      const noListas = [...new Set(rows.filter((r) => !r.lista).map((r) => r.np))];
+      isisPlanilla(rows);
+      $("pppInfo").textContent = "🧾 Planilla ISIS: " + nps.length + " NP · " + rows.filter((r) => r.codigo).length + " renglones" +
+        (sinR.length ? " · ⚠ sin renglones: " + sinR.join(", ") : "") + (noListas.length ? " · ⚠ no marcadas listas: " + noListas.join(", ") : "");
+    };
+    function isisPlanilla(rows) {
+      const x = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      const cel = (v, st) => (v === "" || v == null) ? '<Cell ss:StyleID="' + st + '"/>'
+        : '<Cell ss:StyleID="' + st + '"><Data ss:Type="' + (typeof v === "number" ? "Number" : "String") + '">' + x(v) + "</Data></Cell>";
+      const TIT = ["NP GT", "Entrega", "Cód.\nclte", "Cliente", "Vend", "OC", "Código", "Descripción", "Cajas", "UxB", "Unid.", "Según", "N° ISIS\n(anotar)"];
+      const fil = rows.map((r) => [r.np, r.entrega ? r.entrega.slice(8, 10) + "/" + r.entrega.slice(5, 7) : "", r.cliente_cod || "", r.cliente || "", r.vend || "", r.oc || "",
+        r.codigo || "", r.descripcion || "", r.cajas == null ? "" : Number(r.cajas), r.uxb == null ? "" : Number(r.uxb), r.unidades == null ? "" : Number(r.unidades),
+        r.base, r.np_isis == null ? "" : Number(r.np_isis)]);
+      // ancho de cada columna = su dato más largo (Arial 14 ≈ 9 px por carácter); el título se parte en renglones
+      const anchos = TIT.map((t, k) => Math.max(...fil.map((f) => String(f[k]).length), ...t.split("\n").map((p) => p.length)) * 9 + 14);
+      const hoy = typeof hoyAR === "function" ? hoyAR() : "";
+      const xml = '<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
+        '<Styles><Style ss:ID="d"><Font ss:FontName="Arial" ss:Size="14"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>' +
+        '<Style ss:ID="t"><Font ss:FontName="Arial" ss:Size="16" ss:Bold="1"/><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/></Style>' +
+        '<Style ss:ID="h"><Font ss:FontName="Arial" ss:Size="16" ss:Bold="1"/></Style></Styles>' +
+        '<Worksheet ss:Name="Para ISIS"><Table>' + anchos.map((w) => '<Column ss:Width="' + w + '"/>').join("") +
+        '<Row><Cell ss:StyleID="h"><Data ss:Type="String">' + x("GT · pedidos para cargar en ISIS · " + hoy + " · la NP es la de GT: el número que dé ISIS se anota en el admin (🔢 N° ISIS)") + "</Data></Cell></Row>" +
+        "<Row>" + TIT.map((t) => '<Cell ss:StyleID="t"><Data ss:Type="String">' + x(t).replace(/\n/g, "&#10;") + "</Data></Cell>").join("") + "</Row>" +
+        fil.map((f) => "<Row>" + f.map((v) => cel(v, "d")).join("") + "</Row>").join("") + "</Table></Worksheet></Workbook>";
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([xml], { type: "application/vnd.ms-excel" }));
+      a.download = "GT_para_ISIS_" + hoy + ".xls";
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+      window.__gtIsisXml = xml;   // para los tests
+    }
+    $("apIsisNum").onclick = async () => {
+      const c = document.querySelector(".ap-chk:checked"); if (!c || !c.dataset.ped) return;
+      const v = prompt("Número de NP que dio ISIS al cargar este pedido (vacío = borrarlo):"); if (v === null) return;
+      const n = v.trim() === "" ? null : Number(v.trim());
+      if (n !== null && !(Number.isInteger(n) && n > 0)) { $("pppInfo").textContent = "⚠ El número de ISIS va sin letras"; return; }
+      let r;
+      try { r = await rpc("gt_admin_pedido_isis", { p_pass: pass, p_pedido_id: Number(c.dataset.ped), p_np_isis: n }); }
+      catch (e) { $("pppInfo").textContent = "⚠ " + (e.message || e); return; }
+      if (!r || !r.ok) { $("pppInfo").textContent = "⚠ " + ((r && r.error) || "no se pudo"); return; }
       cargarPPP();
     };
     // Comentario por pedido: abrir el cartel al tocar el ícono, guardar con la RPC.

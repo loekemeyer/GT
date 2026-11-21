@@ -95,7 +95,7 @@ const srv = http.createServer((req, res) => {
         { empleado: "Otro", legajo: "t2", entrada: null, entrada_prevista: "2026-10-01T08:00:00", almuerzo_sale: null, almuerzo_vuelve: null,
           almuerzo_desde: "2026-10-01T12:00:00", almuerzo_hasta: "2026-10-01T13:00:00", flexible: false, fin: null, salida_prevista: "2026-10-01T17:30:00",
           area_abierta: false, termino: false, tolerancia_min: 5 }] : [];
-      else if (fn === "gt_admin_pedidos") out = b.p_pass === CLAVE_MON ? [
+      else if (fn === "gt_admin_pedidos" || fn === "gt_admin_pedidos2") out = b.p_pass === CLAVE_MON ? [
         { id: 1, np: "TN 0001", pedido_ref: "29", cliente_cod: "1971", cliente: "Huang Chun Chieh", fecha: "2026-09-08T14:00:00Z", dias: 23, vence: "2026-09-22", vencido: true, estado: "abierto", es_super: false, cajas: 26, armadas: 0, pct_armado: 0, nota: null,
           items: [{ codigo: "134", descripcion: "Cuadro Mold 03 Nature", medida: "30*40", uxb: 16, cajas: 3, cajas_armadas: 0 }, { codigo: "183", descripcion: "Cuadro Mold 03 Ciudades", medida: "30*40", uxb: 16, cajas: 23, cajas_armadas: 0 }] },
         { id: 2, np: "TN 0002", pedido_ref: "30", cliente_cod: "2024", cliente: "Bazares y Mas S.A", fecha: "2026-09-09T14:00:00Z", dias: 22, vence: "2026-09-23", vencido: false, estado: "cargado", es_super: false, cajas: 11, armadas: 11, pct_armado: 100, nota: "salió con el flete",
