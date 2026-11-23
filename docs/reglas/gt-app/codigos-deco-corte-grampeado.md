@@ -41,6 +41,17 @@ _Parte de `docs/REGLAS-GT-APP.md` (índice). Partido por tema el 21/11/2026; tex
   `gt.codigos.fabrica = true`. Deja sin efecto, para ellas, lo de D37 (reventa). Entran a la demanda por consumo:
   3 + 4 + 4 = 11 cajas sin conteo (total 1.641 → 1.652). No llevan aro. `sql/gt_d64_d65_deco.sql`.
 
+### gt_v195 — Grampeado: el tablero de bastidores y aros entero viene de Deco (Lautaro Durante, 19/11/2026)
+
+- Pedido (WhatsApp con la foto del tablero «Cod · Descripción · Código Bastidor · Código Aro»): *«El código 3011 no está en
+  grampeado»*. Los 15 del tablero se habían cargado en Deco el 07/10; el 3043 ya había pasado en gt_v188.
+- Medido el 23/11: en Deco, 0 registros de los 14. En Grampeado se tipeaban fuera de la lista 3011 (Luis Luna, Lautaro Durante:
+  32 u), 3018 (20), 3031 (72), 3032 (112) y 3034 (137). → **3010–3013, 3018, 3028–3036 activos en GRAMP y apagados en DECO**.
+  Grampeado 129 → 143 activos · Deco → 106.
+- Stock sin cambios: `gt.movimientos` ya sumaba esos cierres al depósito «aro» y descontaba GRAMPA (−2.984); sólo se va la nota
+  «código fuera de la lista». Sin piezas en `gt.aro_piezas`: el cierre deja «no se encontró la pieza de corte», como el 3043.
+- D96 sigue igual: los 3084/3086/3088 «Panal + Bastidor + Tapa» quedan en Deco. `sql/gt_v195_bastidores_aros_a_grampeado.sql`.
+
 ### gt_v180 — Grampeado: 22 aros 3P con la medida de la fila de arriba (22/10/2026)
 
 - Foto del operario: el **118** salía «3P 1/2 Bco P · 30\*120». En la planilla «Códigos para planilla diaria de grampeado» el
