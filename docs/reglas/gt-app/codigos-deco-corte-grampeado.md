@@ -41,6 +41,13 @@ _Parte de `docs/REGLAS-GT-APP.md` (índice). Partido por tema el 21/11/2026; tex
   `gt.codigos.fabrica = true`. Deja sin efecto, para ellas, lo de D37 (reventa). Entran a la demanda por consumo:
   3 + 4 + 4 = 11 cajas sin conteo (total 1.641 → 1.652). No llevan aro. `sql/gt_d64_d65_deco.sql`.
 
+### gt_v196 — los 15 bastidores y aros, en Deco y en Grampeado (Thomas, 23/11/2026)
+
+- *«Que estén en deco y en grampeado»*: 3010–3013, 3018, 3028–3036 y 3043 vuelven a estar activos en DECO sin salir de GRAMP
+  (deja sin efecto el apagado en Deco de gt_v195 y gt_v188). Deco 106 → 121 activos · Grampeado 143.
+- Sin doble conteo: `gt.movimientos` cruza por el rubro del registro y Deco no mueve stock por código.
+  `sql/gt_v196_bastidores_aros_deco_y_grampeado.sql`.
+
 ### gt_v195 — Grampeado: el tablero de bastidores y aros entero viene de Deco (Lautaro Durante, 19/11/2026)
 
 - Pedido (WhatsApp con la foto del tablero «Cod · Descripción · Código Bastidor · Código Aro»): *«El código 3011 no está en
