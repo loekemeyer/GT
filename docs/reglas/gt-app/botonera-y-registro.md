@@ -2,6 +2,31 @@
 
 _Parte de `docs/REGLAS-GT-APP.md` (índice). Partido por tema el 21/11/2026; texto sin cambios, secciones en el orden del original._
 
+### 1.74 / gt_v197 — «↩ Me equivoqué»: deshacer lo último, hasta 5 minutos después (24/11/2026)
+
+- Pedido (24/11, Romina Maturano): *«Ximena cargó para el área de Encolado un código que no existe. El área que
+  correspondía era Deco. Permití ir para atrás cuando se equivocan, hasta 5 minutos después de haberlo ingresado»*. Medido: a las
+  09:47:22 terminó el 348 con 1 y siguió en **Encolado con el 3079** («Armado Bandeja 535/549/452», código de Deco); para salir lo
+  cerró a las 09:47:44 con 0 y abrió Deco 3079 a las 09:47:53. Ese tramo de 22 s pasó a `AREAX` (anotado en
+  `gt.registro_correcciones`, como «🗑️ eliminar» del admin) y salió de `gt.codigos_no_identificados`.
+- **En el celular**: después de cada toque aparece arriba de las áreas **«↩ Me equivoqué m:ss»** con la cuenta de 5 min. Lo deshecho
+  es **el último toque** (las filas de área grabadas juntas, ≤ 2 s). Si el toque cerró algo y abrió otra cosa («Terminar y seguir»)
+  pregunta **«Sólo "Empecé …"»** (lo terminado queda y vuelve la botonera: el caso de Ximena) o **«Todo, también el "Terminé"»** (lo
+  anterior vuelve a quedar abierto desde su hora original). Se puede volver atrás de a un toque mientras cada uno tenga < 5 min. A los 5
+  min el botón se va solo; después corrige el encargado desde el admin (1.70). No se ofrece después de «Terminé el día».
+- **Cómo viaja**: una fila más en la cola, `opcion = 'DESHACER'` (tarea de `gt.tareas`: `gt_registrar` no cambió), con
+  `detalle.anula` (client_id), `detalle.filas` (lo deshecho) y `detalle.sin_enviar`. Sale en orden, también sin red. Lo que todavía no
+  había salido del celular se saca de la cola y no se manda. El celular saca del día las filas anuladas (`eventosHoy()`).
+- **En la base** (`sql/gt_v197_deshacer_5_min.sql`): trigger BEFORE INSERT `gt_deshacer` → las filas pasan a `AREAX` (dejan de contar en
+  Producción, Ritmo, Rendimiento, Asistencia y stock) con su fila en `gt.registro_correcciones` (`accion = 'eliminar'`, `despues.deshacer`,
+  nota «Celular · deshacer…»: el check sólo acepta editar / eliminar y el conector no corre un `DROP CONSTRAINT`). Rechaza sin tocar
+  las de otro operario, las que no son `AREA` y las de más de 5 min 30 s (30 s de tolerancia del reloj): queda en `detalle._no`. Una
+  invitación de pareja todavía pendiente de la apertura deshecha pasa a `rechazada`. El compañero que ya se sumó sigue con lo suyo.
+- Volver atrás un deshacer: `update gt.registros set opcion = 'AREA' where id in (…)` con los ids de `gt.registro_correcciones`
+  donde `despues ? 'deshacer'`.
+- `tests/deshacer.cjs` (16 controles: el caso de Ximena por pantalla, «Todo», una pausa, «No», lo ya confirmado, el vencimiento a los
+  5 min y 320×480 sin scroll). Probado en la base con un insert de verdad dentro de una transacción deshecha.
+
 ### Qué registra el operario (Thomas, 01/10/2026)
 
 **Etapa 1 — sólo el ÁREA.** La botonera son las 9 áreas de `gt.rubros`:

@@ -329,13 +329,16 @@
     const h = lsGet(LS_HOY, null);
     return h && h.emp === st.emp && h.dia === hoyAR() && Array.isArray(h.rows) ? h.rows : [];
   }
+  // 1.74 (24/11/2026): una fila «DESHACER» (↩ Me equivoqué) no es un evento del día: anula las filas que nombra en detalle.anula.
+  // La base las pasa a AREAX (gt_v197); en el celular se las saca de acá, así el estado vuelve a como estaba antes del toque.
   function eventosHoy() {
-    const vistos = new Set(), out = [];
+    const vistos = new Set(), out = [], anula = new Set();
     st.server.concat(cola().filter((x) => x.empleado_id === st.emp)).forEach((r) => {
       if (vistos.has(r.client_id)) return; vistos.add(r.client_id);
+      if (r.opcion === "DESHACER") { ((r.detalle && r.detalle.anula) || []).forEach((id) => anula.add(id)); return; }
       if (r.ts_cliente && diaAR(r.ts_cliente) === hoyAR()) out.push(r);
     });
-    return out.sort((a, b) => a.ts_cliente.localeCompare(b.ts_cliente));
+    return out.filter((r) => !anula.has(r.client_id)).sort((a, b) => a.ts_cliente.localeCompare(b.ts_cliente));
   }
   function areaDe(cod) { return st.areas.find((a) => a.codigo === cod) || null; }
   // 1.24: el detalle en una línea (≡ gt.detalle_txt): «anilina Cedro», «sin anilina», «Blanco total»
@@ -473,6 +476,7 @@
     $("finBtn").classList.toggle("hidden", !!ab);
     $("almuBtn").textContent = ab && ab.rubro === "ALMU" ? "🍽️ Volví de almorzar" : "🍽️ Almuerzo";
     $("almuBtn").classList.toggle("activo", !!(ab && ab.rubro === "ALMU"));
+    pintarDeshacer();   // 1.74: antes de medir las áreas (el botón ocupa alto)
     acomodarAreas();
     syncBadge();
     pintarMuerto();
@@ -497,6 +501,70 @@
     el.classList.toggle("corre", !!d);
   }
   setInterval(() => { const t = document.querySelector(".ab-tiempo"); if (t) t.textContent = transcurrido(t.dataset.desde, Number(t.dataset.pausa) || 0); }, 30000);
+
+  /* ---------- 1.74: ↩ Me equivoqué (deshacer lo último, hasta 5 minutos) ---------- */
+  // Pedido 24/11/2026: Ximena cargó en Encolado el 3079 (es de Deco) y para salir tuvo que cerrarlo con 0 y abrir Deco.
+  // «Permití ir para atrás cuando se equivocan, hasta 5 minutos después de haberlo ingresado».
+  // El último toque = las filas de área (aperturas y cierres) grabadas juntas (≤ 2 s entre sí: «Terminar y seguir» graba el
+  // cierre y la apertura con 1 ms de diferencia). Se puede volver atrás de a un toque, mientras cada uno tenga menos de 5 min.
+  // Deshacer es una fila más en la cola (opcion DESHACER, detalle.anula = client_id): sale en orden, también sin red, y la
+  // base pasa las filas a AREAX con su anotación en gt.registro_correcciones (gt_v197). Lo que todavía no salió del celular
+  // se saca de la cola y no se manda: queda descripto en detalle.filas del deshacer.
+  const DESHACER_MS = 5 * 60000;
+  function ultimoToque() {
+    const ev = eventosHoy().filter((r) => r.opcion !== "INGRESO"), ult = ev[ev.length - 1];
+    if (!ult || ult.opcion !== "AREA") return null;   // después de «Terminé el día» no hay nada que deshacer
+    const t = new Date(ult.ts_cliente).getTime(), resta = t + DESHACER_MS - Date.now();
+    if (!(resta > 0)) return null;
+    return { filas: ev.filter((r) => r.opcion === "AREA" && t - new Date(r.ts_cliente).getTime() <= 2000), resta };
+  }
+  function nombreFila(r) { const a = areaDe(r.rubro); return (a ? a.nombre : r.rubro) + (etq(r) ? " · " + etq(r) : ""); }
+  function textoFila(r) {
+    return r.ts_inicio ? "Terminé " + nombreFila(r) + (r.cantidad != null ? " (" + num(r.cantidad) + ")" : "") : "Empecé " + nombreFila(r);
+  }
+  function pintarDeshacer() {
+    const b = $("deshBtn"); if (!b) return;
+    const u = st.emp && !$("optionsScreen").classList.contains("hidden") ? ultimoToque() : null;
+    const estaba = !b.classList.contains("hidden");
+    b.classList.toggle("hidden", !u);
+    if (u) {
+      const s = Math.ceil(u.resta / 1000);
+      b.innerHTML = '↩ Me equivoqué <span class="desh-seg">' + Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") + "</span>";
+    }
+    if (estaba !== !!u) acomodarAreas();   // aparece o se va: las áreas vuelven a medir el alto que les queda
+  }
+  function deshacer() {
+    const u = ultimoToque(); if (!u) { toast("Ya pasaron los 5 minutos: lo corrige el encargado desde el admin"); pintarDeshacer(); return; }
+    const aps = u.filas.filter((r) => !r.ts_inicio), cis = u.filas.filter((r) => r.ts_inicio);
+    const ambos = aps.length && cis.length;
+    const pareja = aps.some((r) => r.detalle && (r.detalle.pareja || r.detalle._une));
+    const botones = ambos
+      ? [{ t: "↩ Sólo «Empecé " + nombreFila(aps[0]) + "»", fn: () => anular(aps) }, { t: "↩ Todo, también el «Terminé»", fn: () => anular(u.filas) }]
+      : [{ t: "↩ Sí, deshacer", fn: () => anular(u.filas) }];
+    botones.push({ t: "No, dejarlo así", sec: true });
+    aviso({ ico: "↩", tit: "¿Deshacés lo último?",
+      txt: u.filas.map((r) => esc(textoFila(r)) + " · " + hhmm(r.ts_cliente)).join("<br>"),
+      nota: (ambos ? "«Sólo Empecé»: lo que terminaste queda como está y volvés a las áreas. «Todo»: " + esc(nombreFila(cis[0])) + " vuelve a quedar abierto." : "") +
+        (pareja ? (ambos ? "<br>" : "") + "Tu compañero sigue con lo suyo: si él también se equivocó, lo deshace en su celular." : ""),
+      botones, fuera: botones.length - 1 });
+  }
+  function anular(filas) {
+    if (!ultimoToque()) { toast("Ya pasaron los 5 minutos: lo corrige el encargado desde el admin"); renderBotonera(); return; }
+    const ids = filas.map((r) => r.client_id), q = cola();
+    const sinEnviar = q.filter((x) => ids.includes(x.client_id)).map((x) => x.client_id);
+    if (sinEnviar.length) {
+      guardarCola(q.filter((x) => !sinEnviar.includes(x.client_id)));
+      if (!st.vista) { const r = lsGet(LS_REINT, {}); sinEnviar.forEach((id) => delete r[id]); lsSet(LS_REINT, r); }
+    }
+    registrar({ codigo: null, nombre: "Me equivoqué" }, {
+      opcion: "DESHACER", rubro: null, descripcion: "Me equivoqué: deshizo lo último",
+      detalle: { anula: ids, sin_enviar: sinEnviar,
+                 filas: filas.map((r) => ({ client_id: r.client_id, rubro: r.rubro, texto: r.texto || "", cantidad: r.cantidad, ts_cliente: r.ts_cliente, ts_inicio: r.ts_inicio })) },
+    });
+    flush();
+    toast("↩ Deshecho: " + filas.map(textoFila).join(" · "));
+    show("optionsScreen"); renderBotonera();
+  }
 
   async function tocar(cod) {
     const a = areaDe(cod); if (!a) return;
@@ -1544,6 +1612,7 @@
   $("salirBtn").onclick = salir;
   $("almuBtn").onclick = () => tocar("ALMU");
   $("finBtn").onclick = terminarDia;
+  $("deshBtn").onclick = deshacer;   // 1.74
   $("cantBtn").onclick = () => confirmarCant(true);
   $("cambioBtn").onclick = () => confirmarCant(false);
   $("sigueHijas").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b || !st.pend) return; st.pend.sigue = areaDe(b.dataset.cod); confirmarCant(true); });
@@ -1610,6 +1679,7 @@
   if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.tipo === "gt-cola") reconciliar(); });
   setInterval(revisarParejas, 5000);    // 1.43 (Elías: «cada 5 segundos») · 1.45: el aviso «se sumó» al que empezó
   setInterval(pintarMuerto, 1000);      // 1.43
+  setInterval(pintarDeshacer, 1000);    // 1.74: la cuenta de los 5 min; a los 5 min el botón se va solo
 
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 

@@ -37,6 +37,7 @@ El texto de cada regla es el mismo que tenía el archivo único (186.903 bytes);
 ## Dónde está la regla de…
 
 - **El pedido nace en GT (gt_v194)**, camiones, «lista para facturar»: `pedidos-y-ppp.md`.
+- **«↩ Me equivoqué» (deshacer hasta 5 min, opcion DESHACER, gt_v197)**: `botonera-y-registro.md` (1.74).
 - **Código no registrado → Telegram «GT Avisos»**, aviso de llegadas tarde: `botonera-y-registro.md` (1.2) y `codigos-y-areas.md` (v6.0).
 - **El conector de Supabase no deja correr un `DROP`** (ni un `;` dentro de un texto): `base-y-arquitectura.md`.
 - **No publicar mientras trabajan los operarios** (Angely, 02/11): `version-y-publicacion.md` y el bloque de `CLAUDE.md`.

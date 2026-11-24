@@ -215,6 +215,11 @@ body.sin-scroll{overflow:hidden;}
 .termine-btn{display:block;width:100%;min-height:96px;margin:4px 0 0;border:0;border-radius:18px;background:var(--ok);color:#fff;font-size:26px;font-weight:800;cursor:pointer;}
 .termine-btn:active{filter:brightness(.92);}
 .termine-btn.mefui{background:var(--acc);}   /* 1.47: el que se sumó a un compañero se va, no termina */
+/* 1.74: «↩ Me equivoqué» (deshacer lo último, hasta 5 min): angosto en alto, a lo ancho, con la cuenta regresiva */
+.desh-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:44px;margin:8px 0 0;padding:4px 12px;
+  border:2px solid var(--warn);border-radius:14px;background:var(--warn-bg);color:var(--warn);font-size:17px;font-weight:700;cursor:pointer;}
+.desh-btn .desh-seg{font-variant-numeric:tabular-nums;font-weight:600;}
+
 /* 1.33: Baño y Movimiento como pausa dentro del área abierta, debajo de «Terminé» */
 .pausas{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:10px;}
 .pausas .sec-btn{margin:0;min-height:56px;font-weight:600;}
